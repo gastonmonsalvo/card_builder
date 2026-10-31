@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://d1hby7h8u4lj1"]
+
+[ext_resource type="Script" uid="uid://en8f4ju7d6kp" path="res://cards/effects/card_effect.gd" id="1_vgxc3"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_js1ul"]
+[ext_resource type="Script" uid="uid://p55oyg1tp3a6" path="res://cards/effects/poison_effect.gd" id="2_qbcbk"]
+
+[sub_resource type="Resource" id="Resource_qbcbk"]
+script = ExtResource("2_qbcbk")
+amount = 2
+metadata/_custom_type_script = "uid://p55oyg1tp3a6"
+
+[resource]
+script = ExtResource("2_js1ul")
+title = "Frasco De Veneno"
+cost = 2
+effects = Array[ExtResource("1_vgxc3")]([SubResource("Resource_qbcbk")])
+description = "+2 de veneno."
+metadata/_custom_type_script = "uid://cob1g5x6igww8"

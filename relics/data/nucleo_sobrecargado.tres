@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RelicData" format=3 uid="uid://hidlsm3a5bly"]
+
+[ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="1_data"]
+[ext_resource type="Script" uid="uid://rl1odq6fkfnr" path="res://relics/effects/relic_effect.gd" id="2_base"]
+[ext_resource type="Script" uid="uid://b32il4inco6mh" path="res://relics/effects/relic_stat_bonus_effect.gd" id="3_eff"]
+
+[sub_resource type="Resource" id="Resource_1"]
+script = ExtResource("3_eff")
+max_energy_bonus = 1
+
+[resource]
+script = ExtResource("1_data")
+title = "Nucleo Sobrecargado"
+rarity = 1
+effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
+description = "¿Explotara?"

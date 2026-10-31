@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://b82kywloehva2"]
+
+[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://game/hero/heroData.gd" id="1_hfmn6"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_3s0qq"]
+[ext_resource type="Resource" uid="uid://i1pytn6coan6" path="res://cards/data/golpe_congelante.tres" id="3_3s0qq"]
+[ext_resource type="Resource" uid="uid://c0v7wyupevpsx" path="res://cards/data/lanza_rayo.tres" id="4_hp66r"]
+[ext_resource type="Resource" uid="uid://bujcwkg37goh0" path="res://cards/data/golpe_fuego.tres" id="5_syeyc"]
+[ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="6_wuqwb"]
+[ext_resource type="Resource" uid="uid://cmunbbbok70c" path="res://cards/data/sobre_carga.tres" id="7_4gk60"]
+[ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="8_wuqwb"]
+
+[resource]
+script = ExtResource("1_hfmn6")
+hero_name = "Mago"
+description = "Especialista en artes magicas"
+accent_color = Color(0.29605034, 0.17411342, 0.7809898, 1)
+max_hp_base = 45
+energy_base = 5
+gold = 120
+discards_base = 3
+starting_deck = Array[ExtResource("2_3s0qq")]([ExtResource("3_3s0qq"), ExtResource("4_hp66r"), ExtResource("5_syeyc"), ExtResource("6_wuqwb"), ExtResource("7_4gk60"), ExtResource("5_syeyc")])
+sort_order = 1
+metadata/_custom_type_script = "uid://crbebhweegtm"

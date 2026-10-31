@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://i1pytn6coan6"]
+
+[ext_resource type="Script" uid="uid://en8f4ju7d6kp" path="res://cards/effects/card_effect.gd" id="1_so8ng"]
+[ext_resource type="Script" uid="uid://c1xcmjlq1a0ck" path="res://cards/effects/damage_effect.gd" id="2_jr0or"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_ko3hu"]
+[ext_resource type="Script" uid="uid://bt1ip8cjdcuyi" path="res://cards/effects/freeze_effect.gd" id="3_y5ssx"]
+
+[sub_resource type="Resource" id="Resource_so8ng"]
+script = ExtResource("2_jr0or")
+amount = 4
+metadata/_custom_type_script = "uid://c1xcmjlq1a0ck"
+
+[sub_resource type="Resource" id="Resource_ko3hu"]
+script = ExtResource("3_y5ssx")
+metadata/_custom_type_script = "uid://bt1ip8cjdcuyi"
+
+[resource]
+script = ExtResource("2_ko3hu")
+title = "Golpe Congelante"
+rarity = 1
+effects = Array[ExtResource("1_so8ng")]([SubResource("Resource_so8ng"), SubResource("Resource_ko3hu")])
+description = "+4 de daño
++2 de congelamiento"
+metadata/_custom_type_script = "uid://cob1g5x6igww8"

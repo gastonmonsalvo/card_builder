@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://dsvpoh8j58rv0"]
+
+[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://game/hero/heroData.gd" id="1_a8doh"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_getei"]
+[ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="3_ntp5c"]
+[ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="3_q2b6c"]
+[ext_resource type="Resource" uid="uid://c0v7wyupevpsx" path="res://cards/data/lanza_rayo.tres" id="4_wybcb"]
+[ext_resource type="Resource" uid="uid://dkoioaycwpa06" path="res://relics/data/cenizas_fenix.tres" id="6_vfs4h"]
+[ext_resource type="Resource" uid="uid://hidlsm3a5bly" path="res://relics/data/nucleo_sobrecargado.tres" id="7_wybcb"]
+[ext_resource type="Resource" uid="uid://bkjv6grq5ih5u" path="res://relics/data/catalizador_combo.tres" id="8_vfs4h"]
+
+[resource]
+script = ExtResource("1_a8doh")
+hero_name = "DEMO"
+accent_color = Color(0, 0.6236372, 0.5617434, 1)
+max_hp_base = 200
+energy_base = 8
+discards_base = 4
+starting_deck = Array[ExtResource("2_getei")]([ExtResource("3_q2b6c"), ExtResource("4_wybcb")])
+starting_relic = Array[ExtResource("3_ntp5c")]([ExtResource("6_vfs4h"), ExtResource("7_wybcb"), ExtResource("8_vfs4h")])
+metadata/_custom_type_script = "uid://crbebhweegtm"

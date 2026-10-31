@@ -1,0 +1,16 @@
+# Archivos generados por Godot 4
+.godot/
+!/.godot/extension_list.cfg
+
+# Configuraciones de exportación y builds
+export/
+export_presets.cfg
+*.a
+*.apk
+*.aab
+*.ipa
+*.pck
+
+# Archivos del SO
+.DS_Store
+Thumbs.db

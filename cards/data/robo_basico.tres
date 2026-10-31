@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://7xu5vm4i401r"]
+
+[ext_resource type="Script" uid="uid://en8f4ju7d6kp" path="res://cards/effects/card_effect.gd" id="1_svuk1"]
+[ext_resource type="Script" uid="uid://bqij1pkhsngiq" path="res://cards/effects/steal_effect.gd" id="2_pwetd"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="3_svuk1"]
+
+[sub_resource type="Resource" id="Resource_7k81e"]
+script = ExtResource("2_pwetd")
+
+[resource]
+script = ExtResource("3_svuk1")
+title = "Robo"
+rarity = 1
+effects = Array[ExtResource("1_svuk1")]([SubResource("Resource_7k81e")])
+description = "Robas 1 carta del mazo."
+metadata/_custom_type_script = "uid://cob1g5x6igww8"

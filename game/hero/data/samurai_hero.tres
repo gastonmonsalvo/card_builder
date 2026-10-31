@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://bbps3p65h6c1k"]
+
+[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://game/hero/heroData.gd" id="1_a8jdr"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_axcvu"]
+[ext_resource type="Resource" uid="uid://cdy6u54mbxfuy" path="res://cards/data/tajo.tres" id="3_axcvu"]
+[ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="4_spc61"]
+[ext_resource type="Resource" uid="uid://7xu5vm4i401r" path="res://cards/data/robo_basico.tres" id="5_blin7"]
+[ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="6_blin7"]
+
+[resource]
+script = ExtResource("1_a8jdr")
+hero_name = "Samurai"
+description = "Especialista en combate con espadas"
+accent_color = Color(0.7600463, 0.39014304, 0.6253373, 1)
+max_hp_base = 60
+lucky = 4
+gold = 200
+starting_deck = Array[ExtResource("2_axcvu")]([ExtResource("3_axcvu"), ExtResource("3_axcvu"), ExtResource("3_axcvu"), ExtResource("4_spc61"), ExtResource("5_blin7"), ExtResource("4_spc61")])
+sort_order = 2
+metadata/_custom_type_script = "uid://crbebhweegtm"

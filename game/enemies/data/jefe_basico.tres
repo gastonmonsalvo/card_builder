@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://cf4o100604v5q"]
+
+[ext_resource type="Script" uid="uid://kwb80i6v6875" path="res://game/enemies/enemyData.gd" id="1_6ou8s"]
+
+[resource]
+script = ExtResource("1_6ou8s")
+enemy_name = "JEFE"
+base_hp = 76
+base_damage = 14
+is_boss = true
+metadata/_custom_type_script = "uid://kwb80i6v6875"

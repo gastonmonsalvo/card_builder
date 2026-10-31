@@ -1,0 +1,172 @@
+[gd_scene format=3 uid="uid://bvth6rdbf4uqt"]
+
+[ext_resource type="Script" uid="uid://hjfh62gf7npe" path="res://game/battleTable/battle_table.gd" id="1_gl7cs"]
+[ext_resource type="Script" uid="uid://cheka754sxi67" path="res://ui/run/battle_hud.gd" id="2_hud"]
+
+[node name="BattleTable" type="Control" unique_id=2051320047]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_gl7cs")
+
+[node name="ComboZone" type="Panel" parent="." unique_id=1449838429]
+custom_minimum_size = Vector2(700, 230)
+layout_mode = 0
+offset_left = 220.0
+offset_top = 100.0
+offset_right = 920.0
+offset_bottom = 330.0
+mouse_filter = 2
+
+[node name="HandZone" type="Panel" parent="." unique_id=638564902]
+custom_minimum_size = Vector2(700, 230)
+layout_mode = 0
+offset_left = 220.0
+offset_top = 395.0
+offset_right = 920.0
+offset_bottom = 625.0
+mouse_filter = 2
+
+[node name="AttackButton" type="Button" parent="." unique_id=156730196]
+layout_mode = 0
+offset_left = 945.0
+offset_top = 145.0
+offset_right = 1130.0
+offset_bottom = 205.0
+text = "EJECUTAR TURNO"
+
+[node name="DiscardButton" type="Button" parent="." unique_id=156730197]
+layout_mode = 0
+offset_left = 945.0
+offset_top = 220.0
+offset_right = 1130.0
+offset_bottom = 275.0
+text = "DESCARTAR (2)"
+
+[node name="HUD" type="Control" parent="." unique_id=9001001]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_hud")
+
+[node name="PlayerPanel" type="Panel" parent="HUD" unique_id=9001002]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 100.0
+offset_right = 200.0
+offset_bottom = 250.0
+mouse_filter = 2
+
+[node name="PlayerStatsLabel" type="Label" parent="HUD/PlayerPanel" unique_id=9001003]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "JUGADOR
+HP: 50 / 50
+ENERGIA: 3 / 3"
+vertical_alignment = 1
+
+[node name="EnemyPanel" type="Panel" parent="HUD" unique_id=9001004]
+layout_mode = 0
+offset_left = 220.0
+offset_top = 15.0
+offset_right = 920.0
+offset_bottom = 85.0
+mouse_filter = 2
+
+[node name="EnemyStatsLabel" type="Label" parent="HUD/EnemyPanel" unique_id=9001005]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 15.0
+offset_top = 6.0
+offset_right = -15.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Golem Ciego   |   HP: 120 / 120   |   Intencion: 12 DMG"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ComboBannerLabel" type="Label" parent="HUD" unique_id=9001006]
+layout_mode = 0
+offset_left = 220.0
+offset_top = 345.0
+offset_right = 920.0
+offset_bottom = 385.0
+text = "Selecciona o arrastra cartas a la Zona de Combo"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DrawPileBtn" type="Button" parent="HUD" unique_id=9001007]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 565.0
+offset_right = 195.0
+offset_bottom = 620.0
+text = "Mazo (0)"
+
+[node name="DiscardPileBtn" type="Button" parent="HUD" unique_id=9001008]
+layout_mode = 0
+offset_left = 945.0
+offset_top = 500.0
+offset_right = 1130.0
+offset_bottom = 555.0
+text = "Descarte (0)"
+
+[node name="GraveyardPileBtn" type="Button" parent="HUD" unique_id=9001009]
+layout_mode = 0
+offset_left = 945.0
+offset_top = 565.0
+offset_right = 1130.0
+offset_bottom = 620.0
+text = "Cementerio (0)"
+
+[node name="PilePopup" type="Panel" parent="HUD" unique_id=9001010]
+visible = false
+z_index = 200
+layout_mode = 0
+offset_left = 270.0
+offset_top = 160.0
+offset_right = 870.0
+offset_bottom = 420.0
+
+[node name="PilePopupLabel" type="Label" parent="HUD/PilePopup" unique_id=9001011]
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -65.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Contenido de la pila"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ClosePopupBtn" type="Button" parent="HUD/PilePopup" unique_id=9001012]
+layout_mode = 0
+offset_left = 230.0
+offset_top = 205.0
+offset_right = 370.0
+offset_bottom = 245.0
+text = "Cerrar"

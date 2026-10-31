@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://cdy6u54mbxfuy"]
+
+[ext_resource type="Script" uid="uid://en8f4ju7d6kp" path="res://cards/effects/card_effect.gd" id="1_d8njf"]
+[ext_resource type="Script" uid="uid://c1xcmjlq1a0ck" path="res://cards/effects/damage_effect.gd" id="2_362tq"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_kditg"]
+[ext_resource type="Script" uid="uid://emqwpgk51qrk" path="res://cards/effects/hemorrhage_effect.gd" id="3_362tq"]
+
+[sub_resource type="Resource" id="Resource_d8njf"]
+script = ExtResource("2_362tq")
+amount = 6
+metadata/_custom_type_script = "uid://c1xcmjlq1a0ck"
+
+[sub_resource type="Resource" id="Resource_kditg"]
+script = ExtResource("3_362tq")
+amount = 2
+metadata/_custom_type_script = "uid://emqwpgk51qrk"
+
+[resource]
+script = ExtResource("2_kditg")
+title = "Tajo"
+rarity = 1
+cost = 2
+effects = Array[ExtResource("1_d8njf")]([SubResource("Resource_d8njf"), SubResource("Resource_kditg")])
+description = "+6 daño
+Aplica +2 de Hemorragia"
+metadata/_custom_type_script = "uid://cob1g5x6igww8"
