@@ -48,6 +48,16 @@ var god_mode: bool = false
 ##Lista de enemigos en la run actual.
 var enemy_catalog: Array[EnemyData] = []
 
+##Armas
+var current_weapon: WeaponData
+var player_str: int = 1
+var player_int: int = 1
+var player_dex: int = 1
+
+## Pool 
+@export var weapon_catalog: Array[WeaponData] = [] 
+
+	
 ## Constructor. Precarga en memoria el catálogo universal de reliquias
 ## y cartas consultando la base de datos al instanciarse la clase.
 func _init() -> void:
@@ -477,3 +487,7 @@ func from_dict(data: Dictionary, deck: DeckManager) -> void:
 
 	if rooms_dict.has(player_grid_pos):
 		current_room = rooms_dict[player_grid_pos]
+
+## Funcion auxiliar para equipar un arma.
+func equip_weapon(weapon: WeaponData) -> void:
+	current_weapon = weapon

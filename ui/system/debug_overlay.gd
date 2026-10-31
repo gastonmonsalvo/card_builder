@@ -11,7 +11,8 @@ var table: Control = null
 var run: RunState = null
 ## Referencia en memoria al orquestador principal del juego (para transiciones de escena forzadas).
 var director: RunDirector = null
-
+# Referencia para la lista de armas
+var weapons_box: VBoxContainer
 var toggle_badge_btn: Button
 var panel: Panel
 var god_mode_btn: Button

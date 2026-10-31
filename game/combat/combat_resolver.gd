@@ -4,36 +4,49 @@
 extends RefCounted
 class_name CombatResolver
 
-## Calcula matemáticamente el resultado proyectado de jugar las cartas actualmente
-## dispuestas en la zona de combo.
-## Evalúa la cadena de efectos de izquierda a derecha y suma las sinergias de reliquias, 
-## devolviendo un diccionario plano con el pronóstico final (usado para actualizar la UI en vivo).
-static func calculate_sequential_preview(combo_cards: Array[CardUI], run: RunState) -> Dictionary:
-	var combo_state: Dictionary = {
-		"dmg": 0.0,
-		"block": 0.0,
-		"draw": 0,
-		"burn": 0,
-		"freeze": 0,
-		"poison": 0,
-		"shock" : 0,
-		"hemorrhage":0
-	}
-	for card in combo_cards:
-		if card.card_data:
-			card.card_data.apply_effects(combo_state)
-	run.apply_relics_to_combo(combo_state, combo_cards.size())
-	return {
-		"dmg": int(round(combo_state["dmg"])),
-		"block": int(round(combo_state["block"])),
-		"draw": int(combo_state["draw"]),
-		"burn": int(combo_state["burn"]),
-		"poison": int(combo_state["poison"]),
-		"freeze":int(combo_state["freeze"]),
-		"shock:":int(combo_state["shock"]),
-		"hemorrhage":int(combo_state["hemorrhage"])
-	}
+## Calcula matemáticamente el resultado proyectado de ejecutar las cartas dispuestas en la zona de combo.
+## Actúa como un simulador predictivo: itera la cadena de izquierda a derecha delegando la evaluación
+##  de cada carta a `calculate_final_card_damage()`.
+## Analiza los requisitos del arma equipada, cruza los stats del héroe (Fuerza, Inteligencia, Destreza) 
+## para aplicar escalados o penalizaciones,
+## e incorpora los estados alterados (veneno, quemadura, etc.) generados tanto por la carta como por el arma.
+## Retorna un diccionario plano (Payload) con el pronóstico absoluto para refrescar el `BattleHUD` 
+## en vivo sin alterar el estado real del juego.
+static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> Dictionary:
+	var p_dmg: int = 0
+	var p_block: int = 0
+	var p_draw: int = 0
 	
+	# Variables para estados (incluyendo los del arma)
+	var p_burn: int = 0
+	var p_poison: int = 0
+	var p_hemo: int = 0
+	var p_shock: int = 0
+
+	for card_node in combo_cards:
+		var cdata: CardData = card_node.card_data
+		if not cdata: continue
+		
+		# 1. EVALUAMOS EL DAÑO Y LOS ESTADOS REALES
+		var calc = calculate_final_card_damage(cdata, run.current_weapon, run.player_str, run.player_int, run.player_dex)
+		
+		# 2. Sumamos el daño procesado
+		p_dmg += calc.final_damage
+		p_block += cdata.block # El escudo suele ser independiente del arma
+		p_draw += cdata.draw_cards
+		
+		# 3. Sumamos los estados SOLO si la evaluación dice que es apto
+		if calc.apply_status:
+			# Sumamos lo que trae el arma (calculado) + lo que trae la carta base
+			p_burn += calc.bonus_burn + cdata.burn
+			p_poison += calc.bonus_poison + cdata.poison
+			p_hemo += calc.bonus_hemo + cdata.hemorrhage
+			p_shock += calc.bonus_shock + cdata.shock
+
+	return {
+		"dmg": p_dmg, "block": p_block, "draw": p_draw,
+		"burn": p_burn, "poison": p_poison, "hemo": p_hemo, "shock": p_shock
+	}
 ## Ejecuta y descarta de forma aislada una carta clasificada como `single_use/instantánea`
 ## sin cerrar el turno general.
 ## Evalúa sus efectos (como robar cartas o ganar oro)
@@ -57,12 +70,14 @@ static func consume_instant_card(
 	card.queue_free()
 	return int(temp_state["draw"])
 
-## Corrutina principal de resolución del turno del jugador.
-## 1. Dispara secuencialmente las cartas del combo aplicando sus efectos, animándolas y 
-## depositándolas en las pilas.
-## 2. Inyecta el daño global al enemigo y recalcula el escudo del jugador.
-## 3. Aplica los ticks de daño progresivos de los estados del enemigo (Quemadura, Veneno, Hemorragia).
-## Retorna la cantidad de escudo final con el que el jugador esperará el ataque enemigo.
+## Orquesta la ejecución secuencial asíncrona (de izquierda a derecha) del combo de cartas jugado.
+## Actúa como la Única Fuente de Verdad (Single Source of Truth) del combate:
+##  despoja a la carta de su auto-ejecución 
+## y delega el cálculo duro al motor matemático (`calculate_final_card_damage`).
+## Evalúa en tiempo real las sinergias del arma equipada, los atributos RPG del héroe
+##  (Fuerza, Inteligencia, Destreza) 
+## y aplica penalizaciones u otorgamientos de estados (Veneno, Hemorragia, etc.) según corresponda.
+## Además, gestiona el feedback dinámico en el HUD, las animaciones de impacto, las sinergias de reliquias
 
 static func execute_combo_turn(
 	tree: SceneTree,
@@ -90,6 +105,8 @@ static func execute_combo_turn(
 	# 1. Disparar cada carta del combo secuencialmente de izquierda a derecha
 	for card in board.combo_cards:
 		if card.card_data:
+			var cdata: CardData = card.card_data
+			
 			var prev_draw: int = combo_state["draw"]
 			var prev_burn: int = combo_state["burn"]
 			var prev_poison: int = combo_state["poison"]
@@ -98,14 +115,34 @@ static func execute_combo_turn(
 			var prev_hemorrhage : int = combo_state["hemorrhage"]
 			
 			card.pulse()
-			card.card_data.apply_effects(combo_state)
+			
+			# --- NUEVO MOTOR DE ARMAS Y STATS ---
+			# Borramos el 'apply_effects()'. Ahora el Resolver manda.
+			var calc: Dictionary = calculate_final_card_damage(
+				cdata, run.current_weapon, run.player_str, run.player_int, run.player_dex
+			)
+			
+			# Sumamos daño, escudo y robo calculados
+			combo_state["dmg"] += calc.final_damage
+			combo_state["block"] += cdata.block 
+			combo_state["draw"] += cdata.draw_cards
+			
+			# Sumamos estados alterados SOLO si el héroe supo usar el arma (apply_status = true)
+			if calc.apply_status:
+				combo_state["burn"] += calc.get("bonus_burn", 0) + cdata.burn
+				combo_state["poison"] += calc.get("bonus_poison", 0) + cdata.poison
+				combo_state["freeze"] += calc.get("bonus_freeze", 0) + cdata.freeze
+				combo_state["shock"] += calc.get("bonus_shock", 0) + cdata.shock
+				combo_state["hemorrhage"] += calc.get("bonus_hemo", 0) + cdata.hemorrhage
+			# ------------------------------------
 
 			enemy.add_statuses(
 				combo_state["burn"] - prev_burn, 
-			combo_state["poison"] - prev_poison, 
-			combo_state["freeze"]- prev_freeze, 
-			combo_state["shock"]-prev_shock,
-			combo_state["hemorrhage"]-prev_hemorrhage)
+				combo_state["poison"] - prev_poison, 
+				combo_state["freeze"]- prev_freeze, 
+				combo_state["shock"]-prev_shock,
+				combo_state["hemorrhage"]-prev_hemorrhage
+			)
 			
 			current_block = int(round(combo_state["block"]))
 
@@ -114,7 +151,13 @@ static func execute_combo_turn(
 				draw_callback.call(newly_drawn)
 
 			ui_refresh_callback.call(current_block)
-			hud.set_banner_message("DISPARANDO: [ %s ]" % card.card_data.title)
+			
+			# HUD Dinámico: Feedback visual inmediato de la penalización
+			if calc.msg != "":
+				hud.set_banner_message("[ %s ] %s" % [cdata.title, calc.msg]) # Ej: "[ Tajo ] Arma incorrecta: Golpe torpe."
+			else:
+				hud.set_banner_message("DISPARANDO: [ %s ]" % cdata.title)
+				
 			await tree.create_timer(0.45).timeout
 
 	# 2. Aplicar sinergias de Reliquias al combo completo y golpear al enemigo
@@ -147,7 +190,7 @@ static func execute_combo_turn(
 		hud.set_banner_message("EL VENENO CONSUME AL ENEMIGO POR %d DE DAÑO FIJO!" % poison_dmg)
 		await tree.create_timer(1).timeout
 		
- 	# 5-bis. Tick de Hemorragia
+	# 5-bis. Tick de Hemorragia
 	var hemorrhage_dmg : int = enemy.apply_hemorrhage_tick(run.player_luck)
 	if hemorrhage_dmg > 0:
 		ui_refresh_callback.call(current_block)
