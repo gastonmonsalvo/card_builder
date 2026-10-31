@@ -1,12 +1,21 @@
+## Vista de pantalla completa (UI) para el menú de selección de personaje al iniciar una nueva partida.
+## Construye proceduralmente su interfaz (fondo, contenedores, título) e instancia dinámicamente
+##  un botón descriptivo por cada héroe disponible en la base de datos.
 extends Control
 class_name HeroSelectView
 
+## Emitida cuando el jugador hace clic sobre la tarjeta de un héroe para iniciar la partida.
+## Pasa como parámetro la estructura de datos estática (`HeroData`) del héroe elegido.
 signal hero_selected(hero: HeroData)
+## Emitida si el jugador decide abortar la selección (ej. presionando un botón de volver o la tecla ESC).
 signal cancelled()
-
+## Referencia al contenedor horizontal donde se inyectarán dinámicamente las tarjetas de los héroes.
 var heroes_container: HBoxContainer
+## Referencia a la etiqueta principal del título de la pantalla.
 var title_label: Label
 
+## Constructor de la interfaz visual. Ensambla proceduralmente el fondo oscuro semitransparente,
+## los contenedores de alineación (VBox y HBox) y los textos principales, anclando todo a los márgenes totales de la pantalla.
 func _init() -> void:
 	name = "HeroSelectView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -35,7 +44,9 @@ func _init() -> void:
 	heroes_container.add_theme_constant_override("separation", 24)
 	v_box.add_child(heroes_container)
 
-## Recibe la lista de héroes disponibles y crea una tarjeta interactiva para cada uno
+## Recibe la lista completa de héroes cargados desde la base de datos (`GameDatabase`),
+## purga cualquier tarjeta existente en el contenedor horizontal y 
+## genera una nueva tarjeta interactiva para cada uno.
 func populate(heroes: Array[HeroData]) -> void:
 	for child in heroes_container.get_children():
 		child.queue_free()
@@ -44,6 +55,9 @@ func populate(heroes: Array[HeroData]) -> void:
 		var card_btn := _create_hero_card(hero)
 		heroes_container.add_child(card_btn)
 
+## Instancia y formatea un botón genérico gigante por código inyectando las estadísticas base 
+## (Vida, Energía, Descartes, Tamaño del Mazo) y la descripción del `HeroData`.
+## Aplica el color de acento propio del héroe al texto y conecta su clic a la señal de selección.
 func _create_hero_card(hero: HeroData) -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(220, 320)
