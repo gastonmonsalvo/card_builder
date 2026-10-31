@@ -15,28 +15,34 @@ var cards_box: HBoxContainer
 var name_modal: PanelContainer
 ## Campo de entrada de texto (alfanumérico) dentro del modal para nombrar al héroe.
 var name_input: LineEdit
+## Mensajes de validación del selector principal y del modal de creación.
+var status_label: Label
+var feedback_label: Label
+## Panel principal que se centra con el tamaño real de la ventana.
+var main_panel: Panel
 ## Puntero temporal numérico (1, 2 o 3) que recuerda qué ranura se
 ## clickeó mientras el jugador escribe el nombre.
 var pending_slot_for_creation: int = -1
 
 ## Constructor del selector de partidas.
-## Configura la jerarquía visual de pantalla completa (1152x648) bloqueando inputs con `MOUSE_FILTER_STOP`,
-## monta el panel principal con borde y título, e inicializa el contenedor horizontal 
-##de las 3 ranuras y el modal emergente.
+## Configura la jerarquía visual de pantalla completa bloqueando inputs con `MOUSE_FILTER_STOP`,
+## monta el panel principal con borde y título, e inicializa el contenedor horizontal
+## de las 3 ranuras y el modal emergente.
 func _init() -> void:
 	name = "SlotSelectView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 120
 
-	# 1. Fondo opaco que cubra toda la resolución nativa (1152x648)
+	# 1. Fondo opaco que se adapta al viewport completo.
 	var bg := ColorRect.new()
-	bg.size = Vector2(1152, 648)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.color = Color(0.04, 0.05, 0.08, 0.98)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
-	# 2. Tarjeta central contenedora (ancho 820 para que entren sobradas las 3 ranuras)
-	var main_panel := Panel.new()
+	# 2. Tarjeta central contenedora (ancho 840 para las 3 ranuras).
+	main_panel = Panel.new()
 	var panel_w: float = 840.0
 	var panel_h: float = 520.0
 	main_panel.size = Vector2(panel_w, panel_h)
@@ -74,9 +80,30 @@ func _init() -> void:
 	cards_box.add_theme_constant_override("separation", 20)
 	main_panel.add_child(cards_box)
 
+	status_label = Label.new()
+	status_label.position = Vector2(20, 468)
+	status_label.size = Vector2(panel_w - 40, 28)
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	status_label.add_theme_font_size_override("font_size", 13)
+	status_label.visible = false
+	main_panel.add_child(status_label)
+
 	# 5. Modal emergente para ingresar nombre (centrado en la pantalla absoluta)
 	_build_name_modal()
 	
+## Centra el panel y el modal con el tamaño real del viewport.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+func _layout_for_viewport() -> void:
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if is_instance_valid(main_panel):
+		main_panel.position = (viewport_size - main_panel.size) * 0.5
+	if is_instance_valid(name_modal):
+		name_modal.position = (viewport_size - name_modal.size) * 0.5
+
 ## Construye e inyecta en el árbol el cuadro de diálogo modal para el ingreso del nombre del jugador.
 ## Configura el PanelContainer centrado en coordenadas absolutas con `z_index` elevado,
 ## el campo `LineEdit` y los botones de confirmación y cancelación.
@@ -84,7 +111,7 @@ func _build_name_modal() -> void:
 	name_modal = PanelContainer.new()
 	name_modal.visible = false
 	var m_w: float = 380.0
-	var m_h: float = 200.0
+	var m_h: float = 220.0
 	name_modal.size = Vector2(m_w, m_h)
 	name_modal.position = Vector2((1152.0 - m_w) * 0.5, (648.0 - m_h) * 0.5)
 	name_modal.z_index = 130 # Por encima del panel principal
@@ -124,6 +151,14 @@ func _build_name_modal() -> void:
 	lbl.add_theme_font_size_override("font_size", 16)
 	inner_box.add_child(lbl)
 
+	feedback_label = Label.new()
+	feedback_label.text = ""
+	feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	feedback_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	feedback_label.add_theme_font_size_override("font_size", 12)
+	feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inner_box.add_child(feedback_label)
+
 	name_input = LineEdit.new()
 	name_input.placeholder_text = "Nombre del héroe..."
 	name_input.max_length = 16
@@ -144,7 +179,7 @@ func _build_name_modal() -> void:
 	var btn_cancel := Button.new()
 	btn_cancel.text = "CANCELAR"
 	btn_cancel.custom_minimum_size = Vector2(90, 32)
-	btn_cancel.pressed.connect(func(): name_modal.visible = false)
+	btn_cancel.pressed.connect(_on_cancel_create_slot)
 	btn_row.add_child(btn_cancel)
 	
 ## Escanea el almacenamiento local (disco) mediante el Autoload `PersistenceManager` y
@@ -154,7 +189,10 @@ func _build_name_modal() -> void:
 ## con botones para continuar o borrar.
 func refresh_slots() -> void:
 	for child in cards_box.get_children():
+		cards_box.remove_child(child)
 		child.queue_free()
+	status_label.text = ""
+	status_label.visible = false
 
 	for i in range(1, PersistenceManager.MAX_SLOTS + 1):
 		var summary: Dictionary = PersistenceManager.get_slot_summary(i)
@@ -207,7 +245,7 @@ func refresh_slots() -> void:
 			var btn_new := Button.new()
 			btn_new.text = "NUEVA PARTIDA"
 			btn_new.custom_minimum_size = Vector2(0, 40)
-			btn_new.pressed.connect(func(): _prompt_name(i))
+			btn_new.pressed.connect(_prompt_name.bind(i))
 			vbox.add_child(btn_new)
 		else:
 			var name_lbl := Label.new()
@@ -241,14 +279,14 @@ func refresh_slots() -> void:
 			var btn_select := Button.new()
 			btn_select.text = "CONTINUAR" if has_run else "SELECCIONAR"
 			btn_select.custom_minimum_size = Vector2(0, 36)
-			btn_select.pressed.connect(func(): _on_slot_selected(i))
+			btn_select.pressed.connect(_on_slot_selected.bind(i))
 			vbox.add_child(btn_select)
 
 			var btn_del := Button.new()
 			btn_del.text = "BORRAR"
 			btn_del.custom_minimum_size = Vector2(0, 30)
 			btn_del.modulate = Color(1.0, 0.4, 0.4)
-			btn_del.pressed.connect(func(): _on_slot_deleted(i))
+			btn_del.pressed.connect(_on_slot_deleted.bind(i))
 			vbox.add_child(btn_del)
 
 		cards_box.add_child(panel)
@@ -258,16 +296,30 @@ func refresh_slots() -> void:
 func _prompt_name(slot: int) -> void:
 	pending_slot_for_creation = slot
 	name_input.text = ""
+	feedback_label.text = ""
+	status_label.visible = false
 	name_modal.visible = true
 	name_input.grab_focus()
 	
 ## Callback del botón "CREAR". Valida y ejecuta la escritura en disco del nuevo perfil a través del `PersistenceManager`.
 ## Oculta el modal tras completar la operación y emite la señal `slot_chosen` hacia el `RunDirector` para arrancar.
 func _on_confirm_create_slot() -> void:
-	if pending_slot_for_creation > 0:
-		PersistenceManager.create_new_slot(pending_slot_for_creation, name_input.text)
-		name_modal.visible = false
-		slot_chosen.emit()
+	if pending_slot_for_creation < 1:
+		return
+
+	var created: bool = PersistenceManager.create_new_slot(pending_slot_for_creation, name_input.text)
+	if not created:
+		feedback_label.text = "No se pudo crear el perfil. Revisá el espacio y los permisos de guardado."
+		return
+
+	name_modal.visible = false
+	pending_slot_for_creation = -1
+	slot_chosen.emit()
+
+func _on_cancel_create_slot() -> void:
+	name_modal.visible = false
+	pending_slot_for_creation = -1
+	feedback_label.text = ""
 		
 ## Callback de los botones "SELECCIONAR" o "CONTINUAR".
 ## Invoca a `PersistenceManager.select_slot` para cargar en la memoria global 
@@ -275,7 +327,11 @@ func _on_confirm_create_slot() -> void:
 ## Si la carga es exitosa, emite `slot_chosen` para avanzar hacia el Menú Principal o el Mapa.
 func _on_slot_selected(slot: int) -> void:
 	if PersistenceManager.select_slot(slot):
+		status_label.text = ""
 		slot_chosen.emit()
+	else:
+		status_label.text = "No se pudo abrir esta ranura. El perfil puede estar dañado o no estar disponible."
+		status_label.visible = true
 		
 ## Callback del botón "BORRAR".
 ## Elimina de forma irrecuperable los archivos de perfil (`profile.json`) 

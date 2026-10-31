@@ -6,6 +6,7 @@
 [ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="4_spc61"]
 [ext_resource type="Resource" uid="uid://7xu5vm4i401r" path="res://cards/data/robo_basico.tres" id="5_blin7"]
 [ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="6_blin7"]
+[ext_resource type="Resource" uid="uid://cjoyr30hc8khc" path="res://weapons/data/arma_basica.tres" id="7_b3x77"]
 
 [resource]
 script = ExtResource("1_a8jdr")
@@ -15,6 +16,7 @@ accent_color = Color(0.7600463, 0.39014304, 0.6253373, 1)
 max_hp_base = 60
 lucky = 4
 gold = 200
-starting_deck = Array[ExtResource("2_axcvu")]([ExtResource("3_axcvu"), ExtResource("3_axcvu"), ExtResource("3_axcvu"), ExtResource("4_spc61"), ExtResource("5_blin7"), ExtResource("4_spc61")])
 sort_order = 2
+starting_deck = Array[ExtResource("2_axcvu")]([ExtResource("3_axcvu"), ExtResource("3_axcvu"), ExtResource("3_axcvu"), ExtResource("4_spc61"), ExtResource("5_blin7"), ExtResource("4_spc61")])
+starting_weapon = ExtResource("7_b3x77")
 metadata/_custom_type_script = "uid://crbebhweegtm"

@@ -25,6 +25,8 @@ var error_label: Label
 var heroes_container: HBoxContainer
 ## Etiqueta que lee y renderiza los datos en memoria del perfil actual (Slot, Nombre, Victorias, etc.).
 var profile_info_label: Label
+## Panel central que se reposiciona cuando cambia el tamaño de la ventana.
+var main_panel: Panel
 
 ## Catálogo en memoria de los héroes inyectados en la vista.
 var available_heroes: Array[HeroData] = []
@@ -46,11 +48,11 @@ func _init() -> void:
 	bg.color = Color(0.04, 0.05, 0.08, 0.98)
 	add_child(bg)
 
-	var card := Panel.new()
+	main_panel = Panel.new()
 	var card_w: float = 760.0
 	var card_h: float = 580.0
-	card.size = Vector2(card_w, card_h)
-	card.position = Vector2((1152.0 - card_w) * 0.5, (648.0 - card_h) * 0.5)
+	main_panel.size = Vector2(card_w, card_h)
+	main_panel.position = Vector2((1152.0 - card_w) * 0.5, (648.0 - card_h) * 0.5)
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.09, 0.11, 0.16, 1.0)
@@ -63,8 +65,8 @@ func _init() -> void:
 	style.corner_radius_top_right = 12
 	style.corner_radius_bottom_left = 12
 	style.corner_radius_bottom_right = 12
-	card.add_theme_stylebox_override("panel", style)
-	add_child(card)
+	main_panel.add_theme_stylebox_override("panel", style)
+	add_child(main_panel)
 
 	var title := Label.new()
 	title.text = "ROGUELIKE DECKBUILDER"
@@ -73,7 +75,7 @@ func _init() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	card.add_child(title)
+	main_panel.add_child(title)
 	
 	# Info del perfil activo (Slot, nombre y estadísticas)
 	profile_info_label = Label.new()
@@ -82,7 +84,7 @@ func _init() -> void:
 	profile_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	profile_info_label.add_theme_font_size_override("font_size", 13)
 	profile_info_label.modulate = Color(0.7, 0.85, 1.0)
-	card.add_child(profile_info_label)
+	main_panel.add_child(profile_info_label)
 
 	status_label = Label.new()
 	status_label.text = "Selecciona tu Héroe para comenzar la aventura."
@@ -92,7 +94,7 @@ func _init() -> void:
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.add_theme_font_size_override("font_size", 13)
 	status_label.add_theme_color_override("font_color", Color(0.75, 0.82, 0.9))
-	card.add_child(status_label)
+	main_panel.add_child(status_label)
 
 	# Fila interactiva para seleccionar héroes con el mouse
 	heroes_container = HBoxContainer.new()
@@ -100,7 +102,7 @@ func _init() -> void:
 	heroes_container.size = Vector2(700, 150)
 	heroes_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heroes_container.add_theme_constant_override("separation", 16)
-	card.add_child(heroes_container)
+	main_panel.add_child(heroes_container)
 
 	var random_btn := Button.new()
 	random_btn.text = "JUGAR PARTIDA NUEVA"
@@ -108,7 +110,7 @@ func _init() -> void:
 	random_btn.size = Vector2(440, 46)
 	random_btn.add_theme_font_size_override("font_size", 16)
 	random_btn.pressed.connect(_on_random_pressed)
-	card.add_child(random_btn)
+	main_panel.add_child(random_btn)
 
 	var sep_label := Label.new()
 	sep_label.text = "--- O CARGAR UNA SEMILLA ESPECIFICA (SEED) ---"
@@ -117,7 +119,7 @@ func _init() -> void:
 	sep_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sep_label.add_theme_font_size_override("font_size", 12)
 	sep_label.add_theme_color_override("font_color", Color(0.6, 0.68, 0.78))
-	card.add_child(sep_label)
+	main_panel.add_child(sep_label)
 
 	seed_input = LineEdit.new()
 	seed_input.placeholder_text = "Ingresa numero o codigo de semilla"
@@ -125,7 +127,7 @@ func _init() -> void:
 	seed_input.size = Vector2(440, 40)
 	seed_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	seed_input.add_theme_font_size_override("font_size", 14)
-	card.add_child(seed_input)
+	main_panel.add_child(seed_input)
 
 	var seeded_btn := Button.new()
 	seeded_btn.text = "JUGAR CON ESTA SEMILLA"
@@ -133,7 +135,7 @@ func _init() -> void:
 	seeded_btn.size = Vector2(440, 42)
 	seeded_btn.add_theme_font_size_override("font_size", 14)
 	seeded_btn.pressed.connect(_on_seeded_pressed)
-	card.add_child(seeded_btn)
+	main_panel.add_child(seeded_btn)
 
 	error_label = Label.new()
 	error_label.text = ""
@@ -142,7 +144,7 @@ func _init() -> void:
 	error_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	error_label.add_theme_font_size_override("font_size", 13)
 	error_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	card.add_child(error_label)
+	main_panel.add_child(error_label)
 
 	# Fila de botones inferiores: Cambiar Slot y Salir
 	var bottom_row := HBoxContainer.new()
@@ -151,7 +153,7 @@ func _init() -> void:
 	bottom_row.position = Vector2((card_w - row_w) * 0.5, 498)
 	bottom_row.add_theme_constant_override("separation", 20)
 	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	card.add_child(bottom_row)
+	main_panel.add_child(bottom_row)
 
 	var btn_change_slot := Button.new()
 	btn_change_slot.text = "CAMBIAR DE PERFIL"
@@ -168,14 +170,32 @@ func _init() -> void:
 	btn_quit.pressed.connect(func(): quit_requested.emit())
 	bottom_row.add_child(btn_quit)
 	
+
+## Centra el panel principal usando el tamaño real del viewport, no una resolución fija.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+func _layout_for_viewport() -> void:
+	if not is_instance_valid(main_panel):
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	main_panel.position = (viewport_size - main_panel.size) * 0.5
+
 ## Configura la lista de héroes disponibles inyectando un `HeroCardView` por cada uno.
 ## Ajusta matemáticamente el ancho de las tarjetas según la cantidad de héroes para que encajen perfecto,
 ## y selecciona al primero por defecto.
 func setup_heroes(heroes: Array[HeroData]) -> void:
 	available_heroes = heroes
+	selected_hero = null
 	for child in heroes_container.get_children():
+		heroes_container.remove_child(child)
 		child.queue_free()
 	hero_buttons.clear()
+
+	if available_heroes.is_empty():
+		status_label.text = "No se encontraron héroes disponibles. Revisá game/hero/data."
+		return
 
 	var count: int = available_heroes.size()
 	var sep: float = 12.0

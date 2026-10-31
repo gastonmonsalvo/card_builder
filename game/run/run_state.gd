@@ -5,6 +5,8 @@
 extends RefCounted
 class_name RunState
 
+signal weapon_equipped(new_weapon: WeaponData)
+
 ## Semilla matemática raíz que rige la aleatoriedad de toda la run.
 var master_seed: int = 0
 ## Número del piso o planta actual en el que se encuentra el jugador (inicia en 1).
@@ -51,9 +53,9 @@ var enemy_catalog: Array[EnemyData] = []
 ## El arma que empuña actualmente en combate.
 var current_weapon: WeaponData
 ## Mochila: Armas guardadas que puede cambiar.
-@export var inventory_weapons: Array[WeaponData] = [] 
+var inventory_weapons: Array[WeaponData] = []
 ## Catálogo general con todas las armas disponibles en el juego
-@export var weapon_catalog: Array[WeaponData] = []
+var weapon_catalog: Array[WeaponData] = []
 
 var player_str: int = 1
 var player_int: int = 1
@@ -74,8 +76,10 @@ func _init() -> void:
 ##  purga el inventario, otorga las reliquias iniciales y genera la planta 1 basándose en la semilla.
 func start_new_run(custom_seed: int , hero: HeroData) -> void:
 	
-	# 1. Asignamos stats dinámicos dependientes del héroe (con fallback de seguridad)
-	# Guardamos el héroe en el estado
+	# 1. Limpiamos los datos que pertenecen a una run anterior.
+	inventory_weapons.clear()
+	active_relics.clear()
+	god_mode = false
 	selected_hero = hero
 	if hero:
 		max_player_hp = hero.max_hp_base
@@ -85,7 +89,8 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 		max_energy = hero.energy_base
 		discards_per_combat = hero.discards_base
 		target_hand_size = hero.hand_size
-		current_weapon = hero.starting_weapon
+		current_weapon = hero.starting_weapon if hero.starting_weapon else CombatConstants.BASIC_WEAPON
+
 		player_str = hero.base_str
 		player_int = hero.base_int
 		player_dex = hero.base_dex
@@ -101,14 +106,14 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 		player_str = CombatConstants.BASE_STR
 		player_int = CombatConstants.BASE_INT
 		player_dex = CombatConstants.BASE_DEX
-	
-	active_relics.clear()
+
 	
 	# Nos aseguramos de tener los catálogos llenos por si se vaciaron
 	if relic_catalog.is_empty(): relic_catalog = GameDatabase.load_all_relics()
 	if available_card_pool.is_empty(): available_card_pool = GameDatabase.load_all_cards()
 	if weapon_catalog.is_empty(): weapon_catalog = GameDatabase.load_all_weapons()
-	grant_starting_relics(hero)
+	if hero:
+		grant_starting_relics(hero)
 	
 	if custom_seed >= 0:
 		master_seed = custom_seed
@@ -250,17 +255,51 @@ func equip_specific_relic(relic: RelicData, current_enemy: Enemy = null) -> void
 	if current_enemy and not current_enemy.is_dead():
 		relic.trigger_on_combat_start(current_enemy)
 		
-## Equipa un arma de la mochila o del catálogo, pasando la vieja a la mochila si es necesario.
-func equip_weapon(weapon: WeaponData) -> void:
-	if weapon == null: return
+## Equipa un arma guardada en la mochila. El arma anterior ocupa el lugar liberado.
+## `force_debug` permite equipar armas del catálogo aunque no estén en la mochila.
+func equip_weapon(weapon: WeaponData, force_debug: bool = false) -> bool:
+	if not weapon:
+		return false
+	if _same_weapon(weapon, current_weapon):
+		return false
 	
-	if current_weapon and not inventory_weapons.has(current_weapon):
-		inventory_weapons.append(current_weapon)
-		
+	var weapon_index: int = _find_inventory_weapon_index(weapon)
+	if weapon_index == -1:
+		if not add_weapon_to_inventory(weapon, force_debug):
+			return false
+		weapon_index = _find_inventory_weapon_index(weapon)
+
+	if weapon_index == -1:
+		return false
+
+	# Retiramos primero la seleccionada; ese espacio se usa para guardar la anterior.
+	inventory_weapons.remove_at(weapon_index)
+	var previous_weapon: WeaponData = current_weapon
 	current_weapon = weapon
 	
-	if inventory_weapons.has(weapon):
-		inventory_weapons.erase(weapon)
+	if previous_weapon and not _same_weapon(previous_weapon, current_weapon):
+		inventory_weapons.append(previous_weapon)
+
+	print("Arma equipada: %s" % weapon.weapon_name)
+	weapon_equipped.emit(current_weapon)
+	return true
+
+## Comprueba si dos recursos representan la misma arma, aunque sean instancias distintas.
+func _same_weapon(first: WeaponData, second: WeaponData) -> bool:
+	if first == null or second == null:
+		return false
+	if first == second:
+		return true
+	return first.weapon_id != "" and first.weapon_id == second.weapon_id
+
+## Busca un arma por referencia o por identificador único dentro de la mochila.
+func _find_inventory_weapon_index(weapon: WeaponData) -> int:
+	if not weapon:
+		return -1
+	for index in range(inventory_weapons.size()):
+		if _same_weapon(inventory_weapons[index], weapon):
+			return index
+	return -1
 
 ## Herramienta de depuración. Itera sobre cada nodo de la matriz topológica y 
 ## fuerza su estado a `discovered = true` para disipar la niebla de guerra.
@@ -415,12 +454,19 @@ func grant_starting_relics(hero: HeroData) -> void:
 func to_dict(deck_data: Array) -> Dictionary:
 	var relic_paths: Array[String] = []
 	for relic in active_relics:
-		if relic != null:
+		if relic:
 			var path: String = relic.resource_path
 			if path == "" and relic.resource_name != "":
 				path = relic.resource_name
 			if path != "":
 				relic_paths.append(path)
+
+	var inventory_weapon_paths: Array[String] = []
+	var inventory_weapon_ids: Array[String] = []
+	for weapon in inventory_weapons:
+		if weapon:
+			inventory_weapon_paths.append(_get_weapon_resource_path(weapon))
+			inventory_weapon_ids.append(weapon.weapon_id)
 				
 	var cleared_rooms: Array[Array] = []
 	var discovered_rooms: Array[Array] = []
@@ -437,6 +483,10 @@ func to_dict(deck_data: Array) -> Dictionary:
 		"master_seed": master_seed,
 		"current_floor": current_floor,
 		"selected_hero_path": selected_hero.resource_path if selected_hero else "",
+		"current_weapon_path": _get_weapon_resource_path(current_weapon),
+		"current_weapon_id": current_weapon.weapon_id if current_weapon else "",
+		"inventory_weapon_paths": inventory_weapon_paths,
+		"inventory_weapon_ids": inventory_weapon_ids,
 		"player_pos": [player_grid_pos.x, player_grid_pos.y],
 		"stats": {
 			"hp": player_hp,
@@ -445,7 +495,10 @@ func to_dict(deck_data: Array) -> Dictionary:
 			"energy": max_energy,
 			"hand_size": target_hand_size,
 			"discards": discards_per_combat,
-			"luck": player_luck
+			"luck": player_luck,
+			"str": player_str,
+			"int": player_int,
+			"dex": player_dex
 		},
 		"deck": deck_data,
 		"relics": relic_paths,
@@ -455,13 +508,40 @@ func to_dict(deck_data: Array) -> Dictionary:
 		}
 	}
 
-## Motor de deserialización. Lee un bloque de datos persistido, restaura las variables de estado, regenera matemáticamente la matriz del piso usando las semillas guardadas y
-## rearma el grafo exacto aplicando los estados visuales (niebla/limpieza) almacenados.
+## Restaura los datos de un arma usando primero su ruta y luego su ID como respaldo.
+func _resolve_weapon(path: String, weapon_id: String = "") -> WeaponData:
+	if path != "" and ResourceLoader.exists(path):
+		var loaded_weapon := load(path) as WeaponData
+		if loaded_weapon:
+			return loaded_weapon
+
+	if weapon_id != "":
+		for catalog_weapon in weapon_catalog:
+			if catalog_weapon and catalog_weapon.weapon_id == weapon_id:
+				return catalog_weapon
+	return null
+
+## Devuelve la ruta original de un arma, incluso si es una copia en memoria.
+func _get_weapon_resource_path(weapon: WeaponData) -> String:
+	if not weapon:
+		return ""
+	if weapon.resource_path != "":
+		return weapon.resource_path
+	if weapon.resource_name.begins_with("res://"):
+		return weapon.resource_name
+	for catalog_weapon in weapon_catalog:
+		if catalog_weapon and catalog_weapon.weapon_id == weapon.weapon_id:
+			return catalog_weapon.resource_path
+	return ""
+
+## Reconstruye el estado de la run desde un JSON. También acepta partidas guardadas
+## antes de incorporar el sistema de armas (sin las nuevas claves de equipo).
 func from_dict(data: Dictionary, deck: DeckManager) -> void:
 	master_seed = int(data.get("master_seed", 0))
 	current_floor = int(data.get("current_floor", 1))
 	
-	var hero_path: String = data.get("selected_hero_path", "")
+	selected_hero = null
+	var hero_path: String = str(data.get("selected_hero_path", ""))
 	if hero_path != "" and ResourceLoader.exists(hero_path):
 		selected_hero = load(hero_path) as HeroData
 
@@ -473,6 +553,32 @@ func from_dict(data: Dictionary, deck: DeckManager) -> void:
 	target_hand_size = int(stats.get("hand_size", 5))
 	discards_per_combat = int(stats.get("discards", 2))
 	player_luck = int(stats.get("luck", 0))
+	player_str = int(stats.get("str", selected_hero.base_str if selected_hero else CombatConstants.BASE_STR))
+	player_int = int(stats.get("int", selected_hero.base_int if selected_hero else CombatConstants.BASE_INT))
+	player_dex = int(stats.get("dex", selected_hero.base_dex if selected_hero else CombatConstants.BASE_DEX))
+
+	# Equipo: las claves pueden no existir en partidas creadas antes del sistema de armas.
+	if weapon_catalog.is_empty():
+		weapon_catalog = GameDatabase.load_all_weapons()
+	current_weapon = _resolve_weapon(
+		str(data.get("current_weapon_path", "")),
+		str(data.get("current_weapon_id", ""))
+	)
+	if not current_weapon and selected_hero and selected_hero.starting_weapon:
+		current_weapon = selected_hero.starting_weapon
+	if not current_weapon:
+		current_weapon = CombatConstants.BASIC_WEAPON
+
+	inventory_weapons.clear()
+	var saved_weapon_paths: Array = data.get("inventory_weapon_paths", [])
+	var saved_weapon_ids: Array = data.get("inventory_weapon_ids", [])
+	var saved_weapon_count: int = max(saved_weapon_paths.size(), saved_weapon_ids.size())
+	for index in range(saved_weapon_count):
+		var saved_path: String = str(saved_weapon_paths[index]) if index < saved_weapon_paths.size() else ""
+		var saved_id: String = str(saved_weapon_ids[index]) if index < saved_weapon_ids.size() else ""
+		var weapon := _resolve_weapon(saved_path, saved_id)
+		if weapon and not _same_weapon(weapon, current_weapon) and _find_inventory_weapon_index(weapon) == -1:
+			inventory_weapons.append(weapon)
 
 	active_relics.clear()
 	var relic_paths: Array = data.get("relics", [])
@@ -481,13 +587,11 @@ func from_dict(data: Dictionary, deck: DeckManager) -> void:
 			var relic_res := load(r_path) as RelicData
 			if relic_res:
 				var copy := relic_res.duplicate()
-				copy.resource_name = r_path # <-- CLAVE: Sellar la ruta
+				copy.resource_name = r_path
 				active_relics.append(copy)
 	
-	# Delegamos la reconstrucción del mazo a su propia clase
 	deck.from_dict(data.get("deck", []))
 
-	# Recreamos el piso
 	floor_data = FloorGenerator.generate_floor(
 		master_seed, current_floor, 8, -1, player_luck
 	)
@@ -508,5 +612,20 @@ func from_dict(data: Dictionary, deck: DeckManager) -> void:
 		if rooms_dict.has(v):
 			rooms_dict[v].discovered = true
 
+	current_room = null
 	if rooms_dict.has(player_grid_pos):
-		current_room = rooms_dict[player_grid_pos]
+		current_room = rooms_dict[player_grid_pos] as RoomData
+
+## Intenta agregar un arma a la mochila. Evita duplicados, incluyendo el arma equipada.
+## `force_debug` solo omite el límite de capacidad para las herramientas de depuración.
+func add_weapon_to_inventory(weapon: WeaponData, force_debug: bool = false) -> bool:
+	if not weapon:
+		return false
+	if _same_weapon(weapon, current_weapon) or _find_inventory_weapon_index(weapon) != -1:
+		return false
+	if not force_debug and inventory_weapons.size() >= CombatConstants.MAX_INVENTORY_SIZE:
+		print("Mochila llena: no se pudo agregar %s." % weapon.weapon_name)
+		return false
+	inventory_weapons.append(weapon)
+	print("Arma agregada a la mochila: %s" % weapon.weapon_name)
+	return true

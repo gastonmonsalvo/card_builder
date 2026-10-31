@@ -60,18 +60,22 @@ func get_slot_summary(slot: int) -> Dictionary:
 ## Crea el directorio base del slot en `user://saves/` y persiste un nuevo `profile.json` con el nombre del jugador y estadísticas en cero.
 ## Asigna la ranura como activa, borra residuos de runs previas y actualiza el puntero de última partida jugada.
 func create_new_slot(slot: int, player_name: String) -> bool:
+	if slot < 1 or slot > MAX_SLOTS:
+		push_error("Número de ranura fuera de rango: %d" % slot)
+		return false
+
 	var slot_dir := get_slot_dir(slot)
 	if not DirAccess.dir_exists_absolute(slot_dir):
 		var err := DirAccess.make_dir_recursive_absolute(slot_dir)
 		if err != OK:
 			push_error("Error creando directorio para el slot %d" % slot)
 			return false
-			
+
 	var clean_name := player_name.strip_edges()
 	if clean_name == "":
 		clean_name = "Jugador %d" % slot
 
-	profile_data = {
+	var new_profile: Dictionary = {
 		"player_name": clean_name,
 		"created_at": Time.get_datetime_string_from_system(),
 		"unlocked_heroes": ["warrior", "magic", "samurai"],
@@ -82,22 +86,38 @@ func create_new_slot(slot: int, player_name: String) -> bool:
 			"total_enemies_killed": 0
 		}
 	}
-	
+
+	# No cambiar el perfil activo hasta confirmar que el archivo se escribió correctamente.
+	if not _write_atomic(get_profile_path(slot), new_profile):
+		push_error("No se pudo guardar el perfil de la ranura %d" % slot)
+		return false
+
+	var old_run_path := get_run_path(slot)
+	if FileAccess.file_exists(old_run_path):
+		DirAccess.remove_absolute(old_run_path)
+
+	profile_data = new_profile
 	current_slot = slot
-	
 	set_last_played_slot(slot)
-	# Borrar cualquier run fantasma previa
-	delete_active_run()
-	return save_profile()
+	return true
 
 ## Fija el slot indicado como activo en el Autoload, sincroniza el archivo `last_slot` en disco 
 ## y deserializa su `profile.json` en memoria.
 func select_slot(slot: int) -> bool:
-	if not is_slot_occupied(slot):
+	if slot < 1 or slot > MAX_SLOTS or not is_slot_occupied(slot):
 		return false
+
+	# Mantener el perfil anterior si la ranura elegida no se puede leer.
+	var previous_slot: int = current_slot
+	var previous_profile: Dictionary = profile_data.duplicate(true)
 	current_slot = slot
+	if not load_profile():
+		current_slot = previous_slot
+		profile_data = previous_profile
+		return false
+
 	set_last_played_slot(slot)
-	return load_profile()
+	return true
 	
 ## Purga del sistema de archivos tanto el `profile.json` como el `run.json` del slot especificado.
 ## Si la ranura eliminada coincidía con la seleccionada o la última jugada, resetea los punteros y limpia la memoria.

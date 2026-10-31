@@ -13,40 +13,43 @@ class_name CombatResolver
 ## Retorna un diccionario plano (Payload) con el pronóstico absoluto para refrescar el `BattleHUD` 
 ## en vivo sin alterar el estado real del juego.
 static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> Dictionary:
-	var p_dmg: int = 0
-	var p_block: int = 0
-	var p_draw: int = 0
-	
-	# Variables para estados (incluyendo los del arma)
-	var p_burn: int = 0
-	var p_poison: int = 0
-	var p_hemo: int = 0
-	var p_shock: int = 0
+	var combo_state: Dictionary = {
+		"dmg": 0.0,
+		"block": 0.0,
+		"draw": 0,
+		"burn": 0,
+		"freeze": 0,
+		"poison": 0,
+		"shock": 0,
+		"hemorrhage": 0
+	}
 
 	for card_node in combo_cards:
-		var cdata: CardData = card_node.card_data
-		if not cdata: continue
-		
-		# 1. EVALUAMOS EL DAÑO Y LOS ESTADOS REALES
-		var calc = calculate_final_card_damage(cdata, run.current_weapon, run.player_str, run.player_int, run.player_dex)
-		
-		# 2. Sumamos el daño procesado
-		p_dmg += calc.final_damage
-		p_block += cdata.block # El escudo suele ser independiente del arma
-		p_draw += cdata.draw_cards
-		
-		# 3. Sumamos los estados SOLO si la evaluación dice que es apto
-		if calc.apply_status:
-			# Sumamos lo que trae el arma (calculado) + lo que trae la carta base
-			p_burn += calc.bonus_burn + cdata.burn
-			p_poison += calc.bonus_poison + cdata.poison
-			p_hemo += calc.bonus_hemo + cdata.hemorrhage
-			p_shock += calc.bonus_shock + cdata.shock
+		var card_data: CardData = card_node.card_data
+		if not card_data:
+			continue
 
+		var calc: Dictionary = calculate_final_card_damage(
+			card_data,
+			run.current_weapon,
+			run.player_str,
+			run.player_int,
+			run.player_dex
+		)
+		_apply_card_effects_to_combo(card_data, calc, combo_state)
+
+	run.apply_relics_to_combo(combo_state, combo_cards.size())
 	return {
-		"dmg": p_dmg, "block": p_block, "draw": p_draw,
-		"burn": p_burn, "poison": p_poison, "hemo": p_hemo, "shock": p_shock
+		"dmg": int(round(combo_state["dmg"])),
+		"block": int(round(combo_state["block"])),
+		"draw": int(combo_state["draw"]),
+		"burn": int(combo_state["burn"]),
+		"poison": int(combo_state["poison"]),
+		"freeze": int(combo_state["freeze"]),
+		"shock": int(combo_state["shock"]),
+		"hemo": int(combo_state["hemorrhage"])
 	}
+
 ## Ejecuta y descarta de forma aislada una carta clasificada como `single_use/instantánea`
 ## sin cerrar el turno general.
 ## Evalúa sus efectos (como robar cartas o ganar oro)
@@ -116,25 +119,10 @@ static func execute_combo_turn(
 			
 			card.pulse()
 			
-			# --- NUEVO MOTOR DE ARMAS Y STATS ---
-			# Borramos el 'apply_effects()'. Ahora el Resolver manda.
 			var calc: Dictionary = calculate_final_card_damage(
 				cdata, run.current_weapon, run.player_str, run.player_int, run.player_dex
 			)
-			
-			# Sumamos daño, escudo y robo calculados
-			combo_state["dmg"] += calc.final_damage
-			combo_state["block"] += cdata.block 
-			combo_state["draw"] += cdata.draw_cards
-			
-			# Sumamos estados alterados SOLO si el héroe supo usar el arma (apply_status = true)
-			if calc.apply_status:
-				combo_state["burn"] += calc.get("bonus_burn", 0) + cdata.burn
-				combo_state["poison"] += calc.get("bonus_poison", 0) + cdata.poison
-				combo_state["freeze"] += calc.get("bonus_freeze", 0) + cdata.freeze
-				combo_state["shock"] += calc.get("bonus_shock", 0) + cdata.shock
-				combo_state["hemorrhage"] += calc.get("bonus_hemo", 0) + cdata.hemorrhage
-			# ------------------------------------
+			_apply_card_effects_to_combo(cdata, calc, combo_state)
 
 			enemy.add_statuses(
 				combo_state["burn"] - prev_burn, 
@@ -246,66 +234,110 @@ static func execute_enemy_turn(tree: SceneTree, run: RunState, enemy: Enemy, hud
 
 	return true # Sobrevivió el turno normalmente
 	
-## Calcula el daño real final de una carta basándose en el arma equipada y los stats del héroe.
-static func calculate_final_card_damage(card: CardData, current_weapon: WeaponData, h_str: int, h_int: int, h_dex: int) -> Dictionary:
-	
-	# 1. FALLBACK: Chequear si tiene el tipo de arma correcta
-	# Primero validamos si la carta NO acepta ANY.
-	if not card.required_weapon_class.has(WeaponData.Class.ANY):
-		# Si no acepta ANY, chequeamos si el arma actual del jugador está en la lista permitida
-		if not card.required_weapon_class.has(current_weapon.weapon_class):
-			# Tiene el arma equivocada. Penalidad extrema. Carta inútil.
-			return {
-				"final_damage": card.fallback_damage,
-				"apply_status": false,
-				"bonus_poison": 0, "bonus_burn": 0, "bonus_hemo": 0, "bonus_shock": 0,
-				"msg": "Arma incorrecta: Golpe torpe."
-			}
-	
-	# 2. Tiene el arma correcta. Evaluamos si el arma aporta daño y estados a esta carta.
-	var calc_dmg: int = card.base_damage
-	
-	# Preparamos el payload de estados inyectados por el arma
-	var w_poison: int = 0
-	var w_burn: int = 0
-	var w_hemo: int = 0
-	var w_shock: int = 0
+## Calcula el daño base de la carta y aplica las bonificaciones/penalizaciones del arma.
+## Los demás efectos de CardData se procesan por separado en `_apply_card_effects_to_combo`.
+static func calculate_final_card_damage(
+	card: CardData,
+	current_weapon: WeaponData,
+	h_str: int,
+	h_int: int,
+	h_dex: int
+) -> Dictionary:
+	var card_base_damage: int = 0
+	for effect in card.effects:
+		if effect is DamageEffect:
+			card_base_damage += effect.amount
 
-	if card.uses_weapon_damage:
-		var bonus_stats: int = current_weapon.get_scaling_bonus(h_str, h_int, h_dex)
-		calc_dmg += current_weapon.base_damage + bonus_stats
-		
-		# Extraemos los estados innatos del arma
-		w_poison = current_weapon.inflict_poison
-		w_burn = current_weapon.inflict_burn
-		w_hemo = current_weapon.inflict_hemorrhage
-		w_shock = current_weapon.inflict_shock
-		
-	# 3. PENALIZACIÓN POR STATS
-	var deficit: int = current_weapon.get_stat_deficit(h_str, h_int, h_dex)
-	var can_apply_status: bool = true
-	
-	if deficit > 0:
-		var penalty_pct: float = min(1.0, deficit * 0.25)
-		calc_dmg = int(floor(calc_dmg * (1.0 - penalty_pct)))
-		can_apply_status = false # NO CUMPLE REQUISITOS -> NO APLICA NINGÚN EFECTO
-		
+	var accepts_any_weapon: bool = card.required_weapon_class.is_empty() \
+		or card.required_weapon_class.has(WeaponData.Class.ANY)
+	var weapon_matches: bool = accepts_any_weapon
+	if not accepts_any_weapon:
+		weapon_matches = current_weapon != null and card.required_weapon_class.has(current_weapon.weapon_class)
+
+	if not weapon_matches:
 		return {
-			"final_damage": max(1, calc_dmg),
+			"final_damage": card.fallback_damage,
 			"apply_status": false,
-			# Mandamos los estados en CERO porque no supo usar el arma
-			"bonus_poison": 0, "bonus_burn": 0, "bonus_hemo": 0, "bonus_shock": 0,
+			"bonus_poison": 0,
+			"bonus_burn": 0,
+			"bonus_hemo": 0,
+			"bonus_shock": 0,
+			"msg": "Arma incorrecta: Golpe torpe."
+		}
+
+	var final_damage: int = card_base_damage
+	var bonus_poison: int = 0
+	var bonus_burn: int = 0
+	var bonus_hemo: int = 0
+	var bonus_shock: int = 0
+	var stat_deficit: int = 0
+
+	if current_weapon and card.uses_weapon_damage:
+		final_damage += current_weapon.base_damage
+		final_damage += current_weapon.get_scaling_bonus(h_str, h_int, h_dex)
+		bonus_poison = current_weapon.inflict_poison
+		bonus_burn = current_weapon.inflict_burn
+		bonus_hemo = current_weapon.inflict_hemorrhage
+		bonus_shock = current_weapon.inflict_shock
+		stat_deficit = current_weapon.get_stat_deficit(h_str, h_int, h_dex)
+
+	if stat_deficit > 0:
+		var penalty_pct: float = min(1.0, stat_deficit * 0.25)
+		final_damage = int(floor(final_damage * (1.0 - penalty_pct)))
+		return {
+			"final_damage": max(1, final_damage),
+			"apply_status": false,
+			"bonus_poison": 0,
+			"bonus_burn": 0,
+			"bonus_hemo": 0,
+			"bonus_shock": 0,
 			"msg": "Stats insuficientes: Penalización de daño y anulación de efectos."
 		}
 
-	# 4. USO PERFECTO
 	return {
-		"final_damage": calc_dmg,
+		"final_damage": final_damage,
 		"apply_status": true,
-		# Mandamos el payload del arma para que se sume a lo que ya haga la carta
-		"bonus_poison": w_poison, 
-		"bonus_burn": w_burn, 
-		"bonus_hemo": w_hemo, 
-		"bonus_shock": w_shock,
+		"bonus_poison": bonus_poison,
+		"bonus_burn": bonus_burn,
+		"bonus_hemo": bonus_hemo,
+		"bonus_shock": bonus_shock,
 		"msg": ""
 	}
+
+## Aplica los efectos de una carta respetando el orden del combo.
+## DamageEffect se contabiliza con el cálculo del arma; los estados se anulan si el arma no es apta.
+static func _apply_card_effects_to_combo(card: CardData, calc: Dictionary, combo_state: Dictionary) -> void:
+	var damage_was_added: bool = false
+
+	for effect in card.effects:
+		if not effect:
+			continue
+
+		if effect is DamageEffect:
+			if not damage_was_added:
+				combo_state["dmg"] += calc.final_damage
+				damage_was_added = true
+			continue
+
+		if _is_status_effect(effect) and not calc.apply_status:
+			continue
+
+		effect.apply(combo_state)
+
+	# Cartas sin DamageEffect pueden tener daño aportado únicamente por el arma.
+	if not damage_was_added:
+		combo_state["dmg"] += calc.final_damage
+
+	if calc.apply_status:
+		combo_state["poison"] += calc.get("bonus_poison", 0)
+		combo_state["burn"] += calc.get("bonus_burn", 0)
+		combo_state["hemorrhage"] += calc.get("bonus_hemo", 0)
+		combo_state["shock"] += calc.get("bonus_shock", 0)
+
+## Identifica los efectos de estado que dependen de que el arma se use correctamente.
+static func _is_status_effect(effect: CardEffect) -> bool:
+	return effect is BurnEffect \
+		or effect is PoisonEffect \
+		or effect is FreezeEffect \
+		or effect is ShockEffect \
+		or effect is HemorrhageEffect

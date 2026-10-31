@@ -30,12 +30,8 @@ func setup(hero: HeroData, target_width: float) -> void:
 	rtl.fit_content = false
 	rtl.add_theme_font_size_override("normal_font_size", 10)
 	
-	# Lógica de compatibilidad para extraer las reliquias iniciales
-	var relics: Array = []
-	if "starting_relics" in hero and not hero.starting_relics.is_empty():
-		relics = hero.starting_relics
-	elif "starting_relic" in hero and not hero.starting_relic.is_empty():
-		relics = hero.starting_relic
+	# HeroData define una única propiedad para las reliquias iniciales.
+	var relics: Array[RelicData] = hero.starting_relic
 
 	var relics_text: String = ""
 	if relics.is_empty():
@@ -73,6 +69,8 @@ func setup(hero: HeroData, target_width: float) -> void:
 ## Se llama desde el orquestador del menú para iluminar al héroe seleccionado (1.5x) 
 ## y oscurecer al resto (0.72x).
 func set_selected(is_selected: bool) -> void:
+	if hero_data == null:
+		return
 	if is_selected:
 		self_modulate = hero_data.accent_color * 1.5
 	else:

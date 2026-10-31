@@ -6,7 +6,7 @@ extends RefCounted
 class_name RunDirector
 
 ## Referencia inyectada a la Mesa de Combate (`BattleTable`).
-var table: Control
+var table: Variant
 ## Referencia inyectada al estado vivo de la partida (`RunState`).
 var run: RunState
 ## Vista principal de navegación del grafo (matriz `8x8`).
@@ -19,6 +19,7 @@ var shop_view: ShopView
 var slot_view: SlotSelectView
 ## Vista modal sobrepuesta para el menú de pausa.
 var pause_menu: PauseMenuView
+
 ## Constructor del Director. Instancia las vistas principales 
 ## (`MapView`, `PauseMenuView`, `MainMenuView`, `ShopView`, `SlotSelectView`) como hijas de la mesa.
 ## Conecta las señales de transición, precarga el catálogo de héroes y 
@@ -32,6 +33,7 @@ func _init(p_table: Control, p_run: RunState) -> void:
 	map_view.visible = false
 	table.add_child(map_view)
 	map_view.room_selected.connect(_on_map_room_selected)
+	run.weapon_equipped.connect(_on_run_weapon_equipped)
 	
 	# Menú de Pausa
 	pause_menu = PauseMenuView.new()
@@ -65,11 +67,11 @@ func _init(p_table: Control, p_run: RunState) -> void:
 	table.add_child(slot_view)
 	slot_view.slot_chosen.connect(_on_slot_confirmed)
 	
-	# 6. Precarga de héroes para tener el menú listo de fondo
+	# 5. Precarga de héroes para tener el menú listo de fondo
 	var heroes: Array[HeroData] = GameDatabase.load_all_heroes()
 	main_menu.setup_heroes(heroes)
 	
-	# 7. Bifurcación de arranque: Auto-login o Selector de Ranuras
+	# 6. Bifurcación de arranque: Auto-login o Selector de Ranuras
 	var last_slot: int = PersistenceManager.get_last_played_slot()
 	
 	if last_slot > 0 and PersistenceManager.select_slot(last_slot):
@@ -94,26 +96,48 @@ func _init(p_table: Control, p_run: RunState) -> void:
 ## Oculta el menú principal, reinicia el estado de la partida con una semilla procedimental (`-1`),
 ## construye el mazo inicial basado en el héroe elegido y transiciona al mapa.
 func _on_start_random_run(hero: HeroData) -> void:
-	main_menu.visible = false
-	run.start_new_run(-1, hero)
-	table.deck.build_initial_deck_for_hero(run)
-	open_map("Partida iniciada con: %s" % hero.hero_name)
+	_start_new_run(hero, -1, "Partida iniciada con: %s" % hero.hero_name)
 
-## Recopila las cartas activas, invoca el autoguardado y sincroniza todas las métricas del jugador 
-## con el nodo visual `MapView`.
-## Despliega el mapa en pantalla actualizando su leyenda inferior
-## . Si el modo Dios está activo, deshabilita la niebla de guerra.
+## Inicia una partida con semilla personalizada.
 func _on_start_seeded_run(hero: HeroData, custom_seed: int) -> void:
+	_start_new_run(hero, custom_seed, "Partida iniciada con %s | Semilla: %d" % [hero.hero_name, custom_seed])
+
+## Limpia los elementos efímeros de la run anterior antes de crear una nueva.
+func _start_new_run(hero: HeroData, seed: int, map_message: String) -> void:
 	main_menu.visible = false
-	run.start_new_run(custom_seed,hero)
+	map_view.visible = false
+	shop_view.visible = false
+	map_view.free_travel_enabled = false
+	PersistenceManager.delete_active_run()
+
+	table.is_resolving = false
+	table.clear_board_visuals()
+	table.enemy = null
+	table.player_block = 0
+	table.attack_button.disabled = false
+	table.discard_button.disabled = false
+
+	run.start_new_run(seed, hero)
 	table.deck.build_initial_deck_for_hero(run)
-	open_map("Partida iniciada con %s | Semilla: %d" % [hero.hero_name, custom_seed])
+	table.current_energy = run.max_energy
+	table.discards_remaining = run.discards_per_combat
+	open_map(map_message)
+
+## Persiste los cambios de equipo realizados desde el mapa para evitar perderlos al cerrar el juego.
+func _on_run_weapon_equipped(_weapon: WeaponData) -> void:
+	if not map_view or not map_view.visible:
+		return
+	if PersistenceManager.current_slot <= 0 or run.is_player_dead():
+		return
+	PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
 
 ## Recopila las cartas activas, invoca el autoguardado y sincroniza todas las métricas 
 ## del jugador con el nodo visual `MapView`.
 ## Despliega el mapa en pantalla actualizando su leyenda inferior.
 ## Si el modo Dios está activo, deshabilita la niebla de guerra.
 func open_map(custom_info: String = "") -> void:
+	shop_view.visible = false
+	map_view.visible = true
 
 	if PersistenceManager.current_slot > 0 and not run.is_player_dead():
 		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
@@ -122,13 +146,7 @@ func open_map(custom_info: String = "") -> void:
 		run.reveal_entire_floor()
 		map_view.free_travel_enabled = true
 
-	var board_cards: Array[CardData] = []
-	for c in table.board.hand_cards:
-		if c.card_data:
-			board_cards.append(c.card_data)
-	for c in table.board.combo_cards:
-		if c.card_data:
-			board_cards.append(c.card_data)
+	var board_cards: Array[CardData] = _get_active_board_cards()
 
 	map_view.setup_floor(
 		run.current_floor,
@@ -195,8 +213,7 @@ func _on_map_room_selected(room: RoomData) -> void:
 		RoomData.Type.BOSS:
 			map_view.visible = false
 			table.start_combat_encounter(true)
-		#Genera 3 cartas (`_get_random_shop_cards`) y 2 reliquias
-		 #(`run.generate_shop_relics`), marca la sala como visitada y abre `shop_view`.
+		# Genera el stock de la tienda una sola vez y abre `shop_view`.
 		RoomData.Type.SHOP:
 			# No llamamos a clear_and_discover_room para que la tienda no se cierre
 			# Solo descubrimos sus vecinos para poder seguir moviéndonos
@@ -205,28 +222,35 @@ func _on_map_room_selected(room: RoomData) -> void:
 				if rooms.has(n_pos):
 					rooms[n_pos].discovered = true
 			
-			# Si la tienda no tiene stock generado todavía, lo generamos y guardamos en la sala
-			if not room.shop_initialized:
-				room.shop_initialized = true
-				room.shop_cards = _get_random_shop_cards(room.grid_pos, 3)
-				room.shop_relics = run.generate_shop_relics(room.grid_pos, 2)
-		
-			map_view.visible = false
-			# Abrimos la tienda pasándole el stock persistente de esta sala en particular
-			shop_view.open_shop(run.player_gold, room.shop_cards, room.shop_relics)
+			_open_shop_for_room(room)
 
-## Disparado tras la victoria en un encuentro. Efectúa el autoguardado rápido.
+## Genera el stock una sola vez y abre la tienda para una sala concreta.
+## El stock se serializa en RunState para que las compras no reaparezcan al cargar.
+func _open_shop_for_room(room: RoomData) -> void:
+	if room == null:
+		return
+	if not room.shop_initialized:
+		room.shop_initialized = true
+		room.shop_cards = run.generate_shop_cards(room.grid_pos, 3)
+		room.shop_relics = run.generate_shop_relics(room.grid_pos, 2)
+	map_view.visible = false
+	shop_view.open_shop(run.player_gold, room.shop_cards, room.shop_relics)
+
+## Disparado tras la victoria en un encuentro. Guarda el estado después de aplicar la victoria.
 ## Si era un Jefe, orquesta el avance a la siguiente planta. 
 ## Si era un enemigo estándar, despeja la sala actual y devuelve el foco al mapa.
 func _on_combat_won() -> void:
-	if PersistenceManager.current_slot > 0 and not run.is_player_dead():
-		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
-		
+	# El guardado se realiza desde open_map() después de marcar la sala como
+	# despejada o generar la siguiente planta. Guardar antes permitiría reanudar
+	# un combate que el jugador ya había ganado.
 	if run.current_room and run.current_room.room_type == RoomData.Type.BOSS:
 		table.hud.set_banner_message("JEFE DERROTADO! AVANZANDO A LA PLANTA %d..." % (run.current_floor + 1))
 		table.attack_button.text = "SUBIENDO DE PLANTA..."
 		await table.get_tree().create_timer(1.4).timeout
 		run.start_floor(run.current_floor + 1)
+		map_view.free_travel_enabled = run.god_mode
+		if run.god_mode:
+			run.reveal_entire_floor()
 		SignalBus.floor_started.emit(run.current_floor)
 		open_map("Bienvenido a la Planta %d! La matriz se ha regenerado con una nueva sub-semilla." % run.current_floor)
 	else:
@@ -236,95 +260,76 @@ func _on_combat_won() -> void:
 		await table.get_tree().create_timer(1.2).timeout
 		open_map("Sala despejada! Nuevos pasillos descubiertos en el mapa.")
 
-## Disparado tras la muerte definitiva del jugador.
-## Muestra el mensaje de caída, oculta la capa de expedición 
-## y retorna al menú principal purificando el estado vivo de la partida (Permadeath).
 func _on_combat_lost() -> void:
-	table.hud.set_banner_message("YOU DIED CAYENDO EN LA PLANTA %d..." % run.current_floor)
+	var defeated_floor: int = run.current_floor
+	var enemy_name: String = table.enemy.enemy_name if table.enemy else "un enemigo"
+
+	# La muerte es definitiva: el snapshot anterior no debe poder reanudarse.
+	PersistenceManager.delete_active_run()
+	PersistenceManager.record_run_finished(false, defeated_floor)
+
+	table.hud.set_banner_message("YOU DIED CAYENDO EN LA PLANTA %d..." % defeated_floor)
 	table.attack_button.text = "DERROTA"
 	await table.get_tree().create_timer(1.6).timeout
-	map_view.visible = false
-	main_menu.show_menu("HAS MUERTO en la Planta %d ante %s." % [run.current_floor, table.enemy.enemy_name])
 
-## Disparado al salir de la vista de comercio. Aplica un autoguardado rápido, 
-## refresca las etiquetas numéricas de la mesa y vuelve a abrir el mapa.
+	map_view.visible = false
+	shop_view.visible = false
+	map_view.free_travel_enabled = false
+	table.is_resolving = false
+	table.clear_board_visuals()
+	table.enemy = null
+	table.attack_button.disabled = false
+	main_menu.visible = true
+	main_menu.show_menu("HAS MUERTO en la Planta %d ante %s." % [defeated_floor, enemy_name])
+
 func _on_shop_closed() -> void:
-	if PersistenceManager.current_slot > 0 and not run.is_player_dead():
-		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
 	table.refresh_ui()
 	open_map("Saliste de la tienda.")
-	
-## Valida los fondos, debita el oro y transfiere una copia serializada segura de la carta adquirida 
-## hacia la pila de robo del mazo activo.
-## Desactiva su disponibilidad en el stock persistente de la sala actual y refresca la UI de la tienda.
+
 func _on_shop_card_bought(card: CardData, cost: int) -> void:
-	if run.player_gold >= cost:
-		run.player_gold -= cost
-		
-		var copy := card.duplicate()
-		# Sellamos la ruta original en la copia
-		copy.resource_name = card.resource_path if card.resource_path != "" else card.resource_name
-		
-		# Agregamos la carta a la pila de robo
-		if table.deck and table.deck.draw_pile:
-			if table.deck.draw_pile.has_method("add_card"):
-				table.deck.draw_pile.add_card(copy)
-			elif "cards" in table.deck.draw_pile:
-				table.deck.draw_pile.cards.append(copy)
-				
-		if run.current_room and run.current_room.room_type == RoomData.Type.SHOP:
-			var idx = run.current_room.shop_cards.find(card)
-			if idx != -1: run.current_room.shop_cards[idx] = null
-				
-		shop_view.update_after_purchase(run.player_gold)
-		table.refresh_ui()
+	if card == null or cost < 0 or run.player_gold < cost:
+		return
+	if table.deck == null or table.deck.draw_pile == null:
+		push_error("No se pudo comprar la carta: el mazo de robo no está disponible.")
+		return
 
-## Valida los fondos, debita el oro, equipa la reliquia adquirida en el jugador y dispara su gancho `on_equipped`.
-## Desactiva la reliquia del stock de la sala actual, emite `relic_acquired` y refresca la UI.
+	var card_path: String = card.resource_path if card.resource_path != "" else card.resource_name
+	if card_path == "" or not ResourceLoader.exists(card_path):
+		push_error("No se pudo comprar la carta '%s': falta una ruta de recurso válida." % card.title)
+		return
+
+	var copy := card.duplicate() as CardData
+	copy.resource_name = card_path
+	table.deck.draw_pile.add_card(copy)
+	run.player_gold -= cost
+
+	if run.current_room and run.current_room.room_type == RoomData.Type.SHOP:
+		var idx: int = run.current_room.shop_cards.find(card)
+		if idx != -1:
+			run.current_room.shop_cards[idx] = null
+
+	shop_view.update_after_purchase(run.player_gold)
+	table.refresh_ui()
+	if PersistenceManager.current_slot > 0:
+		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
+
 func _on_shop_relic_bought(relic: RelicData, cost: int) -> void:
-	if run.player_gold >= cost:
-		run.player_gold -= cost
-		run.active_relics.append(relic)
-		relic.trigger_on_equipped(run)
-		SignalBus.relic_acquired.emit(relic)
-		
-		# Marcamos la reliquia como null en el stock de la sala actual
-		if run.current_room and run.current_room.room_type == RoomData.Type.SHOP:
-			var idx = run.current_room.shop_relics.find(relic)
-			if idx != -1:
-				run.current_room.shop_relics[idx] = null
-				
-		shop_view.update_after_purchase(run.player_gold)
-		table.refresh_ui()
-		
-## Genera aleatoriamente 3 cartas únicas utilizando un motor RNG determinista atado a las coordenadas de la sala y al piso actual.
-## Filtra los candidatos usando el sorteador ponderado de rarezas (`RaritySystem`).
-func _get_random_shop_cards(room_pos: Vector2i, amount: int = 3) -> Array[CardData]:
-	var all_cards: Array[CardData] = GameDatabase.load_all_cards()
-	var result: Array[CardData] = []
-	if all_cards.is_empty():
-		push_warning("Tienda: No se encontraron archivos .tres de tipo CardData en res://cards/data")
-		return result
+	if relic == null or cost < 0 or run.player_gold < cost:
+		return
 
-	# RNG determinista atado a la semilla de la partida, el piso y la coordenada de la sala
-	var rng := RandomNumberGenerator.new()
-	rng.seed = abs(hash("%d_FLOOR_%d_SHOP_CARDS_%d_%d" % [run.master_seed, run.current_floor, room_pos.x, room_pos.y]))
+	run.player_gold -= cost
+	run.equip_specific_relic(relic)
 
-	for i in range(min(amount, all_cards.size())):
-		var target_tier: RaritySystem.Tier = RaritySystem.roll_tier(rng, run.current_floor, run.player_luck)
-		var candidates: Array[CardData] = all_cards.filter(func(c: CardData): return c.rarity == target_tier)
-		if candidates.is_empty():
-			candidates = all_cards
-		
-		var picked: CardData = candidates[rng.randi_range(0, candidates.size() - 1)]
-		result.append(picked.duplicate())
-		all_cards.erase(picked) # Evita que se repita la misma carta en la tienda
+	if run.current_room and run.current_room.room_type == RoomData.Type.SHOP:
+		var idx: int = run.current_room.shop_relics.find(relic)
+		if idx != -1:
+			run.current_room.shop_relics[idx] = null
 
-	return result
-	
-## Responde a la selección (o creación) de una ranura por parte del jugador.
-## Si el slot posee una partida en suspensión viva, la restaura y la retoma. 
-## Caso contrario, despliega el menú de selección de Héroe para una nueva aventura.
+	shop_view.update_after_purchase(run.player_gold)
+	table.refresh_ui()
+	if PersistenceManager.current_slot > 0:
+		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
+
 func _on_slot_confirmed() -> void:
 	slot_view.visible = false
 
@@ -335,6 +340,7 @@ func _on_slot_confirmed() -> void:
 			return
 			
 	# Si no hay partida viva, pasar al menú principal de selección de héroe
+	map_view.free_travel_enabled = false
 	main_menu.visible = true
 	main_menu.show_menu()
 	
@@ -356,23 +362,29 @@ func handle_unhandled_key(event: InputEvent) -> void:
 ## Elimina permanentemente la partida en curso del disco duro y computa la derrota en las estadísticas del perfil.
 ## Purga las vistas actuales y regresa al menú de selección de Héroes.
 func _on_pause_abandon_run() -> void:
-	# 1. Borramos la partida viva de disco para respetar permadeath
+	# Eliminamos el snapshot y registramos el abandono como una derrota.
 	PersistenceManager.delete_active_run()
 	PersistenceManager.record_run_finished(false, run.current_floor)
-	
-	# 2. Ocultamos las capas de juego
+
 	map_view.visible = false
 	shop_view.visible = false
+	map_view.free_travel_enabled = false
 	table.clear_board_visuals()
-	
-	# 3. Volvemos al menú principal para que elija otro héroe
+	table.enemy = null
+	table.is_resolving = false
+
 	main_menu.visible = true
 	main_menu.show_menu("Has abandonado la expedición.")
 
-## Dispara un guardado atómico final y cierra de forma segura el ejecutable desde el árbol de escena.
 func _on_pause_quit_game() -> void:
-	if PersistenceManager.current_slot > 0 and not run.is_player_dead():
-		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
+	if PersistenceManager.current_slot > 0:
+		if run.is_player_dead():
+			# Si se sale durante la secuencia de derrota, tampoco debe quedar
+			# un snapshot que permita reanudar una partida terminada.
+			PersistenceManager.delete_active_run()
+			PersistenceManager.record_run_finished(false, run.current_floor)
+		else:
+			PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
 	table.get_tree().quit()
 	
 ## Cierra de forma segura el ejecutable directamente desde el menú base.
@@ -397,7 +409,11 @@ func _get_active_board_cards() -> Array[CardData]:
 ##  reinicia el encuentro. Si estaba pacífico en el mapa, abre la vista de expedición.
 func _resume_loaded_run(slot: int) -> void:
 	var room: RoomData = run.current_room
-	
+	map_view.free_travel_enabled = run.god_mode
+	table.clear_board_visuals()
+	table.enemy = null
+	table.is_resolving = false
+
 	if room and not room.cleared:
 		if room.room_type == RoomData.Type.COMBAT:
 			map_view.visible = false
@@ -407,6 +423,9 @@ func _resume_loaded_run(slot: int) -> void:
 			map_view.visible = false
 			table.start_combat_encounter(true)
 			return
-			
-	# Si ya estaba despejada o es cualquier otra sala (hoguera, reliquia), va al mapa
+		elif room.room_type == RoomData.Type.SHOP:
+			_open_shop_for_room(room)
+			return
+
+	# Si ya estaba despejada o es cualquier otra sala, va al mapa.
 	open_map("Continuando partida anterior (Ranura %d)" % slot)

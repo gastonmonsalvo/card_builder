@@ -38,3 +38,5 @@ const SHOCK_LUCK_BONUS_PER_POINT: float = 0.03
 const SHOCK_MAX_STUN_CHANCE: float = 0.80
 
 const BASIC_WEAPON : WeaponData = preload("res://weapons/data/arma_basica.tres")
+
+const MAX_INVENTORY_SIZE: int = 4

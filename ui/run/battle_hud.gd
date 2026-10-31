@@ -4,6 +4,8 @@
 extends Control
 class_name BattleHUD
 
+signal equipment_changed
+
 @onready var player_stats_label: Label = $PlayerPanel/PlayerStatsLabel
 @onready var enemy_stats_label: Label = $EnemyPanel/EnemyStatsLabel
 @onready var combo_banner_label: Label = $ComboBannerLabel
@@ -41,6 +43,7 @@ func _ready() -> void:
 	# --- 1. INSTANCIAMOS EL MODAL DE INVENTARIO Y LO AGREGAMOS AL HUD ---
 	inventory_modal = InventoryModalView.new()
 	add_child(inventory_modal)
+	inventory_modal.weapon_selected_to_equip.connect(_on_inventory_weapon_selected)
 
 	# --- 2. CREAMOS EL BOTÓN DE EQUIPO EN LA VISTA DE COMBATE ---
 	inventory_btn = Button.new()
@@ -66,6 +69,14 @@ func bind_piles(draw_p: CardPile, discard_p: CardPile, graveyard_p: CardPile) ->
 ## Inyecta la referencia global del estado de la run para que el botón EQUIPO sepa a qué datos consultar.
 func bind_run_reference(run: RunState) -> void:
 	_run_ref = run
+
+## Equipa el arma seleccionada y refresca el modal.
+func _on_inventory_weapon_selected(weapon: WeaponData) -> void:
+	if not _run_ref:
+		return
+	if _run_ref.equip_weapon(weapon):
+		inventory_modal.open_inventory(_run_ref)
+		equipment_changed.emit()
 	
 ## Función principal de renderizado. Reconstruye todos los textos de la pantalla:
 ## 1. Panel del Jugador (HP, Energía, Suerte y Escudo).
