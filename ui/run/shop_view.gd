@@ -1,19 +1,32 @@
-## Interfaz modal de la Tienda del Bazar (`TIENDA DEL BAZAR`).
+## Interfaz modal interactiva para la "Tienda del Bazar".
+## Construye proceduralmente el mostrador donde el jugador puede 
+## gastar su oro para adquirir nuevas cartas para el mazo o reliquias permanentes.
 
 extends Control
 class_name ShopView
 
+## Emitida cuando el jugador hace clic en el botón de compra de una carta.
+## Pasa como parámetros la estructura estática de la carta (`CardData`) y el costo final debitado.
 signal card_bought(card: CardData, cost: int)
+
+## Emitida cuando el jugador hace clic en el botón de compra de una reliquia.
+## Pasa como parámetros la estructura estática de la reliquia (`RelicData`) y el costo final debitado.
 signal relic_bought(relic: RelicData, cost: int)
+## Emitida cuando el jugador presiona el botón "VOLVER AL MAPA", solicitando cerrar la tienda.
 signal closed()
 
+## Referencia a la etiqueta visual que muestra el saldo actual de oro del jugador.
 var gold_label: Label
+## Contenedor horizontal dinámico que aloja los botones de compra de las cartas.
 var cards_container: HBoxContainer
+## Contenedor horizontal dinámico que aloja los botones de compra de las reliquias.
 var relics_container: HBoxContainer
 
-## Construye por código el panel central de `860x520`, indicador de oro disponible,
-## contenedor horizontal para las 3 cartas (`cards_container`), 
-##contenedor para las 2 reliquias (`relics_container`) y el botón `"VOLVER AL MAPA"`.
+## Constructor de la interfaz visual.
+## Ensambla por código el panel central opaco (`860x520`),
+## el título de la tienda, el indicador de oro disponible,
+## los dos contenedores horizontales separados para el stock (Cartas y Reliquias)
+## y el botón inferior para cerrar el modal y volver al mapa.
 func _init() -> void:
 	name = "ShopView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -88,9 +101,11 @@ func _init() -> void:
 	)
 	panel.add_child(close_btn)
 
-## Limpia botones previos, filtra posibles nulos y genera los botones de compra mostrando nombre,
-## costo de maná, descripción y precio en oro, 
-## deshabilitando aquellos cuyo precio supere `current_gold`
+## Inyecta el inventario de la tienda generado por el `RunState`. 
+## Limpia instancias previas y genera un botón interactivo por cada ítem listado. 
+## Si el objeto es nulo (fue comprado en una visita previa a esta misma tienda), 
+## renderiza un botón "VENDIDO" inactivo.
+## Bloquea (deshabilita) el botón de compra si el `current_gold` del jugador es inferior al precio calculado.
 func open_shop(current_gold: int, available_cards: Array[CardData], available_relics: Array[RelicData]) -> void:
 	visible = true
 	_refresh_gold(current_gold)
@@ -152,8 +167,9 @@ func open_shop(current_gold: int, available_cards: Array[CardData], available_re
 			
 		relics_container.add_child(btn)
 		
-## Actualiza la etiqueta de oro tras una compra y deshabilita  en vivo los artículos 
-## restantes que el jugador ya no pueda pagar.
+## Re-evalúa el poder adquisitivo del jugador inmediatamente después de una compra.
+## Actualiza la etiqueta del oro y desactiva dinámicamente cualquier botón de ítem sobrante cuyo precio
+## sea ahora mayor al `new_gold` restante.
 func update_after_purchase(new_gold: int) -> void:
 	_refresh_gold(new_gold)
 	for btn in cards_container.get_children():
@@ -170,11 +186,13 @@ func update_after_purchase(new_gold: int) -> void:
 				var cost :int = parts[1].split(" ")[0].to_int()
 				btn.disabled = new_gold < cost
 
-## Refresca el label del oro disponible
+## Actualiza puramente el texto de la etiqueta visual de la billetera del jugador.
 func _refresh_gold(amount: int) -> void:
 	gold_label.text = "Oro Disponible: %d" % amount
 	
-## Retorna `45` (Común), 60` (Poco Común),  `75` (Rara), `120` (Épica) o `50` por defecto.
+## Función de tasación interna para cartas. 
+## Calcula el costo base en oro leyendo el enumerador `RaritySystem.Tier` de la carta:
+## `45` (Común), `60` (Poco Común), `75` (Rara), `120` (Épica), `180` (Legendaria).
 func _calculate_card_price(card: CardData) -> int:
 	if not card:
 		return 50
@@ -192,7 +210,9 @@ func _calculate_card_price(card: CardData) -> int:
 		_:
 			return 50
 			
-## Retorna el precio segun la rareza del objeto.
+## Función de tasación interna para reliquias. 
+## Aplica una inflación general sobre el costo de rareza (`RaritySystem.Tier`) al tratarse de bonificadores pasivos permanentes:
+## `120` (Común), `140` (Poco Común), `160` (Rara), `220` (Épica), `300` (Legendaria).
 func _calculate_relic_price(relic: RelicData) -> int:
 	if not relic:
 		return 150
