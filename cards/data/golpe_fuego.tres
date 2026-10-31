@@ -18,13 +18,8 @@ metadata/_custom_type_script = "uid://cuveu461d62ex"
 [resource]
 script = ExtResource("1_vn7qq")
 title = "Golpe Ígneo"
-rarity = null
-single_use = null
 effects = Array[ExtResource("1_ds04l")]([SubResource("Resource_fijxh"), SubResource("Resource_civ8q")])
 description = "+4 de daño
 +2 de quemadura"
-cost = null
-required_weapon_class = 3
-uses_weapon_damage = null
-fallback_damage = null
+required_weapon_class = Array[int]([3])
 metadata/_custom_type_script = "uid://cob1g5x6igww8"

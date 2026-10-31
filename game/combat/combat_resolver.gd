@@ -202,3 +202,67 @@ static func execute_enemy_turn(tree: SceneTree, run: RunState, enemy: Enemy, hud
 			return false # Game Over
 
 	return true # Sobrevivió el turno normalmente
+	
+## Calcula el daño real final de una carta basándose en el arma equipada y los stats del héroe.
+static func calculate_final_card_damage(card: CardData, current_weapon: WeaponData, h_str: int, h_int: int, h_dex: int) -> Dictionary:
+	
+	# 1. FALLBACK: Chequear si tiene el tipo de arma correcta
+	# Primero validamos si la carta NO acepta ANY.
+	if not card.required_weapon_class.has(WeaponData.Class.ANY):
+		# Si no acepta ANY, chequeamos si el arma actual del jugador está en la lista permitida
+		if not card.required_weapon_class.has(current_weapon.weapon_class):
+			# Tiene el arma equivocada. Penalidad extrema. Carta inútil.
+			return {
+				"final_damage": card.fallback_damage,
+				"apply_status": false,
+				"bonus_poison": 0, "bonus_burn": 0, "bonus_hemo": 0, "bonus_shock": 0,
+				"msg": "Arma incorrecta: Golpe torpe."
+			}
+	
+	# 2. Tiene el arma correcta. Evaluamos si el arma aporta daño y estados a esta carta.
+	var calc_dmg: int = card.base_damage
+	
+	# Preparamos el payload de estados inyectados por el arma
+	var w_poison: int = 0
+	var w_burn: int = 0
+	var w_hemo: int = 0
+	var w_shock: int = 0
+
+	if card.uses_weapon_damage:
+		var bonus_stats: int = current_weapon.get_scaling_bonus(h_str, h_int, h_dex)
+		calc_dmg += current_weapon.base_damage + bonus_stats
+		
+		# Extraemos los estados innatos del arma
+		w_poison = current_weapon.inflict_poison
+		w_burn = current_weapon.inflict_burn
+		w_hemo = current_weapon.inflict_hemorrhage
+		w_shock = current_weapon.inflict_shock
+		
+	# 3. PENALIZACIÓN POR STATS
+	var deficit: int = current_weapon.get_stat_deficit(h_str, h_int, h_dex)
+	var can_apply_status: bool = true
+	
+	if deficit > 0:
+		var penalty_pct: float = min(1.0, deficit * 0.25)
+		calc_dmg = int(floor(calc_dmg * (1.0 - penalty_pct)))
+		can_apply_status = false # NO CUMPLE REQUISITOS -> NO APLICA NINGÚN EFECTO
+		
+		return {
+			"final_damage": max(1, calc_dmg),
+			"apply_status": false,
+			# Mandamos los estados en CERO porque no supo usar el arma
+			"bonus_poison": 0, "bonus_burn": 0, "bonus_hemo": 0, "bonus_shock": 0,
+			"msg": "Stats insuficientes: Penalización de daño y anulación de efectos."
+		}
+
+	# 4. USO PERFECTO
+	return {
+		"final_damage": calc_dmg,
+		"apply_status": true,
+		# Mandamos el payload del arma para que se sume a lo que ya haga la carta
+		"bonus_poison": w_poison, 
+		"bonus_burn": w_burn, 
+		"bonus_hemo": w_hemo, 
+		"bonus_shock": w_shock,
+		"msg": ""
+	}

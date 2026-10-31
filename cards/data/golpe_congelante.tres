@@ -18,12 +18,8 @@ metadata/_custom_type_script = "uid://bt1ip8cjdcuyi"
 script = ExtResource("2_ko3hu")
 title = "Golpe Congelante"
 rarity = 1
-single_use = null
 effects = Array[ExtResource("1_so8ng")]([SubResource("Resource_so8ng"), SubResource("Resource_ko3hu")])
 description = "+4 de daño
 +2 de congelamiento"
-cost = null
-required_weapon_class = null
-uses_weapon_damage = null
-fallback_damage = null
+required_weapon_class = Array[int]([3])
 metadata/_custom_type_script = "uid://cob1g5x6igww8"

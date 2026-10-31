@@ -19,12 +19,9 @@ metadata/_custom_type_script = "uid://emqwpgk51qrk"
 script = ExtResource("2_kditg")
 title = "Tajo"
 rarity = 1
-single_use = null
 effects = Array[ExtResource("1_d8njf")]([SubResource("Resource_d8njf"), SubResource("Resource_kditg")])
 description = "+6 daño
 Aplica +2 de Hemorragia"
 cost = 2
-required_weapon_class = 5
-uses_weapon_damage = null
-fallback_damage = null
+required_weapon_class = Array[int]([5])
 metadata/_custom_type_script = "uid://cob1g5x6igww8"
