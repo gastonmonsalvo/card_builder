@@ -1,25 +1,40 @@
-## Menú de inicio de partida con selector de héroes e ingreso opcional de semilla.
-
+## Menú de inicio de partida
+## Vista principal del menú de inicio (Main Menu) construida proceduralmente.
+## Orquesta la selección de héroe, el ingreso opcional de semillas (seeds) para replicar mundos,
+## la visualización de estadísticas del perfil activo y el inicio de la aventura.
 extends Control
 class_name MainMenuView
 
+## Emitida al solicitar una nueva partida con generación procedural 100% aleatoria.
 signal start_random_run_requested(hero: HeroData)
+## Emitida al solicitar una partida usando una semilla específica para replicar un mapa determinista.
 signal start_seeded_run_requested(hero: HeroData, custom_seed: int)
+## Emitida cuando el jugador desea regresar a la pantalla de selección de ranura (Slot/Perfil).
 signal change_slot_requested()
+## Emitida al presionar el botón de salir, solicitando cerrar el juego por completo.
 signal quit_requested()
 
+## Referencia a la etiqueta que brinda instrucciones de uso al jugador.
 var status_label: Label
+## Campo de entrada de texto (alfanumérico) para inyectar una semilla personalizada.
 var seed_input: LineEdit
+## Etiqueta roja multipropósito: muestra validaciones fallidas ("Elige un héroe")
+##  o las causas de muerte del Game Over.
 var error_label: Label
+## Contenedor horizontal dinámico que aloja las tarjetas visuales de los héroes disponibles.
 var heroes_container: HBoxContainer
+## Etiqueta que lee y renderiza los datos en memoria del perfil actual (Slot, Nombre, Victorias, etc.).
 var profile_info_label: Label
 
+## Catálogo en memoria de los héroes inyectados en la vista.
 var available_heroes: Array[HeroData] = []
+## Referencia al objeto de datos del héroe actualmente resaltado por el jugador.
 var selected_hero: HeroData = null
+## Lista interna de las instancias visuales (`HeroCardView`) generadas proceduralmente.
 var hero_buttons: Array[HeroCardView] = []
 
-## Construye el panel principal, contenedor de tarjetas de héroe (`heroes_container`),
-## botón de partida aleatoria e input `LineEdit` para semilla específica.
+## Constructor de la interfaz visual. Ensambla proceduralmente (sin escenas `.tscn`) el panel central,
+## el formulario para el ingreso de semilla, el layout horizontal para los héroes, y la botonera inferior.
 func _init() -> void:
 	name = "MainMenuView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -153,9 +168,9 @@ func _init() -> void:
 	btn_quit.pressed.connect(func(): quit_requested.emit())
 	bottom_row.add_child(btn_quit)
 	
-## Configura la lista de héroes disponibles en el menú
-##  Genera un botón interactivo por cada `HeroData` mostrando su nombre, HP, Energía,
-## Descartes y cantidad de cartas iniciales, seleccionando el primero por defecto.
+## Configura la lista de héroes disponibles inyectando un `HeroCardView` por cada uno.
+## Ajusta matemáticamente el ancho de las tarjetas según la cantidad de héroes para que encajen perfecto,
+## y selecciona al primero por defecto.
 func setup_heroes(heroes: Array[HeroData]) -> void:
 	available_heroes = heroes
 	for child in heroes_container.get_children():
@@ -182,15 +197,16 @@ func setup_heroes(heroes: Array[HeroData]) -> void:
 	if not available_heroes.is_empty():
 		_select_hero(available_heroes[0])
 		
-## Guarda el héroe activo y resalta visualmente su tarjeta con `modulate = Color(1.2, 1.2, 0.6)`.
+## Guarda la referencia al héroe activo y notifica a todas las tarjetas visuales
+## para que actualicen su iluminación (destacando al elegido y apagando al resto).
 func _select_hero(hero: HeroData) -> void:
 	selected_hero = hero
 	for card in hero_buttons:
 		card.set_selected(card.hero_data == selected_hero)
 
-## Muestra el menú principal, refresca la identidad del slot activo y exhibe mensajes de Game Over o errores.
-## Muestra el menú limpiando la semilla anterior (regla de Permadeath) y
-## exhibiendo en rojo la causa de muerte si viene de un `combat_lost`.
+## Despliega el menú principal restableciendo el formulario de semillas (para forzar la regla de Permadeath).
+## Extrae la metadata del jugador desde el `PersistenceManager` (Nombre, Slot, Mejor Piso, Victorias)
+##  para mostrarla en pantalla, y expone en rojo la causa de muerte si recibe un mensaje de Game Over.
 func show_menu(game_over_msg: String = "") -> void:
 	visible = true
 	seed_input.text = ""
@@ -212,7 +228,9 @@ func show_menu(game_over_msg: String = "") -> void:
 	else:
 		error_label.text = ""
 		error_label.visible = false
-
+		
+## Callback del botón "JUGAR PARTIDA NUEVA".
+## Valida que haya un héroe seleccionado y emite la señal para arrancar el juego procedural estándar.
 func _on_random_pressed() -> void:
 	if not selected_hero:
 		error_label.text = "Selecciona un héroe antes de jugar."
@@ -220,6 +238,10 @@ func _on_random_pressed() -> void:
 	visible = false
 	start_random_run_requested.emit(selected_hero)
 
+## Callback del botón "JUGAR CON ESTA SEMILLA".
+## Parsea de forma segura el texto de entrada. Si es numérico puro, lo convierte a entero. 
+## Si es un texto alfanumérico (ej. "TUP2026"), le aplica un hash matemático para generar una semilla válida,
+##  y emite la solicitud.
 func _on_seeded_pressed() -> void:
 	if not selected_hero:
 		error_label.text = "Selecciona un héroe antes de jugar."
