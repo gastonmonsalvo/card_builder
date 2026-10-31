@@ -1,9 +1,20 @@
+## Vista modal (pop-up) superpuesta que actúa como un panel genérico de inspección de detalles.
+## Provee un contenedor con scroll automático para leer descripciones largas (cartas, reliquias, estados) 
+## bloqueando visualmente el fondo.
 extends Panel
 class_name InspectorModalView
 
+## Referencia a la etiqueta visual que renderiza el título principal superior del modal.
 var inspector_title_label: Label
+## Referencia a la etiqueta de texto multilínea con ajuste automático (Word Wrap).
+## Está inyectada dentro de un `ScrollContainer` para acomodar textos extensos sin desbordar la ventana.
 var inspector_body_label: Label
 
+## Constructor de la interfaz visual. Ensambla proceduralmente (vía código puro) 
+## el panel contenedor estilizado (`StyleBoxFlat`), tipografías, el sistema de scroll vertical 
+## y el botón de cierre.
+## Calcula matemáticamente su anclaje para centrarse de forma absoluta 
+## en una resolución de diseño de 1152x648 en la capa superior (`z_index = 30`).
 func _init() -> void:
 	name = "InspectorModalView"
 	visible = false
@@ -49,7 +60,8 @@ func _init() -> void:
 	close_btn.size = Vector2(160, 40)
 	close_btn.pressed.connect(func(): visible = false)
 	add_child(close_btn)
-
+## Inyecta el texto del título y la descripción detallada en las etiquetas correspondientes de la interfaz,
+## y hace visible el modal pasándolo al primer plano de la pantalla.
 func open_inspector(title_txt: String, body_txt: String) -> void:
 	inspector_title_label.text = title_txt
 	inspector_body_label.text = body_txt
