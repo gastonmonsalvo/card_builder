@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3 uid="uid://6i0nbwiirlsg"]
+
+[ext_resource type="Script" uid="uid://db3042vswtitv" path="res://weapons/weapon_data.gd" id="1_hmuh8"]
+
+[resource]
+script = ExtResource("1_hmuh8")
+weapon_id = "1"
+weapon_class = 5
+base_damage = 5
+req_str = 5
+req_dex = 3
+scale_str = 2.0
+metadata/_custom_type_script = "uid://db3042vswtitv"
