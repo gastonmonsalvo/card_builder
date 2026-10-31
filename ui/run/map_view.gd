@@ -1,16 +1,25 @@
 ## Renderiza en pantalla completa la matriz `8x8` del piso actual, 
 ## los paneles informativos de Reliquias y Mazo a los costados,
-## el modal interactivo del Santuario Ancestral y gestiona el clic sobre las salas vecinas.
+## el modal interactivo del Santuario Ancestral y gestiona el clic sobre las salas vecinas para avanzar.
 class_name MapView
 extends Control
 
+## Emitida cuando el jugador hace clic sobre un nodo de mapa válido (accesible).
+## Pasa como parámetro la estructura de datos (`RoomData`) de la sala destino.
 signal room_selected(room: RoomData)
 
+## Referencia en memoria al grafo de salas actuales indexado por coordenada `Vector2i`.
 var rooms: Dictionary = {}
+## Coordenada `(x, y)` de la sala donde se encuentra el jugador actualmente.
 var current_pos: Vector2i = Vector2i(3, 3)
+## Nivel de profundidad actual de la expedición.
 var floor_number: int = 1
+## Semilla global que rige la partida entera.
 var master_seed: int = 0
+## Sub-semilla generada específicamente para este piso.
 var floor_seed: int = 0
+## Variable de depuración. Si es `true`, permite saltar a cualquier sala ignorando 
+## las reglas de conexión por vecinos.
 var free_travel_enabled: bool = false
 
 var title_label: Label
@@ -23,18 +32,24 @@ var deck_btn: Button
 var grid_container: Control
 var room_buttons: Dictionary = {}
 
+## Componente hijo inyectado proceduralmente. Pantalla de decisión de bendiciones.
 var sanctuary_modal: SanctuaryModalView
+## Componente hijo inyectado proceduralmente. Pantalla de lectura de cartas o reliquias.
 var inspector_modal: InspectorModalView
 
-
+## Memoria caché en formato texto (BBCode) con las descripciones de las reliquias 
+## equipadas para inyectar en el Inspector.
 var _cached_relics_detail: String = ""
+## Memoria caché en formato texto (BBCode) con el listado del mazo actual para inyectar en el Inspector.
 var _cached_deck_detail: String = ""
 
 const CELL_SIZE := Vector2(96, 46)
 const CELL_GAP := Vector2(20, 14)
 
-## Construye las etiquetas de cabecera, paneles laterales de reliquias y mazo completo, 
-## leyenda inferior y el panel modal oculto del Santuario Ancestral.
+## Constructor de la interfaz gráfica del mapa.
+## Ensambla proceduralmente las etiquetas de cabecera, paneles laterales (Reliquias y Mazo), 
+## leyenda inferior, el botón de copiar semilla al portapapeles y los paneles 
+## modales ocultos (`SanctuaryModalView`, `InspectorModalView`).
 func _init() -> void:
 	name = "MapView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -106,8 +121,9 @@ func _init() -> void:
 	inspector_modal = InspectorModalView.new()
 	add_child(inspector_modal)
 
-##  Recibe todos los datos de `RunDirector.open_map()`, actualiza los textos de estado, oro,
-##  semilla, mazo y reliquias, y solicita `_draw()` mediante `queue_redraw()`.
+## Inyecta el estado completo de la partida proveniente de `RunDirector.open_map()`.
+## Actualiza los textos (Salud, Energía, Suerte, Oro, Probabilidades de drop por rareza)
+## reconstruye la grilla de nodos visuales y solicita el repintado de las conexiones en hardware (`queue_redraw()`).
 func setup_floor(
 	p_floor: int,
 	p_master_seed: int,
@@ -150,6 +166,8 @@ func setup_floor(
 	_rebuild_grid_buttons()
 	queue_redraw()
 	
+## Purga los botones visuales del tablero e instancia dinámicamente un `MapNodeView`
+## por cada sala que haya sido descubierta. Conecta el clic de cada botón a `_on_room_clicked`.
 func _rebuild_grid_buttons() -> void:
 	for child in grid_container.get_children():
 		child.queue_free()
@@ -178,7 +196,13 @@ func _rebuild_grid_buttons() -> void:
 		
 		grid_container.add_child(node_btn)
 		room_buttons[pos] = node_btn
-
+		
+## Valida si topológicamente es legal viajar a una celda destino.
+## Reglas:
+## 1. Si es la misma celda, falla (salvo que sea la TIENDA, permitiendo reingresar).
+## 2. Si el modo de depuración (`free_travel_enabled`) está activo, pasa automático.
+## 3. Si no ha sido descubierta, falla.
+## 4. Debe ser vecina (arriba, abajo, izq, der) de la sala actual, o de alguna sala ya limpiada (`cleared`).
 func _can_travel_to(target_room: RoomData) -> bool:
 	
 	# Si estamos parados en una TIENDA, permitimos reabrirla al hacerle clic
@@ -197,14 +221,16 @@ func _can_travel_to(target_room: RoomData) -> bool:
 			if neighbor.cleared or n_pos == current_pos:
 				return true
 	return false
-
+	
+## Callback al presionar una celda válida del mapa.
+## Redirige la petición al `RunDirector` mediante la señal `room_selected`.
 func _on_room_clicked(room: RoomData) -> void:
 	room_selected.emit(room)
 
 
-## Dibuja el tablero de fondo y los pasillos conectores (`draw_line`) 
-## entre las salas descubiertas.
-
+## Función de bajo nivel de la API gráfica de Godot.
+## Dibuja el rectángulo de fondo oscuro y traza líneas procedurales (`draw_line`)
+## conectando matemáticamente los centros geométricos de las celdas vecinas descubiertas (pasillos).
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.06, 0.07, 0.1, 0.96), true)
 	var offset := grid_container.position + (CELL_SIZE * 0.5)
@@ -227,6 +253,7 @@ func _draw() -> void:
 				draw_line(from_px, to_px, Color(0.45, 0.55, 0.7, 0.8), 5.0)
 				
 	
-## Expone la apertura del modal del santuario hacia el exterior (ej. RunDirector)
+## Expone (Facade) la apertura del modal de bendición del santuario hacia
+## el orquestador externo (`RunDirector`), ocultando su implementación interna.
 func show_sanctuary_modal(opt1_cb: Callable, opt2_cb: Callable) -> void:
 	sanctuary_modal.show_sanctuary_modal(opt1_cb, opt2_cb)
