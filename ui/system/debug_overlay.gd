@@ -100,6 +100,7 @@ func toggle_panel() -> void:
 	panel.visible = not panel.visible
 	if panel.visible:
 		_rebuild_relic_buttons()
+		_rebuild_weapon_buttons()
 		_refresh_god_mode_visuals()
 		
 ## Construye las 3 columnas principales de botones inyectando las lógicas agrupadas:
@@ -107,60 +108,73 @@ func toggle_panel() -> void:
 ## Columna 2: Trucos de Combate y Avance por el mapa.
 ## Columna 3: Inyector directo de Reliquias permanentes.
 func _build_columns() -> void:
+	# --- COLUMNA 1: GOD MODE & STATS RPG ---
 	var col1 := VBoxContainer.new()
 	col1.position = Vector2(24, 56)
 	col1.custom_minimum_size = Vector2(290, 420)
-	col1.add_theme_constant_override("separation", 10)
+	col1.add_theme_constant_override("separation", 8)
 	panel.add_child(col1)
 
-	col1.add_child(_make_section_label("1. GOD MODE & JUGADOR"))
+	col1.add_child(_make_section_label("1. GOD MODE & STATS RPG"))
 
 	god_mode_btn = Button.new()
-	god_mode_btn.custom_minimum_size = Vector2(290, 46)
+	god_mode_btn.custom_minimum_size = Vector2(290, 42)
 	god_mode_btn.pressed.connect(_on_toggle_god_mode)
 	col1.add_child(god_mode_btn)
 
+	col1.add_child(_make_action_btn("+1 Fuerza (STR)", _on_add_str))
+	col1.add_child(_make_action_btn("+1 Inteligencia (INT)", _on_add_int))
+	col1.add_child(_make_action_btn("+1 Destreza (DEX)", _on_add_dex))
+	col1.add_child(_make_action_btn("+2 Suerte (LUCK)", _on_add_luck))
 	col1.add_child(_make_action_btn("+5 Energia en este Turno", _on_add_energy))
-	col1.add_child(_make_action_btn("+2 Suerte (Luck)", _on_add_luck))
 	col1.add_child(_make_action_btn("+100 Monedas (Gold)", _on_add_gold))
-	col1.add_child(_make_action_btn("Robar +1 Carta del Mazo", _on_draw_card))
 	col1.add_child(_make_action_btn("Curar Full HP", _on_heal_full))
-	col1.add_child(_make_action_btn("Dejar Jugador en 1 HP (Test Muerte)", _on_set_one_hp))
-	col1.add_child(_make_action_btn("+3 Descartes en esta Pelea", _on_add_discards))
 
+	# --- COLUMNA 2: COMBATE, EXPLORACIÓN Y ARMAS ---
 	var col2 := VBoxContainer.new()
 	col2.position = Vector2(348, 56)
 	col2.custom_minimum_size = Vector2(290, 420)
-	col2.add_theme_constant_override("separation", 10)
+	col2.add_theme_constant_override("separation", 8)
 	panel.add_child(col2)
 
-	col2.add_child(_make_section_label("2. COMBATE & EXPLORACION"))
-	col2.add_child(_make_action_btn("INSTA-KILL Enemigo (Ganar Pelea)", _on_instakill_enemy))
-	col2.add_child(_make_action_btn("Enemigo: +3 Congelamiento", _on_freeze_enemy))
-	col2.add_child(_make_action_btn("Enemigo: +3 Veneno", _on_poison_enemy))
-	col2.add_child(_make_action_btn("Enemigo: +3 Hemorragia", _on_hemorrhage_enemy))
-	col2.add_child(_make_action_btn("Enemigo: +3 Quemadura", _on_burn_enemy))
-	col2.add_child(_make_action_btn("Enemigo: +3 Electrocutado (Shock)", _on_shock_enemy))
-	col2.add_child(_make_action_btn("Enemigo: +5 Quemadura y +5 Veneno", _on_status_enemy))
-	col2.add_child(_make_action_btn("Revelar Todo el Mapa + Viaje Libre", _on_reveal_map))
-	col2.add_child(_make_action_btn("Ir Directo a Pelea de JEFE", _on_fight_boss_now))
-	col2.add_child(_make_action_btn("Saltar a Planta Siguiente (+1)", _on_next_floor))
+	col2.add_child(_make_section_label("2. COMBATE & MAPA"))
+	col2.add_child(_make_action_btn("INSTA-KILL Enemigo", _on_instakill_enemy))
+	col2.add_child(_make_action_btn("Revelar Todo el Mapa", _on_reveal_map))
 	col2.add_child(_make_action_btn("Mostrar / Ocultar Mapa", _on_toggle_map_view))
 	
+	# Agregamos la sub-sección de armas en la columna 2
+	var spacer = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 10)
+	col2.add_child(spacer)
+	col2.add_child(_make_section_label(">> EQUIPAR ARMAS"))
+	
+	weapons_box = VBoxContainer.new()
+	weapons_box.add_theme_constant_override("separation", 8)
+	
+	# ScrollContainer para las armas por si tenés muchas
+	var scroll_weapons = ScrollContainer.new()
+	scroll_weapons.custom_minimum_size = Vector2(290, 180)
+	scroll_weapons.add_child(weapons_box)
+	col2.add_child(scroll_weapons)
+
+	# --- COLUMNA 3: INYECTAR RELIQUIAS ---
 	var col3 := VBoxContainer.new()
 	col3.position = Vector2(672, 56)
 	col3.custom_minimum_size = Vector2(300, 420)
 	col3.add_theme_constant_override("separation", 8)
 	panel.add_child(col3)
 
-	col3.add_child(_make_section_label("3. INYECTAR RELIQUIAS (res://relics/data)"))
+	col3.add_child(_make_section_label("3. INYECTAR RELIQUIAS"))
 
 	relics_box = VBoxContainer.new()
 	relics_box.add_theme_constant_override("separation", 8)
-	col3.add_child(relics_box)
+	
+	var scroll_relics = ScrollContainer.new()
+	scroll_relics.custom_minimum_size = Vector2(300, 320)
+	scroll_relics.add_child(relics_box)
+	col3.add_child(scroll_relics)
 
 	col3.add_child(_make_action_btn("Quitar Todas las Reliquias", _on_clear_relics))
-	
 ## Lee el catálogo estático completo de reliquias y genera dinámicamente un botón por cada una
 ## para equiparla instantáneamente en el jugador y probar interacciones.
 func _rebuild_relic_buttons() -> void:
@@ -202,6 +216,32 @@ func _refresh_god_mode_visuals() -> void:
 	if toggle_badge_btn:
 		toggle_badge_btn.text = "[F3] GOD MODE ON" if active else "[F3] DEBUG"
 		toggle_badge_btn.self_modulate = Color(0.25, 1.0, 0.45) if active else Color(1.0, 1.0, 1.0)
+
+## Genera botones dinámicos para equipar armas desde el catálogo
+func _rebuild_weapon_buttons() -> void:
+	if not weapons_box or not run:
+		return
+	for child in weapons_box.get_children():
+		child.queue_free()
+
+
+	if "weapon_catalog" in run:
+		for weapon: WeaponData in run.weapon_catalog:
+			var btn := Button.new()
+			btn.custom_minimum_size = Vector2(280, 32)
+			
+			# Marcamos visualmente si es el arma que tenemos equipada
+			if run.current_weapon and run.current_weapon.weapon_id == weapon.weapon_id:
+				btn.text = "[E] " + weapon.weapon_name
+				btn.self_modulate = Color(0.2, 1.0, 0.5)
+			else:
+				btn.text = weapon.weapon_name
+				btn.self_modulate = Color(1.0, 1.0, 1.0)
+				
+			btn.pressed.connect(func(): _on_equip_weapon(weapon))
+			weapons_box.add_child(btn)
+
+
 
 # --- LOGICA DE ACCIONES DE DEBUG (100% ENCAPSULADA AQUI) ---
 
@@ -424,3 +464,37 @@ func _on_hemorrhage_enemy() -> void:
 	table.enemy.hemorrhage += 3
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Hemorragia al enemigo actual (Total: %d)." % table.enemy.hemorrhage
+
+func _on_add_str() -> void:
+	if not run or not table: return
+	run.player_str += 1
+	table.refresh_ui()
+	log_label.text = "Fuerza (STR) aumentada a %d." % run.player_str
+
+func _on_add_int() -> void:
+	if not run or not table: return
+	run.player_int += 1
+	table.refresh_ui()
+	log_label.text = "Inteligencia (INT) aumentada a %d." % run.player_int
+
+func _on_add_dex() -> void:
+	if not run or not table: return
+	run.player_dex += 1
+	table.refresh_ui()
+	log_label.text = "Destreza (DEX) aumentada a %d." % run.player_dex
+
+func _on_equip_weapon(weapon: WeaponData) -> void:
+	if not run or not table: return
+	
+	if run.has_method("equip_weapon"):
+		run.equip_weapon(weapon)
+	else:
+		run.current_weapon = weapon
+		
+	# Refrescamos la UI para ver cómo cambian los números en el Preview
+	table.refresh_ui() 
+	
+	# Regeneramos la lista para mover el marcador "[E]" de arma equipada
+	_rebuild_weapon_buttons() 
+	
+	log_label.text = "Arma equipada: %s (Daño Base: %d)" % [weapon.weapon_name, weapon.base_damage]

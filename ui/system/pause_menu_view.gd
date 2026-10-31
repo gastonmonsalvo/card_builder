@@ -162,7 +162,8 @@ func _build_confirm_modal() -> void:
 	hbox.add_child(btn_no)
 
 ## Abre la vista haciéndola visible y detiene el paso del tiempo en todo el juego
-##  invocando `get_tree().paused = true`.func open_pause() -> void:
+##  invocando `get_tree().paused = true`.
+func open_pause() -> void:
 	confirm_modal.visible = false
 	visible = true
 	get_tree().paused = true

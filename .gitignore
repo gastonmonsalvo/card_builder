@@ -10,7 +10,7 @@ export_presets.cfg
 *.aab
 *.ipa
 *.pck
-
+*.tmp
 # Archivos del SO
 .DS_Store
 Thumbs.db
