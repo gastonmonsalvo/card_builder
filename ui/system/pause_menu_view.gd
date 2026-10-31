@@ -1,17 +1,29 @@
+## Controlador de la interfaz gráfica del Menú de Pausa (Pausado Global).
+## Congela el flujo del motor de juego (`SceneTree`) y proporciona opciones para continuar, 
+## abandonar la expedición actual, o guardar progreso atómicamente y salir.
 class_name PauseMenuView
 extends Control
 
+## Emitida cuando el jugador elige volver al juego, solicitando descongelar la simulación.
 signal resume_requested()
+## Emitida cuando el jugador confirma la rendición, solicitando destruir la partida activa y volver al menú.
 signal abandon_run_requested()
+## Emitida cuando el jugador solicita suspender la partida, pidiendo al orquestador que guarde el estado en disco 
+## antes de volver al selector de ranuras o salir.
 signal quit_game_requested()
 
+## Referencia al sub-panel modal oscuro utilizado para validar decisiones irreversibles (ej. Abandonar).
 var confirm_modal: PanelContainer
+## Referencia a la etiqueta de texto dentro del modal de confirmación para inyectar advertencias personalizadas.
 var confirm_label: Label
+
+## Puntero a función (`Callable`) que almacena temporalmente la acción destructiva a ejecutar si el usuario presiona "CONFIRMAR".
 var on_confirm_callback: Callable
 
 ## Constructor del Menú de Pausa.
 ## Configura el fondo oscuro semitransparente que cubre la pantalla (1152x648),
-## el panel central con los botones de acción y el modal secundario de confirmación.
+##  activa el procesamiento constante (`PROCESS_MODE_ALWAYS`) para evadir el congelamiento, 
+## monta el panel central con los botones de acción y el modal secundario de advertencia.
 func _init() -> void:
 	name = "PauseMenuView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -84,7 +96,8 @@ func _init() -> void:
 
 	_build_confirm_modal()
 
-## Construye el modal de advertencia para evitar abandonos accidentales.
+## Construye e inyecta el modal secundario de advertencia para confirmar intenciones
+##  y evitar borrados o abandonos accidentales por *misclick*.
 func _build_confirm_modal() -> void:
 	confirm_modal = PanelContainer.new()
 	confirm_modal.visible = false
@@ -148,19 +161,22 @@ func _build_confirm_modal() -> void:
 	btn_no.pressed.connect(func(): confirm_modal.visible = false)
 	hbox.add_child(btn_no)
 
-## Abre la vista de pausa deteniendo el bucle del SceneTree.
-func open_pause() -> void:
+## Abre la vista haciéndola visible y detiene el paso del tiempo en todo el juego
+##  invocando `get_tree().paused = true`.func open_pause() -> void:
 	confirm_modal.visible = false
 	visible = true
 	get_tree().paused = true
 
-## Cierra el menú de pausa y reanuda el SceneTree.
+## Oculta la interfaz de pausa y reanuda el cálculo de físicas 
+## y fotogramas globales (`get_tree().paused = false`).
 func close_pause() -> void:
 	confirm_modal.visible = false
 	visible = false
 	get_tree().paused = false
 
-## Maneja la pulsación de la tecla ESC para alternar el menú de pausa.
+## Intercepta globalmente la tecla Escape (`KEY_ESCAPE`).
+## Si el menú ya está abierto, lo cierra (funcionando como botón de Continuar). 
+## Si hay un pop-up de confirmación activo encima, cierra solo el pop-up.
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
@@ -172,14 +188,16 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 ## Callback del botón "CONTINUAR".
-## Cierra el panel de pausa, descongela el SceneTree y emite resume_requested hacia el RunDirector.
+## Cierra el panel de pausa, descongela el `SceneTree` y 
+## emite `resume_requested` hacia el orquestador (`RunDirector`).
 func _on_resume_pressed() -> void:
 	close_pause()
 	resume_requested.emit()
 	
 ## Callback del botón "ABANDONAR PARTIDA".
-## Configura el mensaje de advertencia en el modal secundario, asigna la acción de confirmación
-## para emitir abandon_run_requested y despliega el diálogo emergente de confirmación.
+## Configura el mensaje de advertencia específico en el modal secundario, 
+## encapsula el cierre y la señal destructiva `abandon_run_requested` dentro del callback, 
+## y despliega el diálogo de validación.
 func _on_abandon_pressed() -> void:
 	confirm_label.text = "¿Abandonar la run actual?\nEl progreso no guardado de este intento se perderá."
 	on_confirm_callback = func():
