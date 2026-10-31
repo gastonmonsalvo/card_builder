@@ -9,22 +9,33 @@ const PANEL_MARGIN := 16.0
 
 var panel: PanelContainer
 var content_label: Label
+var equipped_weapon_panel: PanelContainer
+var equipped_weapon_name_label: Label
+var equipped_weapon_details_label: Label
 var weapons_box: VBoxContainer
 var close_btn: Button
 
-
 func _ready() -> void:
 	name = "InventoryModalView"
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	# El modal ocupa toda la pantalla.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 	z_index = 140
 
+	# IMPORTANTE: construimos todos los nodos de la interfaz.
 	_build_ui()
-	resized.connect(_center_panel)
+
+	# Centramos el panel una vez creado.
 	_center_panel()
 
+	# Recentramos cuando cambia la resolución.
+	var viewport := get_viewport()
 
+	if not viewport.size_changed.is_connected(_center_panel):
+		viewport.size_changed.connect(_center_panel)
 ## Construye el fondo, el panel, el resumen de atributos y los botones de la mochila.
 func _build_ui() -> void:
 	var background := ColorRect.new()
@@ -68,6 +79,44 @@ func _build_ui() -> void:
 	content_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 	vbox.add_child(content_label)
 
+	# Tarjeta destacada para diferenciar el arma activa de las armas guardadas.
+	equipped_weapon_panel = PanelContainer.new()
+	equipped_weapon_panel.custom_minimum_size = Vector2(0, 76)
+	var equipped_style := StyleBoxFlat.new()
+	equipped_style.bg_color = Color(0.12, 0.14, 0.19, 1.0)
+	equipped_style.set_border_width_all(2)
+	equipped_style.border_color = Color(0.88, 0.70, 0.30, 1.0)
+	equipped_style.set_corner_radius_all(7)
+	equipped_weapon_panel.add_theme_stylebox_override("panel", equipped_style)
+	vbox.add_child(equipped_weapon_panel)
+
+	var equipped_margin := MarginContainer.new()
+	equipped_margin.add_theme_constant_override("margin_left", 12)
+	equipped_margin.add_theme_constant_override("margin_top", 7)
+	equipped_margin.add_theme_constant_override("margin_right", 12)
+	equipped_margin.add_theme_constant_override("margin_bottom", 7)
+	equipped_weapon_panel.add_child(equipped_margin)
+
+	var equipped_vbox := VBoxContainer.new()
+	equipped_vbox.add_theme_constant_override("separation", 3)
+	equipped_margin.add_child(equipped_vbox)
+
+	var equipped_title := Label.new()
+	equipped_title.text = "⚔️ ARMA EQUIPADA"
+	equipped_title.add_theme_font_size_override("font_size", 12)
+	equipped_title.add_theme_color_override("font_color", Color(1.0, 0.83, 0.38))
+	equipped_vbox.add_child(equipped_title)
+
+	equipped_weapon_name_label = Label.new()
+	equipped_weapon_name_label.add_theme_font_size_override("font_size", 16)
+	equipped_weapon_name_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	equipped_vbox.add_child(equipped_weapon_name_label)
+
+	equipped_weapon_details_label = Label.new()
+	equipped_weapon_details_label.add_theme_font_size_override("font_size", 12)
+	equipped_weapon_details_label.add_theme_color_override("font_color", Color(0.76, 0.80, 0.88))
+	equipped_vbox.add_child(equipped_weapon_details_label)
+
 	var backpack_title := Label.new()
 	backpack_title.text = "🎒 MOCHILA (Click para equipar):"
 	backpack_title.add_theme_font_size_override("font_size", 14)
@@ -95,60 +144,69 @@ func _build_ui() -> void:
 	vbox.add_child(button_row)
 
 
-## Mantiene el panel centrado y dentro del área disponible al cambiar la resolución.
+## Mantiene el panel centrado horizontal y verticalmente.
 func _center_panel() -> void:
 	if not is_instance_valid(panel):
 		return
 
-	var available_size := size
+	# Tomamos el tamaño real del viewport.
+	var available_size: Vector2 = get_viewport_rect().size
+
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
+	# Calculamos el tamaño disponible.
 	var target_size := Vector2(
-		minf(PANEL_SIZE.x, maxf(0.0, available_size.x - PANEL_MARGIN * 2.0)),
-		minf(PANEL_SIZE.y, maxf(0.0, available_size.y - PANEL_MARGIN * 2.0))
+		minf(PANEL_SIZE.x, available_size.x - PANEL_MARGIN * 2.0),
+		minf(PANEL_SIZE.y, available_size.y - PANEL_MARGIN * 2.0)
 	)
-	panel.size = target_size
-	panel.position = (available_size - target_size) * 0.5
 
+	# Anclamos el panel al centro de su contenedor.
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+
+	# Distribuimos los offsets simétricamente.
+	panel.offset_left = -target_size.x / 2.0
+	panel.offset_right = target_size.x / 2.0
+	panel.offset_top = -target_size.y / 2.0
+	panel.offset_bottom = target_size.y / 2.0
 
 ## Cierra el modal.
 func _close_modal() -> void:
 	visible = false
 
 
-## Actualiza el resumen del arma equipada y los atributos del jugador.
+## Actualiza los atributos y la tarjeta destacada del arma que está equipada.
 func update_stats_display(run: RunState) -> void:
 	if run == null:
 		content_label.text = "No hay una partida activa."
+		equipped_weapon_name_label.text = "Sin arma equipada"
+		equipped_weapon_details_label.text = ""
 		return
 
-	var weapon_name := "Sin Arma (Desarmado)"
-	var weapon_damage := 1
-	var weapon_class := "NINGUNA"
-
-	if run.current_weapon != null:
-		weapon_name = run.current_weapon.weapon_name
-		weapon_damage = run.current_weapon.base_damage
-		var class_names: Array = WeaponData.Class.keys()
-		var class_index := int(run.current_weapon.weapon_class)
-		if class_index >= 0 and class_index < class_names.size():
-			weapon_class = str(class_names[class_index])
-		else:
-			weapon_class = "DESCONOCIDA"
-
-	var summary := "⚔️ Arma: %s | Clase: %s | Daño: %d\n" % [
-		weapon_name,
-		weapon_class,
-		weapon_damage
-	]
-	summary += "📊 STR: %d | INT: %d | DEX: %d | LUCK: %d" % [
+	content_label.text = "📊 STR: %d | INT: %d | DEX: %d | LUCK: %d" % [
 		run.player_str,
 		run.player_int,
 		run.player_dex,
 		run.player_luck
 	]
-	content_label.text = summary
+
+	var weapon: WeaponData = run.current_weapon
+	if weapon == null:
+		equipped_weapon_name_label.text = "Sin arma equipada"
+		equipped_weapon_details_label.text = "El personaje está desarmado."
+		return
+
+	var class_names: Array = WeaponData.Class.keys()
+	var class_index := int(weapon.weapon_class)
+	var weapon_class := "DESCONOCIDA"
+	if class_index >= 0 and class_index < class_names.size():
+		weapon_class = str(class_names[class_index])
+
+	equipped_weapon_name_label.text = weapon.weapon_name
+	equipped_weapon_details_label.text = "Clase: %s  |  Daño base: %d" % [
+		weapon_class,
+		weapon.base_damage
+	]
 
 
 ## Reconstruye los botones de las armas guardadas en la mochila.

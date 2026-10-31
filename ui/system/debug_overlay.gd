@@ -600,7 +600,7 @@ func _on_add_dex() -> void:
 func _on_equip_weapon(weapon: WeaponData) -> void:
 	if not _can_modify_run() or not table or weapon == null:
 		return
-	if not run.equip_weapon(weapon, true):
+	if not run.add_weapon_to_inventory(weapon):
 		log_label.text = "No se pudo equipar %s. Revisá el espacio de la mochila." % weapon.weapon_name
 		return
 
