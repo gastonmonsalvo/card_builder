@@ -1,4 +1,6 @@
-## Controlador de interfaz de usuario durante el combate y visor modal de pilas de cartas.
+## Controlador de interfaz de usuario (Vista) durante el combate.
+## Se encarga exclusivamente de renderizar en pantalla las estadísticas del jugador y del enemigo,
+## previsualizar el daño del combo activo y mostrar modales para inspeccionar las pilas de cartas.
 extends Control
 class_name BattleHUD
 
@@ -14,10 +16,15 @@ class_name BattleHUD
 @onready var pile_popup_label: Label = $PilePopup/PilePopupLabel
 @onready var close_popup_btn: Button = $PilePopup/ClosePopupBtn
 
+## Referencia en memoria a la pila de robo (Mazo) administrada por el `DeckManager`.
 var _draw_pile: CardPile
+## Referencia en memoria a la pila de descarte temporal del combate.
 var _discard_pile: CardPile
+## Referencia en memoria a la pila de cartas agotadas (Cementerio) del combate.
 var _graveyard_pile: CardPile
 
+## Inicializa la vista ocultando el modal de inspección y conectando los clics de los botones de las pilas (Mazo, Descarte, Cementerio)
+## a la función de apertura del pop-up.
 func _ready() -> void:
 	pile_popup.visible = false
 	draw_pile_btn.pressed.connect(func(): _show_pile(_draw_pile))
@@ -25,11 +32,18 @@ func _ready() -> void:
 	graveyard_pile_btn.pressed.connect(func(): _show_pile(_graveyard_pile))
 	close_popup_btn.pressed.connect(func(): pile_popup.visible = false)
 
+## Inyecta las dependencias lógicas (pilas de cartas) desde el `DeckManager`.
+## Permite que el HUD lea la cantidad y el contenido de las cartas sin manipularlas.
 func bind_piles(draw_p: CardPile, discard_p: CardPile, graveyard_p: CardPile) -> void:
 	_draw_pile = draw_p
 	_discard_pile = discard_p
 	_graveyard_pile = graveyard_p
-
+	
+## Función principal de renderizado. Reconstruye todos los textos de la pantalla:
+## 1. Panel del Jugador (HP, Energía, Suerte y Escudo).
+## 2. Panel del Enemigo (HP, Intención y Estados alterados).
+## 3. Banner superior (Previsualización del combo).
+## 4. Botones de las esquinas (Contadores actualizados de cada pila).
 func refresh_all(
 	player_hp: int,
 	player_block: int,
@@ -66,10 +80,14 @@ func refresh_all(
 	if _graveyard_pile:
 		graveyard_pile_btn.text = "Cementerio (%d)" % _graveyard_pile.size()
 
-## Actualiza el texto superior de eventos de combate.
+## Sobrescribe temporalmente el texto del banner superior para mostrar eventos fugaces,
+## alertas o notificaciones del sistema (Ej: "¡SIN ENERGIA!", "DESCARTASTE 2 CARTAS").
 func set_banner_message(msg: String) -> void:
 	combo_banner_label.text = msg
-
+	
+## Función de utilidad interna que parsea el diccionario matemático del `CombatResolver`
+## y lo traduce a una cadena de texto legible separada por tuberías (|)
+## para mostrar todo lo que hará el combo.
 func _format_combo_preview(p: Dictionary) -> String:
 	var parts: Array[String] = []
 	if p.get("dmg", 0) > 0:
@@ -91,7 +109,9 @@ func _format_combo_preview(p: Dictionary) -> String:
 	if parts.is_empty():
 		return "Selecciona o arrastra cartas a la Zona de Combo"
 	return "COMBO ACTIVO:   " + "   |   ".join(parts)
-
+	
+## Abre el modal oscuro superpuesto (`PilePopup`) e inyecta en su etiqueta de texto
+## la lista completa de todas las cartas contenidas en la pila solicitada.
 func _show_pile(pile: CardPile) -> void:
 	if not pile:
 		return
