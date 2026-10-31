@@ -3,27 +3,27 @@ extends Resource
 class_name WeaponData
 
 enum Class { ANY, SWORD, HEAVY, STAFF, DAGGER, KATANA }
-
+@export_group("Identity")
 @export var weapon_id: String = "weapon_base"
 @export var weapon_name: String = "Arma Base"
 @export var weapon_class: Class = Class.ANY
 
-@export_group("Atributos de Combate")
+@export_group("Dmg")
 @export var base_damage: int = 3
 
-@export_group("Efectos Innatos (On-Hit)")
+@export_group("Effects (On-Hit)")
 ## Cantidad de estado que aplica el arma por CADA GOLPE exitoso.
 @export var inflict_poison: int = 0
 @export var inflict_burn: int = 0
 @export var inflict_hemorrhage: int = 0
 @export var inflict_shock: int = 0
 
-@export_group("Requisitos (Requerido para usarla bien)")
+@export_group("Requirements")
 @export var req_str: int = 0
 @export var req_int: int = 0
 @export var req_dex: int = 0
 
-@export_group("Escalado (Reducido: 0.1 = +1 Daño cada 10 pts)")
+@export_group("Scale (Reducido: 0.1 = +1 Daño cada 10 pts)")
 @export var scale_str: float = 0.0
 @export var scale_int: float = 0.0
 @export var scale_dex: float = 0.0
