@@ -9,6 +9,4 @@ weapon_name = "Espadon"
 weapon_class = 2
 base_damage = 5
 inflict_hemorrhage = 2
-req_str = 5
-scale_str = 0.1
 metadata/_custom_type_script = "uid://db3042vswtitv"

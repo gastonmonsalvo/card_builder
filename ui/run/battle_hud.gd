@@ -93,32 +93,49 @@ func refresh_all(
 	max_player_hp: int = 50,
 	player_luck: int = 0
 ) -> void:
-	# 1. Panel del Jugador 
+	
+	# Obtenemos el nombre del héroe seleccionado.
+	var hero_name := "HÉROE"
+	
+	if _run_ref != null and _run_ref.selected_hero != null:
+		hero_name = _run_ref.selected_hero.hero_name.to_upper()
+	
+	# 1. Obtenemos el arma que tiene equipada el héroe.
+	var weapon_name := "Sin arma"
+	
+	if _run_ref != null and _run_ref.current_weapon != null:
+		weapon_name = _run_ref.current_weapon.weapon_name
+
+	# 2. Panel del jugador.
 	var player_lines: Array[String] = [
-		"JUGADOR",
-		"HP: %d / %d" % [player_hp, max_player_hp],
-		"ENERGIA: %d / %d" % [energy, max_energy],
-		"SUERTE: %d" % player_luck
+		hero_name,
+		"❤️: %d / %d" % [player_hp, max_player_hp],
+		"🗡️: %s" % weapon_name,
+		"⚡: %d / %d" % [energy, max_energy],
+		"🍀: %d" % player_luck
 	]
-	
+
 	if player_block > 0:
-		player_lines.insert(2, "ESCUDO: +%d" % player_block)
+		player_lines.insert(3, "⚔️: +%d" % player_block)
+
 	player_stats_label.text = "\n".join(player_lines)
-	
-	# 2. Panel del Enemigo 
+
+	# 3. Panel del enemigo.
 	if enemy != null:
 		enemy_stats_label.text = enemy.get_status_text(player_luck)
 	else:
 		enemy_stats_label.text = "ENEMIGO\nSin objetivo"
 
-	# 3. Banner del Combo
+	# 4. Banner del combo.
 	combo_banner_label.text = _format_combo_preview(preview)
 
-	# 4. Botones de Pilas en las esquinas
+	# 5. Botones de las pilas.
 	if _draw_pile:
 		draw_pile_btn.text = "Mazo (%d)" % _draw_pile.size()
+
 	if _discard_pile:
 		discard_pile_btn.text = "Descarte (%d)" % _discard_pile.size()
+
 	if _graveyard_pile:
 		graveyard_pile_btn.text = "Cementerio (%d)" % _graveyard_pile.size()
 

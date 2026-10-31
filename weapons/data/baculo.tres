@@ -4,9 +4,4 @@
 
 [resource]
 script = ExtResource("1_v453c")
-weapon_id = "3"
-weapon_name = "Báculo"
-weapon_class = 3
-req_str = 3
-scale_int = 5.0
 metadata/_custom_type_script = "uid://db3042vswtitv"
