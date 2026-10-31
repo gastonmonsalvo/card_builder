@@ -141,6 +141,9 @@ func _init() -> void:
 	inventory_modal = InventoryModalView.new()
 	add_child(inventory_modal)
 	
+	inventory_modal.weapon_selected_to_equip.connect(
+	_on_inventory_weapon_selected
+	)
 ## Inyecta el estado completo de la partida proveniente de `RunDirector.open_map()`.
 ## Actualiza los textos (Salud, Energía, Suerte, Oro, Probabilidades de drop por rareza)
 ## reconstruye la grilla de nodos visuales y solicita el repintado de las conexiones en hardware (`queue_redraw()`).
@@ -278,3 +281,28 @@ func _draw() -> void:
 ## el orquestador externo (`RunDirector`), ocultando su implementación interna.
 func show_sanctuary_modal(opt1_cb: Callable, opt2_cb: Callable) -> void:
 	sanctuary_modal.show_sanctuary_modal(opt1_cb, opt2_cb)
+	
+## Equipa el arma seleccionada desde el inventario del mapa.
+func _on_inventory_weapon_selected(weapon: WeaponData) -> void:
+	if _current_run_ref == null:
+		push_error("MapView: No hay una partida activa.")
+		return
+
+	if weapon == null:
+		return
+
+	# Intentamos equipar el arma seleccionada de la mochila.
+	var success: bool = _current_run_ref.equip_weapon(weapon)
+
+	if not success:
+		push_warning(
+			"MapView: No se pudo equipar %s." % weapon.weapon_name
+		)
+		inventory_modal.open_inventory(_current_run_ref)
+		return
+
+	print("MapView: Arma equipada: %s" % weapon.weapon_name)
+
+	# Actualizamos el modal para mostrar el nuevo equipo
+	# y devolver el arma anterior a la mochila.
+	inventory_modal.open_inventory(_current_run_ref)
