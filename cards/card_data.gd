@@ -3,14 +3,26 @@
 extends Resource
 class_name CardData
 
+@export_group("Identity")
 @export var title: String = "Carta Base"
 @export var rarity: RaritySystem.Tier = RaritySystem.Tier.COMMON
-@export var cost: int = 1
 
 ## Determina si la carta se envía al cementerio tras jugarse (Agotada), impidiendo que vuelva a barajarse en el mismo combate.
 @export var single_use: bool = false
+@export_group("Effects and Cost")
 @export var effects: Array[CardEffect] = []
 @export_multiline var description: String = "Una carta común y corriente"
+@export var cost: int = 1
+
+@export_group("Synergy")
+## ¿Qué tipo de arma exige esta carta para desatar su efecto real?
+@export var required_weapon_class: Array[WeaponData.Class] = [WeaponData.Class.ANY]
+
+## Si es true, al daño base de la carta se le suma el daño del arma + el escalado de stats.
+@export var uses_weapon_damage: bool = true
+
+## Daño miserable que hace la carta si el jugador NO tiene el arma requerida equipada (Fallback).
+@export var fallback_damage: int = 2
 
 ## Extrae el color representativo de la carta consultando el primer efecto válido de su lista.
 ## Retorna un gris oscuro por defecto si la carta no posee efectos.

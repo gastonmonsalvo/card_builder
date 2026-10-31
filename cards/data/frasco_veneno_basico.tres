@@ -12,7 +12,7 @@ metadata/_custom_type_script = "uid://p55oyg1tp3a6"
 [resource]
 script = ExtResource("2_js1ul")
 title = "Frasco De Veneno"
-cost = 2
 effects = Array[ExtResource("1_vgxc3")]([SubResource("Resource_qbcbk")])
 description = "+2 de veneno."
+cost = 2
 metadata/_custom_type_script = "uid://cob1g5x6igww8"
