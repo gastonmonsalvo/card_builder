@@ -1,9 +1,18 @@
+## Vista modal (pop-up) interactiva que representa el evento de "Santuario Ancestral" en el mapa.
+## Presenta al jugador una decisión binaria (Bendiciones) bloqueando el flujo del juego hasta
+## que seleccione una opción.
 extends Panel
 class_name SanctuaryModalView
 
+## Referencia a la función de retorno (callback) inyectada para la Opción 1 (Reliquia + Curación).
 var _sanctuary_opt1_cb: Callable
+## Referencia a la función de retorno (callback) inyectada para la Opción 2 (Aumento de Vida Máxima).
 var _sanctuary_opt2_cb: Callable
 
+## Constructor de la interfaz visual. Ensambla proceduralmente el panel contenedor 
+## con un estilo temático (tonos púrpuras/místicos),
+## instancia los textos descriptivos y los dos botones de decisión. 
+## Vincula los clics de los botones a sus respectivos callbacks.
 func _init() -> void:
 	name = "SanctuaryModalView"
 	visible = false
@@ -23,8 +32,6 @@ func _init() -> void:
 	style.corner_radius_bottom_left = 12
 	style.corner_radius_bottom_right = 12
 	
-	# ANTES DECÍA: sanctuary_modal.add_theme_stylebox_override(...)
-	# AHORA ES DIRECTO:
 	add_theme_stylebox_override("panel", style)
 
 	var title := Label.new()
@@ -34,7 +41,7 @@ func _init() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.88, 0.65, 1.0))
-	add_child(title) # <- Sin el sanctuary_modal.
+	add_child(title) 
 
 	var desc := Label.new()
 	desc.text = "Has hallado una camara sagrada en las profundidades.\nElige una bendicion para continuar tu ascenso:"
@@ -50,7 +57,7 @@ func _init() -> void:
 	btn1.size = Vector2(450, 54)
 	btn1.add_theme_font_size_override("font_size", 15)
 	btn1.pressed.connect(func():
-		visible = false # <- Sin el sanctuary_modal.
+		visible = false 
 		if _sanctuary_opt1_cb.is_valid():
 			_sanctuary_opt1_cb.call()
 	)
@@ -62,13 +69,15 @@ func _init() -> void:
 	btn2.size = Vector2(450, 54)
 	btn2.add_theme_font_size_override("font_size", 15)
 	btn2.pressed.connect(func():
-		visible = false # <- Sin el sanctuary_modal.
+		visible = false 
 		if _sanctuary_opt2_cb.is_valid():
 			_sanctuary_opt2_cb.call()
 	)
 	add_child(btn2)
-## Despliega el modal sobre el mapa conectando los callbacks de las dos bendiciones.
+## Despliega el modal sobre la capa del mapa (haciéndolo visible) y enlaza las lógicas de resolución.
+## Los `Callables` recibidos se ejecutarán de forma aislada cuando el jugador pulse el botón correspondiente,
+## delegando la lógica matemática de curación/reliquias al `RunDirector` y al `RunState`.
 func show_sanctuary_modal(opt1_cb: Callable, opt2_cb: Callable) -> void:
 	_sanctuary_opt1_cb = opt1_cb
 	_sanctuary_opt2_cb = opt2_cb
-	visible = true # <- Sin el sanctuary_modal.
+	visible = true 
