@@ -1,10 +1,15 @@
-## Herramienta de QA y testing en caliente activada con la tecla F3 Y F4 
-
+## Herramienta de depuración (QA y Testing) superpuesta.
+## Proporciona un panel oculto activado por las teclas `F3` y `F4` que permite manipular
+## el estado en tiempo real (inyectar oro, vida, alterar la suerte, 
+## aplicar estados alterados a enemigos o forzar reliquias) sin tener que reiniciar la partida.
 extends Control
 class_name DebugOverlay
 
+## Referencia en memoria al controlador visual de la mesa de combate.
 var table: Control = null
+## Referencia en memoria al estado lógico de la expedición (inventario, semillas, vida, pisos).
 var run: RunState = null
+## Referencia en memoria al orquestador principal del juego (para transiciones de escena forzadas).
 var director: RunDirector = null
 
 var toggle_badge_btn: Button
@@ -13,6 +18,9 @@ var god_mode_btn: Button
 var log_label: Label
 var relics_box: VBoxContainer
 
+## Constructor de la interfaz de depuración.
+## Ensambla por código un botón flotante pequeño en la esquina superior izquierda,
+## y un panel modal gigante centrado en pantalla que contiene columnas de botones para manipular el estado.
 func _init() -> void:
 	name = "DebugOverlay"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -62,14 +70,17 @@ func _init() -> void:
 	panel.add_child(log_label)
 
 	_build_columns()
-
+## Enlaza las dependencias de negocio (Mesa, Estado, Orquestador) al overlay 
+## para que las acciones de depuración puedan modificar los datos reales de la partida.
 func bind_context(p_table: Control, p_run: RunState, p_director: RunDirector) -> void:
 	table = p_table
 	run = p_run
 	director = p_director
 	_rebuild_relic_buttons()
 	_refresh_god_mode_visuals()
-
+## Intercepta globalmente las pulsaciones de teclado:
+## - `F3`: Alterna la visibilidad del panel gigante de depuración.
+## - `F4`: Alterna la visibilidad de TODA la herramienta (incluyendo el botón de la esquina).
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F3:
@@ -82,12 +93,18 @@ func _input(event: InputEvent) -> void:
 			visible = not visible
 			get_viewport().set_input_as_handled()
 			
+## Abre o cierra el panel principal de opciones. Al abrirse, regenera la lista de botones
+## de reliquias por si se modificó el catálogo desde el editor de Godot.
 func toggle_panel() -> void:
 	panel.visible = not panel.visible
 	if panel.visible:
 		_rebuild_relic_buttons()
 		_refresh_god_mode_visuals()
-
+		
+## Construye las 3 columnas principales de botones inyectando las lógicas agrupadas:
+## Columna 1: Trucos sobre el Jugador.
+## Columna 2: Trucos de Combate y Avance por el mapa.
+## Columna 3: Inyector directo de Reliquias permanentes.
 func _build_columns() -> void:
 	var col1 := VBoxContainer.new()
 	col1.position = Vector2(24, 56)
@@ -142,7 +159,9 @@ func _build_columns() -> void:
 	col3.add_child(relics_box)
 
 	col3.add_child(_make_action_btn("Quitar Todas las Reliquias", _on_clear_relics))
-
+	
+## Lee el catálogo estático completo de reliquias y genera dinámicamente un botón por cada una
+## para equiparla instantáneamente en el jugador y probar interacciones.
 func _rebuild_relic_buttons() -> void:
 	if not relics_box or not run:
 		return
@@ -156,6 +175,7 @@ func _rebuild_relic_buttons() -> void:
 		btn.tooltip_text = relic.get_effects_description()
 		btn.pressed.connect(func(): _on_give_relic(relic))
 		relics_box.add_child(btn)
+		
 
 func _make_section_label(txt: String) -> Label:
 	var lbl := Label.new()
@@ -171,7 +191,8 @@ func _make_action_btn(txt: String, callback: Callable) -> Button:
 	btn.add_theme_font_size_override("font_size", 13)
 	btn.pressed.connect(callback)
 	return btn
-
+	
+	
 func _refresh_god_mode_visuals() -> void:
 	var active: bool = run != null and run.god_mode
 	if god_mode_btn:
@@ -182,6 +203,10 @@ func _refresh_god_mode_visuals() -> void:
 		toggle_badge_btn.self_modulate = Color(0.25, 1.0, 0.45) if active else Color(1.0, 1.0, 1.0)
 
 # --- LOGICA DE ACCIONES DE DEBUG (100% ENCAPSULADA AQUI) ---
+
+## Activa o desactiva la invulnerabilidad total.
+## Establece la salud máxima, fija la energía y descartes en `99`, 
+## deshace la niebla de guerra en el mapa y permite clickear en salas no adyacentes.
 func _on_toggle_god_mode() -> void:
 	if not run or not table or not director:
 		return
@@ -203,7 +228,8 @@ func _on_toggle_god_mode() -> void:
 	log_label.text = "GOD MODE %s (Invulnerable, 99 Energia, 99 Descartes y Mapa Destapado)." % (
 		"ACTIVADO" if run.god_mode else "DESACTIVADO"
 	)
-
+	
+## Suma temporalmente +5 energia al jugador, ignorando su límite máximo, para probar combos largos.
 func _on_add_energy() -> void:
 	if not table:
 		return
@@ -211,7 +237,8 @@ func _on_add_energy() -> void:
 	table.refresh_ui()
 	log_label.text = "+5 de Energia agregada al turno actual."
 
-## Suma `+2` a `run.player_luck` y muestra en consola las nuevas probabilidades de `RaritySystem`.
+## Inyecta `+2` estáticos al atributo de suerte (`player_luck`), recalculando e
+## imprimiendo matemáticamente cómo afecta al algoritmo del `RaritySystem`.
 func _on_add_luck() -> void:
 	if not run or not table or not director:
 		return
@@ -222,6 +249,8 @@ func _on_add_luck() -> void:
 	log_label.text = "Suerte +2 (Actual: %d) -> Probabilidades: %s" % [
 		run.player_luck, RaritySystem.get_probabilities_summary(run.current_floor, run.player_luck)
 	]
+## Suma 100 de oro al tesoro del jugador. Si la tienda está abierta en ese momento,
+## emite un re-cálculo para que se habiliten dinámicamente los botones de compra bloqueados.
 func _on_add_gold() -> void:
 	if not run or not table or not director:
 		return
@@ -233,34 +262,39 @@ func _on_add_gold() -> void:
 		director.open_map("[DEBUG] Oro aumentado a %d!" % run.player_gold)
 	log_label.text = "Oro +100 (Actual: %d)" % run.player_gold
 	
+## Fuerza al `DeckManager` a robar una carta al instante y colocarla en el `CardBoardController`.
 func _on_draw_card() -> void:
 	if not table:
 		return
 	table.draw_cards(1)
 	table.refresh_ui()
-	log_label.text = "Robaste +1 carta del Mazo."
 
+	log_label.text = "Robaste +1 carta del Mazo."
+	
+## Restaura inmediatamente los puntos de golpe del héroe a su límite máximo actual.
 func _on_heal_full() -> void:
 	if not run or not table:
 		return
 	run.player_hp = run.max_player_hp
 	table.refresh_ui()
 	log_label.text = "HP restaurado al maximo (%d/%d)." % [run.player_hp, run.max_player_hp]
-
+## Reduce drásticamente la vida del héroe a `1 HP`.
 func _on_set_one_hp() -> void:
 	if not run or not table:
 		return
 	run.player_hp = 1
 	table.refresh_ui()
 	log_label.text = "Jugador dejado en 1 HP (desactiva God Mode si quieres probar el Game Over)."
-
+	
+## Suma fichas temporales para probar la mecánica táctica de descarte de cartas.
 func _on_add_discards() -> void:
 	if not table:
 		return
 	table.discards_remaining += 3
 	table.refresh_ui()
 	log_label.text = "+3 Descartes agregados a este combate."
-
+	
+## Dispara `99999` de daño directo al enemigo actual, forzando la emisión inmediata de la señal `combat_won`.
 func _on_instakill_enemy() -> void:
 	if not table or not director:
 		return
@@ -271,14 +305,16 @@ func _on_instakill_enemy() -> void:
 	table.refresh_ui()
 	table.combat_won.emit()
 	log_label.text = "Enemigo eliminado instantaneamente!"
-
+	
+## Inyecta el estado Quemadura (+5) y Veneno (+5) simultáneamente.
 func _on_status_enemy() -> void:
 	if not table or not table.enemy:
 		return
 	table.enemy.add_statuses(5, 5)
 	table.refresh_ui()
 	log_label.text = "Aplicado +5 Quemadura y +5 Veneno al enemigo actual."
-
+## Pone a todas las celdas de la planta matemática como `discovered = true` 
+## y rompe las reglas de adyacencia (`free_travel_enabled = true`).
 func _on_reveal_map() -> void:
 	if not run or not director:
 		return
@@ -286,7 +322,8 @@ func _on_reveal_map() -> void:
 	director.map_view.free_travel_enabled = true
 	director.open_map("[DEBUG] Niebla de guerra eliminada y Viaje Libre habilitado.")
 	log_label.text = "Mapa 7x7 completamente revelado y desbloqueado."
-
+## Busca la celda catalogada como `BOSS` dentro del diccionario del mapa actual,
+## teletransporta la posición del héroe y lo arroja directamente a la `BattleTable`.
 func _on_fight_boss_now() -> void:
 	if not table or not run or not director:
 		return
@@ -301,7 +338,8 @@ func _on_fight_boss_now() -> void:
 			run.current_room = r
 			break
 	table.start_combat_encounter(true)
-
+## Purga el nivel actual e invoca el generador procedural 
+## para crear la siguiente planta topológica, asignando una nueva sub-semilla.
 func _on_next_floor() -> void:
 	if not run or not director:
 		return
@@ -311,7 +349,7 @@ func _on_next_floor() -> void:
 		director.map_view.free_travel_enabled = true
 	director.open_map("[DEBUG] Saltaste directo a la Planta %d!" % run.current_floor)
 	log_label.text = "Generada Planta %d con nueva sub-semilla." % run.current_floor
-
+## Intercambia violentamente las vistas del orquestador (Facade) entre el combate y el mapa topológico.
 func _on_toggle_map_view() -> void:
 	if not director or not director.map_view:
 		return
@@ -321,7 +359,8 @@ func _on_toggle_map_view() -> void:
 	else:
 		director.open_map("[DEBUG] Mapa abierto manualmente.")
 		log_label.text = "Vista de Mapa abierta."
-
+## Conecta con el catálogo de Reliquias y equipa la especificada. Llama a `trigger_on_combat_start()`
+##  inmediatamente si el jugador ya se encuentra en batalla.
 func _on_give_relic(relic: RelicData) -> void:
 	if not run or not table or not director:
 		return
@@ -330,7 +369,8 @@ func _on_give_relic(relic: RelicData) -> void:
 	if director.map_view.visible:
 		director.open_map("[DEBUG] Reliquia inyectada: " + relic.get_effects_description())
 	log_label.text = "Equipada reliquia: %s" % relic.get_inspector_text()
-
+## Elimina forzosamente todas las reliquias en inventario y resetea atributos estáticos del héroe
+##  (Energía, Suerte, Descartes y Tamaño de Mano) a sus valores vanilla.
 func _on_clear_relics() -> void:
 	if not run or not table or not director:
 		return
@@ -343,28 +383,29 @@ func _on_clear_relics() -> void:
 	if director.map_view.visible:
 		director.open_map("[DEBUG] Reliquias eliminadas y stats base reseteados.")
 	log_label.text = "Todas las reliquias fueron removidas."
-
+## Inyecta el estado (Stun acumulativo).
 func _on_freeze_enemy() -> void:
 	if not table or not table.enemy:
 		return
 	table.enemy.freeze += 3
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Congelamiento al enemigo actual (Total: %d)." % table.enemy.freeze
-
+## Inyecta daño residual constante al fin de cada turno enemigo.
 func _on_burn_enemy() -> void:
 	if not table or not table.enemy:
 		return
 	table.enemy.burn += 3
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Quemadura al enemigo actual (Total: %d)." % table.enemy.burn
-
+## Inyecta daño residual escalado por porcentajes según el HP faltante.
 func _on_poison_enemy() -> void:
 	if not table or not table.enemy:
 		return
 	table.enemy.poison += 3
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Veneno al enemigo actual (Total: %d)." % table.enemy.poison
-
+## Inyecta la condición que aturde temporalmente a un enemigo paralizando su turno, 
+## dependiente de un chequeo dinámico de Suerte (`player_luck`).
 func _on_shock_enemy() -> void:
 	if not table or not table.enemy or not run:
 		return
@@ -375,7 +416,7 @@ func _on_shock_enemy() -> void:
 		table.enemy.shock, run.player_luck, pct
 	]
 	
-
+## Inyecta daño físico residual desencadenado únicamente si la unidad ataca (o recibe ataques).
 func _on_hemorrhage_enemy() -> void:
 	if not table or not table.enemy:
 		return
