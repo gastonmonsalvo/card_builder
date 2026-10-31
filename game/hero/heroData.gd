@@ -34,5 +34,12 @@ class_name HeroData
 @export var base_dex: int = 1
 
 @export_group("Equipment")
+
 ## Arma inicial que porta el héroe al arrancar la run.
 @export var starting_weapon: WeaponData
+
+## Retorna el nombre del arma inicial de forma segura, o un texto por defecto si está desarmado.
+func get_starting_weapon_name() -> String:
+	if starting_weapon and "weapon_name" in starting_weapon:
+		return starting_weapon.weapon_name
+	return "Sin Arma"

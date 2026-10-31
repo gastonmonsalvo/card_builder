@@ -144,7 +144,8 @@ func open_map(custom_info: String = "") -> void:
 		run.get_relics_detailed_text(),
 		table.deck.get_total_cards_count(board_cards.size()),
 		table.deck.get_full_deck_detailed_text(board_cards),
-		run.player_gold
+		run.player_gold,
+		run
 	)
 	if custom_info != "":
 		map_view.legend_label.text = custom_info

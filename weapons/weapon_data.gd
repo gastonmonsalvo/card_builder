@@ -37,6 +37,7 @@ func get_stat_deficit(h_str: int, h_int: int, h_dex: int) -> int:
 	if h_dex < req_dex: deficit += (req_dex - h_dex)
 	return deficit
 
+
 ## Calcula el bonus de daño puro basado en los stats del héroe y el multiplicador del arma.
 func get_scaling_bonus(h_str: int, h_int: int, h_dex: int) -> int:
 	var bonus: float = (h_str * scale_str) + (h_int * scale_int) + (h_dex * scale_dex)

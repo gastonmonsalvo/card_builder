@@ -48,14 +48,17 @@ var god_mode: bool = false
 ##Lista de enemigos en la run actual.
 var enemy_catalog: Array[EnemyData] = []
 
-##Armas
+## El arma que empuña actualmente en combate.
 var current_weapon: WeaponData
+## Mochila: Armas guardadas que puede cambiar.
+@export var inventory_weapons: Array[WeaponData] = [] 
+## Catálogo general con todas las armas disponibles en el juego
+@export var weapon_catalog: Array[WeaponData] = []
+
 var player_str: int = 1
 var player_int: int = 1
 var player_dex: int = 1
 
-## Pool 
-@export var weapon_catalog: Array[WeaponData] = [] 
 
 	
 ## Constructor. Precarga en memoria el catálogo universal de reliquias
@@ -64,7 +67,8 @@ func _init() -> void:
 	relic_catalog = GameDatabase.load_all_relics()
 	available_card_pool = GameDatabase.load_all_cards()
 	enemy_catalog = GameDatabase.load_all_enemies()
-
+	weapon_catalog = GameDatabase.load_all_weapons()
+	
 ## Configura un estado virgen para iniciar una expedición. 
 ## Inyecta el héroe seleccionado, aplica sus estadísticas base 
 ##  purga el inventario, otorga las reliquias iniciales y genera la planta 1 basándose en la semilla.
@@ -81,6 +85,10 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 		max_energy = hero.energy_base
 		discards_per_combat = hero.discards_base
 		target_hand_size = hero.hand_size
+		current_weapon = hero.starting_weapon
+		player_str = hero.base_str
+		player_int = hero.base_int
+		player_dex = hero.base_dex
 	else:
 		max_player_hp = CombatConstants.BASE_HEALTH
 		player_hp = max_player_hp
@@ -89,14 +97,17 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 		max_energy = CombatConstants.BASE_MAX_ENERGY
 		discards_per_combat = CombatConstants.BASE_DISCARDS_PER_COMBAT	
 		target_hand_size = CombatConstants.BASE_HAND_SIZE
-
+		current_weapon = CombatConstants.BASIC_WEAPON
+		player_str = CombatConstants.BASE_STR
+		player_int = CombatConstants.BASE_INT
+		player_dex = CombatConstants.BASE_DEX
 	
 	active_relics.clear()
 	
 	# Nos aseguramos de tener los catálogos llenos por si se vaciaron
 	if relic_catalog.is_empty(): relic_catalog = GameDatabase.load_all_relics()
 	if available_card_pool.is_empty(): available_card_pool = GameDatabase.load_all_cards()
-	
+	if weapon_catalog.is_empty(): weapon_catalog = GameDatabase.load_all_weapons()
 	grant_starting_relics(hero)
 	
 	if custom_seed >= 0:
@@ -239,6 +250,18 @@ func equip_specific_relic(relic: RelicData, current_enemy: Enemy = null) -> void
 	if current_enemy and not current_enemy.is_dead():
 		relic.trigger_on_combat_start(current_enemy)
 		
+## Equipa un arma de la mochila o del catálogo, pasando la vieja a la mochila si es necesario.
+func equip_weapon(weapon: WeaponData) -> void:
+	if weapon == null: return
+	
+	if current_weapon and not inventory_weapons.has(current_weapon):
+		inventory_weapons.append(current_weapon)
+		
+	current_weapon = weapon
+	
+	if inventory_weapons.has(weapon):
+		inventory_weapons.erase(weapon)
+
 ## Herramienta de depuración. Itera sobre cada nodo de la matriz topológica y 
 ## fuerza su estado a `discovered = true` para disipar la niebla de guerra.
 func reveal_entire_floor() -> void:
@@ -487,7 +510,3 @@ func from_dict(data: Dictionary, deck: DeckManager) -> void:
 
 	if rooms_dict.has(player_grid_pos):
 		current_room = rooms_dict[player_grid_pos]
-
-## Funcion auxiliar para equipar un arma.
-func equip_weapon(weapon: WeaponData) -> void:
-	current_weapon = weapon

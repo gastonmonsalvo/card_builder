@@ -7,6 +7,7 @@
 [ext_resource type="Resource" uid="uid://cdy6u54mbxfuy" path="res://cards/data/tajo.tres" id="4_2eo3g"]
 [ext_resource type="Resource" uid="uid://dkoioaycwpa06" path="res://relics/data/cenizas_fenix.tres" id="4_d8e16"]
 [ext_resource type="Resource" uid="uid://bct7xduy7vfpw" path="res://relics/data/trebol_abismo.tres" id="5_d8e16"]
+[ext_resource type="Resource" uid="uid://6i0nbwiirlsg" path="res://weapons/data/katana_basica.tres" id="8_2eo3g"]
 
 [resource]
 script = ExtResource("1_xcvvu")
@@ -16,4 +17,8 @@ accent_color = Color(0.5497018, 0.5073421, 0.68457997, 1)
 gold = 678
 starting_deck = Array[ExtResource("2_xxch1")]([ExtResource("3_wp6f5"), ExtResource("4_2eo3g")])
 starting_relic = Array[ExtResource("3_qvfsh")]([ExtResource("4_d8e16"), ExtResource("5_d8e16")])
+base_str = 4
+base_int = 5
+base_dex = 4
+starting_weapon = ExtResource("8_2eo3g")
 metadata/_custom_type_script = "uid://crbebhweegtm"

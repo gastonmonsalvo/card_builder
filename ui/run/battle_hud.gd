@@ -1,6 +1,6 @@
 ## Controlador de interfaz de usuario (Vista) durante el combate.
 ## Se encarga exclusivamente de renderizar en pantalla las estadísticas del jugador y del enemigo,
-## previsualizar el daño del combo activo y mostrar modales para inspeccionar las pilas de cartas.
+## previsualizar el daño del combo activo, mostrar modales para inspeccionar las pilas de cartas y el equipo actual.
 extends Control
 class_name BattleHUD
 
@@ -16,6 +16,8 @@ class_name BattleHUD
 @onready var pile_popup_label: Label = $PilePopup/PilePopupLabel
 @onready var close_popup_btn: Button = $PilePopup/ClosePopupBtn
 
+var inventory_btn: Button
+
 ## Referencia en memoria a la pila de robo (Mazo) administrada por el `DeckManager`.
 var _draw_pile: CardPile
 ## Referencia en memoria a la pila de descarte temporal del combate.
@@ -23,8 +25,12 @@ var _discard_pile: CardPile
 ## Referencia en memoria a la pila de cartas agotadas (Cementerio) del combate.
 var _graveyard_pile: CardPile
 
-## Inicializa la vista ocultando el modal de inspección y conectando los clics de los botones de las pilas (Mazo, Descarte, Cementerio)
-## a la función de apertura del pop-up.
+## Referencia en memoria al modal flotante de equipo y atributos.
+var inventory_modal: InventoryModalView
+## Referencia en memoria de la run actual inyectada desde el orquestador.
+var _run_ref: RunState
+
+## Inicializa la vista ocultando el modal de inspección, montando el botón de inventario y conectando los clics.
 func _ready() -> void:
 	pile_popup.visible = false
 	draw_pile_btn.pressed.connect(func(): _show_pile(_draw_pile))
@@ -32,12 +38,34 @@ func _ready() -> void:
 	graveyard_pile_btn.pressed.connect(func(): _show_pile(_graveyard_pile))
 	close_popup_btn.pressed.connect(func(): pile_popup.visible = false)
 
+	# --- 1. INSTANCIAMOS EL MODAL DE INVENTARIO Y LO AGREGAMOS AL HUD ---
+	inventory_modal = InventoryModalView.new()
+	add_child(inventory_modal)
+
+	# --- 2. CREAMOS EL BOTÓN DE EQUIPO EN LA VISTA DE COMBATE ---
+	inventory_btn = Button.new()
+	inventory_btn.text = "INVENTARIO"
+
+	inventory_btn.custom_minimum_size = Vector2(0, 60)
+	
+	inventory_btn.position = Vector2(20, 400) # Ajustá este Y según la altura de tu botón de Mazo
+	inventory_btn.size = Vector2(140, 36)
+	inventory_btn.pressed.connect(func():
+		if _run_ref:
+			inventory_modal.open_inventory(_run_ref)
+	)
+	add_child(inventory_btn)
+
 ## Inyecta las dependencias lógicas (pilas de cartas) desde el `DeckManager`.
 ## Permite que el HUD lea la cantidad y el contenido de las cartas sin manipularlas.
 func bind_piles(draw_p: CardPile, discard_p: CardPile, graveyard_p: CardPile) -> void:
 	_draw_pile = draw_p
 	_discard_pile = discard_p
 	_graveyard_pile = graveyard_p
+
+## Inyecta la referencia global del estado de la run para que el botón EQUIPO sepa a qué datos consultar.
+func bind_run_reference(run: RunState) -> void:
+	_run_ref = run
 	
 ## Función principal de renderizado. Reconstruye todos los textos de la pantalla:
 ## 1. Panel del Jugador (HP, Energía, Suerte y Escudo).
@@ -67,7 +95,10 @@ func refresh_all(
 	player_stats_label.text = "\n".join(player_lines)
 	
 	# 2. Panel del Enemigo 
-	enemy_stats_label.text = enemy.get_status_text(player_luck)
+	if enemy != null:
+		enemy_stats_label.text = enemy.get_status_text(player_luck)
+	else:
+		enemy_stats_label.text = "ENEMIGO\nSin objetivo"
 
 	# 3. Banner del Combo
 	combo_banner_label.text = _format_combo_preview(preview)
@@ -108,7 +139,7 @@ func _format_combo_preview(p: Dictionary) -> String:
 		parts.append("+%d HEMORRAGIA" % p["hemorrhage"])
 	if parts.is_empty():
 		return "Selecciona o arrastra cartas a la Zona de Combo"
-	return "COMBO ACTIVO:   " + "   |   ".join(parts)
+	return "COMBO ACTIVO:    " + "   |   ".join(parts)
 	
 ## Abre el modal oscuro superpuesto (`PilePopup`) e inyecta en su etiqueta de texto
 ## la lista completa de todas las cartas contenidas en la pila solicitada.

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_hmuh8")
 weapon_id = "1"
+weapon_name = "Katana"
 weapon_class = 5
 base_damage = 5
 req_str = 5

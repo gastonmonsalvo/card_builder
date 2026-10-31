@@ -36,7 +36,11 @@ var room_buttons: Dictionary = {}
 var sanctuary_modal: SanctuaryModalView
 ## Componente hijo inyectado proceduralmente. Pantalla de lectura de cartas o reliquias.
 var inspector_modal: InspectorModalView
-
+## Componente hijo inyectado proceduralmente. Pantalla de inventario
+var inventory_modal: InventoryModalView 
+var inventory_btn: Button 
+## Referencia local al estado de la run actual para consultas de inventario y equipo.
+var _current_run_ref: RunState = null 
 ## Memoria caché en formato texto (BBCode) con las descripciones de las reliquias 
 ## equipadas para inyectar en el Inspector.
 var _cached_relics_detail: String = ""
@@ -49,7 +53,7 @@ const CELL_GAP := Vector2(20, 14)
 ## Constructor de la interfaz gráfica del mapa.
 ## Ensambla proceduralmente las etiquetas de cabecera, paneles laterales (Reliquias y Mazo), 
 ## leyenda inferior, el botón de copiar semilla al portapapeles y los paneles 
-## modales ocultos (`SanctuaryModalView`, `InspectorModalView`).
+## modales ocultos (`SanctuaryModalView`, `InspectorModalView`, ).
 func _init() -> void:
 	name = "MapView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -120,7 +124,23 @@ func _init() -> void:
 	
 	inspector_modal = InspectorModalView.new()
 	add_child(inspector_modal)
+	
+	inventory_btn = Button.new()
+	inventory_btn.text = "Inventario"
+	
+	inventory_btn.position = Vector2(455, 20)
+	inventory_btn.size = Vector2(145, 36)
+	inventory_btn.pressed.connect(func():
+		# Necesitamos una referencia al run para abrirlo. 
+		# Como MapView recibe los datos por setup_floor, guardemos una referencia local al RunState o pasémosla.
+		if _current_run_ref:
+			inventory_modal.open_inventory(_current_run_ref)
+	)
+	add_child(inventory_btn)
 
+	inventory_modal = InventoryModalView.new()
+	add_child(inventory_modal)
+	
 ## Inyecta el estado completo de la partida proveniente de `RunDirector.open_map()`.
 ## Actualiza los textos (Salud, Energía, Suerte, Oro, Probabilidades de drop por rareza)
 ## reconstruye la grilla de nodos visuales y solicita el repintado de las conexiones en hardware (`queue_redraw()`).
@@ -138,7 +158,8 @@ func setup_floor(
 	p_relics_detail: String,
 	p_deck_count: int,
 	p_deck_detail: String,
-	p_player_gold:int
+	p_player_gold:int,
+	p_run_ref: RunState = null
 ) -> void:
 	visible = true
 	floor_number = p_floor
@@ -148,7 +169,7 @@ func setup_floor(
 	current_pos = p_current_pos
 	_cached_relics_detail = p_relics_detail
 	_cached_deck_detail = p_deck_detail
-
+	_current_run_ref = p_run_ref
 	var odds_txt: String = RaritySystem.get_probabilities_summary(floor_number, p_player_luck)
 	
 	title_label.text = "PLANTA %d - MAPA DE EXPLORACION (Matriz 8x8 | %d Salas)" % [floor_number, rooms.size()]

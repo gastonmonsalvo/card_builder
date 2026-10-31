@@ -71,3 +71,18 @@ func load_all_enemies(dir_path: String = "res://game/enemies/data") -> Array[Ene
 				enemies_list.append(res)
 				
 	return enemies_list
+	
+## Carga masivamente todos los recursos de armas (.tres / .res) desde una ruta específica.
+func load_all_weapons(dir_path: String = "res://weapons/data") -> Array[WeaponData]:
+	var weapons_list: Array[WeaponData] = []
+	if not DirAccess.dir_exists_absolute(dir_path):
+		return weapons_list
+		
+	var entries: PackedStringArray = ResourceLoader.list_directory(dir_path)
+	for entry in entries:
+		if entry.ends_with(".tres") or entry.ends_with(".res"):
+			var res: Resource = ResourceLoader.load(dir_path.path_join(entry))
+			if res is WeaponData: # Asegurate de que tu clase de recursos de armas sea WeaponData
+				weapons_list.append(res)
+				
+	return weapons_list

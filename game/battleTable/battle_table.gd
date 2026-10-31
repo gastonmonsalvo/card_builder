@@ -16,6 +16,7 @@ signal combat_lost()
 @onready var discard_button: Button = $DiscardButton
 @onready var hud: BattleHUD = $HUD
 
+
 var run: RunState = RunState.new()
 var deck: DeckManager = DeckManager.new()
 var board: CardBoardController = null

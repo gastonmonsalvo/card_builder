@@ -20,7 +20,9 @@ const BASE_DISCARDS_PER_COMBAT: int = 2
 const BASE_LUCKY : int = 1
 const BASE_HEALTH : int = 50
 const BASE_GOLD: int = 100
-
+const BASE_STR : int = 1
+const BASE_DEX: int = 1
+const BASE_INT : int = 1
 ## BONUS DE COMBOS 
 const BASE_MIN_CARDS_REQUIERED : int = 3
 const BASE_BONUS_DMG : int =  6 
@@ -34,3 +36,5 @@ const SHOCK_LUCK_BONUS_PER_POINT: float = 0.03
 
 ## Tope máximo de probabilidad de aturdimiento por electricidad (80% máx).
 const SHOCK_MAX_STUN_CHANCE: float = 0.80
+
+const BASIC_WEAPON : WeaponData = preload("res://weapons/data/arma_basica.tres")

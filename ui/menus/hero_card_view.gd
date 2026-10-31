@@ -50,16 +50,17 @@ func setup(hero: HeroData, target_width: float) -> void:
 			lines.append("[color=%s]%s[/color]" % [hex_color, r_name])
 		
 		relics_text = "\n".join(lines)
-	# Inyección del BBCode con íconos, colores y saltos de línea
-	rtl.text = "[center][color=#ffcc00]%s[/color]\n[color=#ffffff]❤️: %d | 🪙: %d | 🍀: %d |⚡: %d\nDesc: %d | Deck: %d[/color]\n\nReliquias:\n%s[/center]" % [
-		hero.hero_name.to_upper(),
-		hero.max_hp_base,
-		hero.gold,
-		hero.lucky,
-		hero.energy_base,
-		hero.discards_base,
-		hero.starting_deck.size(),
-		relics_text
+	# Inyección del BBCode con íconos, colores y saltos de línea											 
+	rtl.text = "[center][color=#ffcc00]%s[/color]\n[color=#ffffff]❤️: %d | 🪙: %d | 🍀: %d | ⚡: %d\nDesc: %d  \nWeapon: %s  \nDeck: %d[/color] \n\nReliquias:\n%s[/center]" % [
+		hero.hero_name.to_upper(),              # 1. %s -> Nombre
+		hero.max_hp_base,                       # 2. %d -> HP
+		hero.gold,                              # 3. %d -> Oro
+		hero.lucky,                             # 4. %d -> Suerte
+		hero.energy_base,                       # 5. %d -> Energía
+		hero.discards_base,                     # 6. %d -> Descartes
+		hero.get_starting_weapon_name(),        # 7. %s -> Weapon (¡Nombre del arma, que es un String!)
+		hero.starting_deck.size(),              # 8. %d -> Deck (Tamaño del mazo, que es un Int!)
+		relics_text                             # 9. %s -> Reliquias
 	]
 	add_child(rtl)
 

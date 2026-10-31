@@ -224,7 +224,6 @@ func _rebuild_weapon_buttons() -> void:
 	for child in weapons_box.get_children():
 		child.queue_free()
 
-
 	if "weapon_catalog" in run:
 		for weapon: WeaponData in run.weapon_catalog:
 			var btn := Button.new()
