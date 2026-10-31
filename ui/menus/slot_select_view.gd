@@ -1,19 +1,28 @@
-## vista de seleccion de partida
+## Vista de pantalla completa que gestiona el selector de perfiles (Save Slots).
+## Permite al jugador crear nuevas partidas nombrando a su héroe, retomar partidas
+## en pausa, o borrar perfiles existentes.
 class_name SlotSelectView
 extends Control
 
+## Emitida cuando el jugador selecciona exitosamente una ranura
+##  (ya sea creando una nueva o cargando una existente).
+## El orquestador escucha esta señal para ocultar el selector y abrir el Menú Principal.
 signal slot_chosen()
 
+## Referencia al contenedor horizontal que aloja proceduralmente las 3 tarjetas de ranura de guardado.
 var cards_box: HBoxContainer
+## Referencia al contenedor del pop-up modal oscuro para ingresar el nombre de la nueva partida.
 var name_modal: PanelContainer
+## Campo de entrada de texto (alfanumérico) dentro del modal para nombrar al héroe.
 var name_input: LineEdit
+## Puntero temporal numérico (1, 2 o 3) que recuerda qué ranura se
+## clickeó mientras el jugador escribe el nombre.
 var pending_slot_for_creation: int = -1
 
 ## Constructor del selector de partidas.
-## Configura la jerarquía visual de pantalla completa (1152x648) 
-## bloqueando inputs con MOUSE_FILTER_STOP,
-## monta el panel principal con borde y título, e inicializa el contenedor horizontal de las 3 ranuras 
-##y el modal emergente.
+## Configura la jerarquía visual de pantalla completa (1152x648) bloqueando inputs con `MOUSE_FILTER_STOP`,
+## monta el panel principal con borde y título, e inicializa el contenedor horizontal 
+##de las 3 ranuras y el modal emergente.
 func _init() -> void:
 	name = "SlotSelectView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -69,8 +78,8 @@ func _init() -> void:
 	_build_name_modal()
 	
 ## Construye e inyecta en el árbol el cuadro de diálogo modal para el ingreso del nombre del jugador.
-## Configura el PanelContainer centrado en coordenadas absolutas con z_index elevado,
-## el campo LineEdit y los botones de confirmación y cancelación.
+## Configura el PanelContainer centrado en coordenadas absolutas con `z_index` elevado,
+## el campo `LineEdit` y los botones de confirmación y cancelación.
 func _build_name_modal() -> void:
 	name_modal = PanelContainer.new()
 	name_modal.visible = false
@@ -138,10 +147,11 @@ func _build_name_modal() -> void:
 	btn_cancel.pressed.connect(func(): name_modal.visible = false)
 	btn_row.add_child(btn_cancel)
 	
-## Escanea el almacenamiento local mediante PersistenceManager y redibuja en vivo las 3 tarjetas de ranura.
+## Escanea el almacenamiento local (disco) mediante el Autoload `PersistenceManager` y
+## redibuja en vivo las tarjetas de ranura.
 ## Limpia instancias previas del contenedor y genera los paneles visuales mostrando el estado actual:
-## ranura vacía con botón de creación, o datos de 
-## perfil (nombre, récord, victorias y estado de la partida) con botones de selección y borrado.
+## ranura vacía (botón NUEVA PARTIDA), o ranura con datos de perfil (nombre, récord, victorias, estado)
+## con botones para continuar o borrar.
 func refresh_slots() -> void:
 	for child in cards_box.get_children():
 		child.queue_free()
@@ -243,32 +253,34 @@ func refresh_slots() -> void:
 
 		cards_box.add_child(panel)
 		
-## Abre el modal de creación de partida asignando la ranura seleccionada como pendiente.
-## Limpia el texto del campo LineEdit, visibiliza el modal y le asigna el foco de teclado para escritura inmediata.
+## Abre el modal emergente de creación de partida asignando el número de ranura seleccionada como pendiente.
+## Limpia textos anteriores, visibiliza el modal oscuro y le transfiere el foco del teclado al `LineEdit` para escribir inmediatamente.
 func _prompt_name(slot: int) -> void:
 	pending_slot_for_creation = slot
 	name_input.text = ""
 	name_modal.visible = true
 	name_input.grab_focus()
 	
-## Callback del botón "CREAR". Valida y ejecuta la inicialización del slot en PersistenceManager con el nombre ingresado.
-## Oculta el modal tras completar la escritura en disco y emite la señal slot_chosen hacia RunDirector.
+## Callback del botón "CREAR". Valida y ejecuta la escritura en disco del nuevo perfil a través del `PersistenceManager`.
+## Oculta el modal tras completar la operación y emite la señal `slot_chosen` hacia el `RunDirector` para arrancar.
 func _on_confirm_create_slot() -> void:
 	if pending_slot_for_creation > 0:
 		PersistenceManager.create_new_slot(pending_slot_for_creation, name_input.text)
 		name_modal.visible = false
 		slot_chosen.emit()
 		
-## Callback del botón "SELECCIONAR" o "CONTINUAR".
-## Invoca PersistenceManager.select_slot para cargar en memoria el perfil correspondiente
-## y emite slot_chosen para avanzar el flujo del juego.
+## Callback de los botones "SELECCIONAR" o "CONTINUAR".
+## Invoca a `PersistenceManager.select_slot` para cargar en la memoria global 
+## los datos del disco (Json) del perfil correspondiente.
+## Si la carga es exitosa, emite `slot_chosen` para avanzar hacia el Menú Principal o el Mapa.
 func _on_slot_selected(slot: int) -> void:
 	if PersistenceManager.select_slot(slot):
 		slot_chosen.emit()
 		
 ## Callback del botón "BORRAR".
-## Elimina de forma definitiva los archivos de perfil y 
-## de partida activa del slot indicado en disco y regenera la interfaz llamando a refresh_slots.
+## Elimina de forma irrecuperable los archivos de perfil (`profile.json`) 
+## y de partida activa (`run.json`) del disco.
+## Regenera inmediatamente la interfaz visual llamando a `refresh_slots()`.
 func _on_slot_deleted(slot: int) -> void:
 	PersistenceManager.delete_slot(slot)
 	refresh_slots()
