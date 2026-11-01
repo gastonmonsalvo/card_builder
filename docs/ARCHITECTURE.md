@@ -13,8 +13,10 @@ Documento de referencia para todo desarrollo en `card-prototype`. Define qué va
 3. [Detalle archivo por archivo](#detalle-archivo-por-archivo)
 4. [Reglas de oro](#reglas-de-oro)
 5. [Patrones de diseño aplicados](#patrones-de-diseño-aplicados)
-6. [Decisión: Data vs Instance](#decisión-data-vs-instance)
-7. [Decisión: `scenes/` vs `ui/`](#decisión-scenes-vs-ui)
+	6. [DecisionesTecnicas ] (#Decisiones Tecnicas)
+		6.1 [Decision: Por qué CombatResolver no usa Command pattern] (#¿Por qué CombatResolver no usa Command pattern?)
+		6.2 [Decisión: Data vs Instance](#decisión-data-vs-instance)
+		6.3 [Decisión: `scenes/` vs `ui/`](#decisión-scenes-vs-ui)
 8. [Guía de migración desde la arquitectura anterior](#guía-de-migración-desde-la-arquitectura-anterior)
 9. [Checklist: agregar X al proyecto](#checklist-agregar-x-al-proyecto)
 
@@ -39,13 +41,8 @@ card-prototype/
 │
 ├── core/
 │   ├── combat/
-│   │   ├── combat_resolver.gd - es stateless y los actions/ son opcionales.
-│   │   ├── combat_action.gd
-│   │   └── actions/
-│   │       ├── play_card_action.gd
-│   │       ├── take_damage_action.gd
-│   │       ├── apply_status_action.gd
-│   │       └── end_turn_action.gd
+│   │   └── combat_resolver.gd      # Lógica pura stateless (todos static)
+│   │                                # NO usa Command pattern;
 │   ├── deck/
 │   │   ├── deck_manager.gd
 │   │   └── card_pile.gd
@@ -247,17 +244,10 @@ card-prototype/
 | `persistence_manager.gd` | `save_game(slot: int)`, `load_game(slot)`, `save_run_stats()`. Usa `ConfigFile` para runs y JSON para stats globales. | Guardado/carga. 3 slots + stats de meta-progreso. |
 
 ---
-
-### `core/combat/` — Resolución de combate (lógica pura)
-
 | Archivo | Contenido | Por qué |
 |---|---|---|
-| `combat_action.gd` | Clase abstracta: `class_name CombatAction`. Métodos `execute() -> void` (abstract) y `undo() -> void` (abstract). Guarda referencia al `CombatResolver`. | **Command pattern**. Cada acción (jugar carta, recibir daño) es un objeto. Te regala undo (para debug), replay, y limpieza determinística al fin de turno. |
-| `combat_resolver.gd` | Stack de `CombatAction`, HP actual de hero/enemies, energía, turno actual, referencias al `StatusManager` y `DeckManager`. Métodos `play_card(card)`, `end_turn()`, `start_turn()`. | El orquestador. No implementa daño directo: despacha a acciones. |
-| `actions/play_card_action.gd` | Hereda de `CombatAction`. `execute()` verifica energía, gasta energía, llama al `CardEffect` de la carta. `undo()` revierte. | Acción atómica jugable. |
-| `actions/take_damage_action.gd` | `execute()` reduce HP y aplica statuses derivados (si vulnerable, +50%). `undo()` restaura. | El daño no es solo restar HP: hay que reaccionar a vulnerable, block, etc. |
-| `actions/apply_status_action.gd` | `execute()` llama a `StatusManager.apply(target, status_data, stacks)`. | |
-| `actions/end_turn_action.gd` | `execute()` ticlea statuses, descarta mano, roba 5, resetea energía. `undo()` revierte todo eso. | Fin de turno es donde más cosas se rompen. |
+| `combat_resolver.gd` | `extends RefCounted`, `class_name CombatResolver`. Todos los métodos `static`. Métodos puros: `calculate_sequential_preview`, `calculate_final_card_damage`, `_apply_card_effects_to_combo`, `_is_status_effect`, `process_card_in_combo`, `finalize_combo`, `tick_enemy_statuses`, `resolve_enemy_turn`, `calculate_instant_card`. | **Stateless**. No tiene estado mutable compartido, así que no necesita Command pattern. La orquestación de UI + animaciones vive en `scenes/battle/battle_table.gd`, que llama a estos métodos estáticos. |
+
 
 ---
 
@@ -507,7 +497,6 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 | Patrón | Dónde | Para qué |
 |---|---|---|
 | **Singleton** | `autoload/` | Servicios globales: signal bus, database, persistence. |
-| **Command** | `core/combat/actions/` | Acciones reversibles, undo, replay, debug. |
 | **Strategy** | `cards/effects/`, `relics/effects/`, `enemies/behaviors/` | Cambiar comportamiento sin tocar la clase base. |
 | **Observer** | `signal_bus.gd` | Desacoplar emisores de receptores. |
 | **State Machine** | `core/run/run_state_machine.gd` | Transiciones de run explícitas. |
@@ -516,6 +505,23 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 | **Composition over inheritance** | `enemies/behaviors/` | IA compuesta por behaviors, no herencia rígida. |
 
 ---
+## Decisiones Tecnicas
+---
+## ¿Por qué CombatResolver no usa Command pattern?
+El CombatResolver es stateless: todos sus métodos son static, no mantieneestado mutable entre llamadas, y cada cálculo es puro (entrada → salida sinside effects). Esto significa que no hay estado que proteger con comandosreversibles.
+
+La separación de responsabilidades se logra con el patrón Pure Logic + UI Orchestrator:
+
+core/combat/combat_resolver.gd → lógica pura, testeable sin escena.
+scenes/battle/battle_table.gd → orquestación de turnos + UI + animaciones(await, hud.set_banner_message(), card.pulse(), card.queue_free()).
+El BattleTable llama a métodos estáticos del CombatResolver y maneja elfeedback visual entre medio.
+
+Si en el futuro se necesita:
+
+Undo para debugging → implementar Command pattern encima del resolver actual.
+Replay de partidas → loggear llamadas al resolver.
+Logging de balance → ya tenés los métodos puros, solo agregar print.
+Ninguno de estos escenarios rompe la arquitectura actual.
 
 ## Decisión: Data vs Instance
 
