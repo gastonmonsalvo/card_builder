@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bvth6rdbf4uqt"]
 
-[ext_resource type="Script" uid="uid://hjfh62gf7npe" path="res://game/battleTable/battle_table.gd" id="1_gl7cs"]
-[ext_resource type="Script" uid="uid://cheka754sxi67" path="res://ui/battle_hud.gd" id="2_hud"]
+[ext_resource type="Script" uid="uid://hjfh62gf7npe" path="res://game/battle_table/battle_table.gd" id="1_gl7cs"]
+[ext_resource type="Script" uid="uid://cheka754sxi67" path="res://ui/run/battle_hud.gd" id="2_hud"]
 
 [node name="BattleTable" type="Control" unique_id=2051320047]
 layout_mode = 3
@@ -61,7 +61,7 @@ layout_mode = 0
 offset_left = 20.0
 offset_top = 100.0
 offset_right = 200.0
-offset_bottom = 250.0
+offset_bottom = 264.0
 mouse_filter = 2
 
 [node name="PlayerStatsLabel" type="Label" parent="HUD/PlayerPanel" unique_id=9001003]
@@ -69,16 +69,15 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 10.0
-offset_right = -12.0
-offset_bottom = -10.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -5.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "JUGADOR
-HP: 50 / 50
-ENERGIA: 3 / 3"
+text = "DATOS
+DEL JUGADOR"
 vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="EnemyPanel" type="Panel" parent="HUD" unique_id=9001004]
 layout_mode = 0
@@ -93,9 +92,9 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 15.0
+offset_left = -185.0
 offset_top = 6.0
-offset_right = -15.0
+offset_right = 185.0
 offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -138,7 +137,6 @@ offset_bottom = 620.0
 text = "Cementerio (0)"
 
 [node name="PilePopup" type="Panel" parent="HUD" unique_id=9001010]
-visible = false
 z_index = 200
 layout_mode = 0
 offset_left = 270.0
