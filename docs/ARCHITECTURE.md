@@ -39,7 +39,7 @@ card-prototype/
 │
 ├── core/
 │   ├── combat/
-│   │   ├── combat_resolver.gd
+│   │   ├── combat_resolver.gd - es stateless y los actions/ son opcionales.
 │   │   ├── combat_action.gd
 │   │   └── actions/
 │   │       ├── play_card_action.gd
@@ -203,16 +203,16 @@ card-prototype/
 │   └── gut/
 │
 └── tests/
-    ├── combat/
-    │   ├── test_combat_resolver.gd
-    │   ├── test_status_manager.gd
-    │   └── test_actions.gd
-    ├── deck/
-    │   └── test_deck_manager.gd
-    ├── run/
-    │   ├── test_rarity_system.gd
-    │   └── test_run_state_machine.gd
-    └── run_tests.cfg
+	├── combat/
+	│   ├── test_combat_resolver.gd
+	│   ├── test_status_manager.gd
+	│   └── test_actions.gd
+	├── deck/
+	│   └── test_deck_manager.gd
+	├── run/
+	│   ├── test_rarity_system.gd
+	│   └── test_run_state_machine.gd
+	└── run_tests.cfg
 ```
 
 ---
@@ -542,9 +542,9 @@ cost: 1                        upgrades: int
 tags: ["attack"]               temporary_modifiers: Array
 effects: [DamageEffect(6)]     played_this_turn: bool
 rarity: COMMON
-                               get_cost() -> int:
+							   get_cost() -> int:
 INMUTABLE                          return cost_override if not null
-                                   return data.cost
+								   return data.cost
 ```
 
 - El `.tres` no se toca nunca en runtime.
@@ -628,25 +628,25 @@ Si venís de la versión con `game/` monolítico, esta es la migración sugerida
 9. **Crear `card_instance.gd`** (nuevo). Migrar runtime state que estaba en `card_ui.gd` o donde sea.
 
 10. **Crear `systems/statuses/`** (nuevo):
-    - `status_data.gd`, `status_instance.gd`, `status_manager.gd`
-    - Migrar status logic que estaba desparramada en `combat_resolver.gd`.
+	- `status_data.gd`, `status_instance.gd`, `status_manager.gd`
+	- Migrar status logic que estaba desparramada en `combat_resolver.gd`.
 
 11. **Crear `systems/modifiers/`** (nuevo).
 
 12. **Crear `systems/events/`** (nuevo):
-    - Migrar eventos que estaban en `game/map/` o en `ui/map/`.
+	- Migrar eventos que estaban en `game/map/` o en `ui/map/`.
 
 13. **Crear `core/combat/actions/`** (nuevo):
-    - Refactor `combat_resolver.gd` para despachar acciones en vez de mutar directamente.
-    - Crear `combat_action.gd`, `play_card_action.gd`, `take_damage_action.gd`, `apply_status_action.gd`, `end_turn_action.gd`.
+	- Refactor `combat_resolver.gd` para despachar acciones en vez de mutar directamente.
+	- Crear `combat_action.gd`, `play_card_action.gd`, `take_damage_action.gd`, `apply_status_action.gd`, `end_turn_action.gd`.
 
 14. **Crear `core/run/run_state_machine.gd`** (nuevo):
-    - Si ya tenías lógica de transiciones, moverla acá.
+	- Si ya tenías lógica de transiciones, moverla acá.
 
 15. **Crear `assets/`, `addons/gut/`, `tests/`**:
-    - Mover arte y audio a `assets/`.
-    - Instalar GUT en `addons/gut/`.
-    - Escribir tests prioritarios: `test_combat_resolver.gd`, `test_deck_manager.gd`.
+	- Mover arte y audio a `assets/`.
+	- Instalar GUT en `addons/gut/`.
+	- Escribir tests prioritarios: `test_combat_resolver.gd`, `test_deck_manager.gd`.
 
 16. **Actualizar todos los `preload`/`load`** que apunten a los viejos paths. Godot te va a marcar los rotos en el editor.
 

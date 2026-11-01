@@ -132,7 +132,7 @@ func _try_consume_instant_card(card: CardUI) -> bool:
 	refresh_ui() # Deshabilita atacar/descartar durante la animación de la carta instantánea.
 
 	var title: String = card.card_data.title
-	var cards_drawn: int = await CombatResolver.consume_instant_card(get_tree(), card, board, deck)
+	var cards_drawn: int = await consume_instant_card(card)  # ← sin get_tree() como parámetro
 	if cards_drawn > 0:
 		draw_cards(cards_drawn)
 
@@ -243,12 +243,7 @@ func _on_attack_pressed() -> void:
 	discard_button.disabled = true
 
 	# 1. Ejecutar turno del jugador
-	player_block = await CombatResolver.execute_combo_turn(
-		get_tree(), run, enemy, board, deck, hud, player_block, draw_cards,
-		func(new_block: int):
-			player_block = new_block
-			refresh_ui()
-	)
+	player_block = await execute_combo_turn(run, enemy, player_block)
 
 	# 2. Verificar si el enemigo murió por el combo
 	if enemy.is_dead():
@@ -259,9 +254,7 @@ func _on_attack_pressed() -> void:
 	refresh_ui() # Refresca por si hubo cambios de stats antes del golpe enemigo
 
 	# 3. Ejecutar turno del enemigo
-	var survived: bool = await CombatResolver.execute_enemy_turn(
-		get_tree(), run, enemy, hud, player_block
-	)
+	var survived: bool = await execute_enemy_turn(run, enemy, player_block)
 	
 	if not survived:
 		combat_lost.emit()
@@ -273,10 +266,9 @@ func _on_attack_pressed() -> void:
 	attack_button.disabled = false
 	is_resolving = false
 	refresh_ui()
-
+	
 ## Purga por completo el estado efímero del tablero (útil al abandonar una partida o escapar).
-## Elimina los nodos físicos de las cartas en mano y en combo, y resetea contadores temporales como la energía,
-## descartes y bloqueo.
+## Elimina los nodos físicos de las cartas en mano y en combo, y resetea contadores temporales.
 func clear_board_visuals() -> void:
 	is_resolving = false
 	if board:
@@ -308,3 +300,147 @@ func refresh_ui() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if director:
 		director.handle_unhandled_key(event)
+
+
+
+# =============================================================================
+#  ORQUESTACIÓN DE TURNOS — UI + ANIMACIONES
+#  La lógica pura vive en CombatResolver. Acá solo orquestamos la vista.
+# =============================================================================
+
+## Orquesta la ejecución secuencial asíncrona del combo de cartas jugado.
+## Llama a `CombatResolver` para la lógica pura y maneja la UI + animaciones entre medio.
+## Retorna el block final acumulado.
+func execute_combo_turn(run: RunState, enemy: Enemy, initial_block: int) -> int:
+	var combo_state: Dictionary = {
+		"dmg": 0.0,
+		"block": float(initial_block),
+		"draw": 0,
+		"burn": 0,
+		"freeze": 0,
+		"poison": 0,
+		"shock": 0,
+		"hemorrhage": 0
+	}
+	var current_block: int = initial_block
+
+	# 1. Procesar cada carta del combo (lógica + UI intercaladas)
+	for card in board.combo_cards:
+		if not card.card_data:
+			continue
+		
+		var cdata: CardData = card.card_data
+		card.pulse()  # UI
+		
+		# LÓGICA: delegar al resolver
+		var delta: Dictionary = CombatResolver.process_card_in_combo(cdata, run, combo_state)
+		
+		# Aplicar statuses al enemigo
+		enemy.add_statuses(
+			delta["burn_delta"],
+			delta["poison_delta"],
+			delta["freeze_delta"],
+			delta["shock_delta"],
+			delta["hemorrhage_delta"]
+		)
+		
+		# UI: robar cartas nuevas
+		if delta["draw_delta"] > 0:
+			draw_cards(delta["draw_delta"])
+		
+		# UI: actualizar block
+		current_block = delta["block"]
+		player_block = current_block
+		refresh_ui()
+		
+		# UI: mensaje en el banner
+		if delta["msg"] != "":
+			hud.set_banner_message("[ %s ] %s" % [delta["title"], delta["msg"]])
+		else:
+			hud.set_banner_message("DISPARANDO: [ %s ]" % delta["title"])
+		
+		await get_tree().create_timer(0.45).timeout
+
+	# 2. Finalizar combo (lógica pura)
+	current_block = CombatResolver.finalize_combo(run, combo_state, enemy, board.combo_cards.size())
+	player_block = current_block
+	refresh_ui()
+
+	if not board.combo_cards.is_empty():
+		await get_tree().create_timer(0.35).timeout
+
+	# 3. Ruteo al descarte (UI + deck state)
+	for card in board.combo_cards:
+		deck.route_played_card(card.card_data)
+		card.queue_free()
+	board.combo_cards.clear()
+	refresh_ui()
+
+	# 4. Ticks de statuses (lógica pura + UI)
+	var ticks: Dictionary = CombatResolver.tick_enemy_statuses(enemy, run)
+
+	if ticks["burn"] > 0:
+		refresh_ui()
+		hud.set_banner_message("LAS LLAMAS QUEMAN AL ENEMIGO POR %d DE DAÑO FIJO!" % ticks["burn"])
+		await get_tree().create_timer(1).timeout
+
+	if ticks["poison"] > 0:
+		refresh_ui()
+		hud.set_banner_message("EL VENENO CONSUME AL ENEMIGO POR %d DE DAÑO FIJO!" % ticks["poison"])
+		await get_tree().create_timer(1).timeout
+
+	if ticks["hemorrhage"] > 0:
+		refresh_ui()
+		if ticks["hemorrhage_proc_count"] > 0:
+			hud.set_banner_message("¡ESTALLIDO DE SANGRE! El enemigo sufre %d de daño por hemorragia." % ticks["hemorrhage"])
+		else:
+			hud.set_banner_message("¡HEMORRAGIA! El enemigo se desangra por %d de daño." % ticks["hemorrhage"])
+		await get_tree().create_timer(1).timeout
+
+	return current_block
+
+
+## Resuelve el turno del enemigo: delega la lógica a `CombatResolver` y maneja la UI.
+## Retorna `true` si el jugador sobrevive.
+func execute_enemy_turn(run: RunState, enemy: Enemy, player_block: int) -> bool:
+	# 1. LÓGICA: delegar al resolver (método puro, sin UI)
+	var result: Dictionary = CombatResolver.resolve_enemy_turn(run, enemy, player_block)
+	
+	# 2. UI: mensajes según el resultado
+	if result["frozen_solid"]:
+		hud.set_banner_message("¡ENEMIGO CONGELADO! NO PUDO ATACAR ESTE TURNO.")
+	elif result["shocked"]:
+		hud.set_banner_message("¡PARÁLISIS ELÉCTRICA! EL ENEMIGO QUEDÓ ATURDIDO Y FALLÓ SU ATAQUE.")
+	else:
+		if run.god_mode:
+			hud.set_banner_message("ENEMIGO ATACA POR %d -> ANULADO POR GOD MODE!" % result["effective_dmg"])
+		else:
+			hud.set_banner_message("ENEMIGO ATACA POR %d (BLOQUEASTE %d)!" % [result["effective_dmg"], result["blocked"]])
+	
+	# 3. Game Over o revive
+	if not result["player_survives"]:
+		return false
+	
+	if result["saving_relic"]:
+		var relic: RelicData = result["saving_relic"]
+		hud.set_banner_message("¡[%s] SE ROMPIO Y REVIVISTE CON %d HP!" % [relic.title, run.player_hp])
+		await get_tree().create_timer(1.2).timeout
+	
+	return true
+
+
+## Ejecuta y descarta una carta instantánea (`single_use`).
+## Delegar cálculo a `CombatResolver`, manejar UI + animación.
+func consume_instant_card(card: CardUI) -> int:
+	board.remove_card(card)
+	card.home_position = board.combo_zone.global_position + (board.combo_zone.size * 0.5) - (card.size * 0.5)
+	card.pulse()
+	
+	# LÓGICA: calcular efectos sin tocar UI
+	var temp_state: Dictionary = CombatResolver.calculate_instant_card(card.card_data)
+	
+	await get_tree().create_timer(0.45).timeout
+	
+	deck.route_played_card(card.card_data)
+	card.queue_free()
+	return int(temp_state["draw"])

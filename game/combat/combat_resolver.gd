@@ -4,6 +4,10 @@
 extends RefCounted
 class_name CombatResolver
 
+# ============================================================
+# 				MÉTODOS PURAMENTE DE CÁLCULO 
+# ============================================================
+
 ## Calcula matemáticamente el resultado proyectado de ejecutar las cartas dispuestas en la zona de combo.
 ## Actúa como un simulador predictivo: itera la cadena de izquierda a derecha delegando la evaluación
 ##  de cada carta a `calculate_final_card_damage()`.
@@ -50,190 +54,6 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		"hemo": int(combo_state["hemorrhage"])
 	}
 
-## Ejecuta y descarta de forma aislada una carta clasificada como `single_use/instantánea`
-## sin cerrar el turno general.
-## Evalúa sus efectos (como robar cartas o ganar oro)
-## y la envía directamente al cementerio o descarte tras animarla.
-static func consume_instant_card(
-	tree: SceneTree,
-	card: CardUI,
-	board: CardBoardController,
-	deck: DeckManager
-) -> int:
-	board.remove_card(card)
-	card.home_position = board.combo_zone.global_position + (board.combo_zone.size * 0.5) - (card.size * 0.5)
-	card.pulse()
-
-	var temp_state: Dictionary = {"dmg": 0.0, "block": 0.0, "draw": 0, "burn": 0, "poison": 0, "freeze":0, "shock":0, "hemorrhage":0}
-	card.card_data.apply_effects(temp_state)
-
-	await tree.create_timer(0.45).timeout
-
-	deck.route_played_card(card.card_data)
-	card.queue_free()
-	return int(temp_state["draw"])
-
-## Orquesta la ejecución secuencial asíncrona (de izquierda a derecha) del combo de cartas jugado.
-## Actúa como la Única Fuente de Verdad (Single Source of Truth) del combate:
-##  despoja a la carta de su auto-ejecución 
-## y delega el cálculo duro al motor matemático (`calculate_final_card_damage`).
-## Evalúa en tiempo real las sinergias del arma equipada, los atributos RPG del héroe
-##  (Fuerza, Inteligencia, Destreza) 
-## y aplica penalizaciones u otorgamientos de estados (Veneno, Hemorragia, etc.) según corresponda.
-## Además, gestiona el feedback dinámico en el HUD, las animaciones de impacto, las sinergias de reliquias
-
-static func execute_combo_turn(
-	tree: SceneTree,
-	run: RunState,
-	enemy: Enemy,
-	board: CardBoardController,
-	deck: DeckManager,
-	hud: BattleHUD,
-	initial_block: int,
-	draw_callback: Callable,
-	ui_refresh_callback: Callable
-) -> int:
-	var combo_state: Dictionary = {
-		"dmg": 0.0,
-		"block": float(initial_block),
-		"draw": 0,
-		"burn": 0,
-		"freeze": 0,
-		"poison": 0,
-		"shock": 0,
-		"hemorrhage": 0
-	}
-	var current_block: int = initial_block
-
-	# 1. Disparar cada carta del combo secuencialmente de izquierda a derecha
-	for card in board.combo_cards:
-		if card.card_data:
-			var cdata: CardData = card.card_data
-			
-			var prev_draw: int = combo_state["draw"]
-			var prev_burn: int = combo_state["burn"]
-			var prev_poison: int = combo_state["poison"]
-			var prev_freeze: int = combo_state["freeze"]
-			var prev_shock: int = combo_state["shock"]
-			var prev_hemorrhage : int = combo_state["hemorrhage"]
-			
-			card.pulse()
-			
-			var calc: Dictionary = calculate_final_card_damage(
-				cdata, run.current_weapon, run.player_str, run.player_int, run.player_dex
-			)
-			_apply_card_effects_to_combo(cdata, calc, combo_state)
-
-			enemy.add_statuses(
-				combo_state["burn"] - prev_burn, 
-				combo_state["poison"] - prev_poison, 
-				combo_state["freeze"]- prev_freeze, 
-				combo_state["shock"]-prev_shock,
-				combo_state["hemorrhage"]-prev_hemorrhage
-			)
-			
-			current_block = int(round(combo_state["block"]))
-
-			var newly_drawn: int = combo_state["draw"] - prev_draw
-			if newly_drawn > 0:
-				draw_callback.call(newly_drawn)
-
-			ui_refresh_callback.call(current_block)
-			
-			# HUD Dinámico: Feedback visual inmediato de la penalización
-			if calc.msg != "":
-				hud.set_banner_message("[ %s ] %s" % [cdata.title, calc.msg]) # Ej: "[ Tajo ] Arma incorrecta: Golpe torpe."
-			else:
-				hud.set_banner_message("DISPARANDO: [ %s ]" % cdata.title)
-				
-			await tree.create_timer(0.45).timeout
-
-	# 2. Aplicar sinergias de Reliquias al combo completo y golpear al enemigo
-	run.apply_relics_to_combo(combo_state, board.combo_cards.size())
-	current_block = int(round(combo_state["block"]))
-	enemy.take_damage(int(round(combo_state["dmg"])))
-	ui_refresh_callback.call(current_block)
-
-	if not board.combo_cards.is_empty():
-		await tree.create_timer(0.35).timeout
-
-	# 3. Enrutar cartas jugadas al Descarte o Cementerio
-	for card in board.combo_cards:
-		deck.route_played_card(card.card_data)
-		card.queue_free()
-	board.combo_cards.clear()
-	ui_refresh_callback.call(current_block)
-
-	# 4. Tick de Quemadura del enemigo
-	var burn_dmg: int = enemy.apply_burn_tick()
-	if burn_dmg > 0:
-		ui_refresh_callback.call(current_block)
-		hud.set_banner_message("LAS LLAMAS QUEMAN AL ENEMIGO POR %d DE DAÑO FIJO!" % burn_dmg)
-		await tree.create_timer(1).timeout
-
-	# 5. Tick de Veneno del enemigo
-	var poison_dmg: int = enemy.apply_poison_tick()
-	if poison_dmg > 0:
-		ui_refresh_callback.call(current_block)
-		hud.set_banner_message("EL VENENO CONSUME AL ENEMIGO POR %d DE DAÑO FIJO!" % poison_dmg)
-		await tree.create_timer(1).timeout
-		
-	# 5-bis. Tick de Hemorragia
-	var hemorrhage_dmg : int = enemy.apply_hemorrhage_tick(run.player_luck)
-	if hemorrhage_dmg > 0:
-		ui_refresh_callback.call(current_block)
-		
-		# Verificamos si el enemigo ya tiene acumulados estallidos previos para hacerlo más épico
-		if enemy.hemorrhage_proc_count > 0:
-			hud.set_banner_message("¡ESTALLIDO DE SANGRE! El enemigo sufre %d de daño por hemorragia." % [ hemorrhage_dmg])
-		else:
-			hud.set_banner_message("¡HEMORRAGIA! El enemigo se desangra por %d de daño." % hemorrhage_dmg)
-			
-		await tree.create_timer(1).timeout
-
-	return current_block
-
-## Resuelve la fase de ataque del oponente y la mitigación de daño.
-## Evalúa bloqueos absolutos (por Congelamiento severo) y probabilidades de aturdimiento (por Electrocución).
-## Si el ataque es efectivo, calcula el daño neto (tras escudo/God Mode).
-## Si el daño resulta letal, consulta al `RunState` si alguna reliquia permite revivir.
-##  Retorna `true` si el jugador sobrevive al turno.
-static func execute_enemy_turn(tree: SceneTree, run: RunState, enemy: Enemy, hud: BattleHUD, player_block: int) -> bool:
-	var was_frozen_solid: bool = enemy.freeze >= CombatConstants.FREEZE_STUN_THRESHOLD
-
-	if was_frozen_solid:
-		enemy.apply_freeze_tick()
-		# Si también tenía shock, decae en 1 sin gastar la descarga
-		if enemy.shock > 0:
-			enemy.shock -= CombatConstants.STATUS_DECAY_PER_TURN
-		hud.set_banner_message("¡ENEMIGO CONGELADO! NO PUDO ATACAR ESTE TURNO.")
-	elif enemy.try_trigger_shock_stun(run.player_luck):
-		enemy.apply_freeze_tick()
-		hud.set_banner_message("¡PARÁLISIS ELÉCTRICA! EL ENEMIGO QUEDÓ ATURDIDO Y FALLÓ SU ATAQUE.")
-	else:
-		var effective_dmg: int = enemy.get_effective_intent_damage()
-		var blocked: int = min(player_block, effective_dmg)
-		var net_dmg: int = 0 if run.god_mode else max(0, effective_dmg - player_block)
-		run.player_hp = max(0, run.player_hp - net_dmg)
-
-		enemy.apply_freeze_tick()
-
-		if run.god_mode:
-			hud.set_banner_message("ENEMIGO ATACA POR %d -> ANULADO POR GOD MODE!" % effective_dmg)
-		else:
-			hud.set_banner_message("ENEMIGO ATACA POR %d (BLOQUEASTE %d)!" % [effective_dmg, blocked])
-	
-	if run.is_player_dead():
-		var saving_relic: RelicData = run.try_consume_revive_relic()
-		if saving_relic:
-			hud.set_banner_message("¡[%s] SE ROMPIO Y REVIVISTE CON %d HP!" % [saving_relic.title, run.player_hp])
-			await tree.create_timer(1.2).timeout
-			return true # Sobrevivió gracias a la reliquia
-		else:
-			return false # Game Over
-
-	return true # Sobrevivió el turno normalmente
-	
 ## Calcula el daño base de la carta y aplica las bonificaciones/penalizaciones del arma.
 ## Los demás efectos de CardData se procesan por separado en `_apply_card_effects_to_combo`.
 static func calculate_final_card_damage(
@@ -341,3 +161,118 @@ static func _is_status_effect(effect: CardEffect) -> bool:
 		or effect is FreezeEffect \
 		or effect is ShockEffect \
 		or effect is HemorrhageEffect
+
+
+# ============================================================
+#  		extracción de la lógica de execute_combo_turn
+# Cada uno hace UNA cosa y es puro (sin UI, sin await)
+# ============================================================
+
+## Procesa UNA carta del combo. Retorna los deltas para que la escena los aplique.
+static func process_card_in_combo(
+	card_data: CardData, 
+	run: RunState, 
+	combo_state: Dictionary
+) -> Dictionary:
+	var prev := {
+		"burn": combo_state["burn"],
+		"poison": combo_state["poison"],
+		"freeze": combo_state["freeze"],
+		"shock": combo_state["shock"],
+		"hemorrhage": combo_state["hemorrhage"],
+		"draw": combo_state["draw"],
+	}
+	
+	var calc := calculate_final_card_damage(
+		card_data, run.current_weapon, 
+		run.player_str, run.player_int, run.player_dex
+	)
+	_apply_card_effects_to_combo(card_data, calc, combo_state)
+	
+	return {
+		"calc": calc,
+		"burn_delta": combo_state["burn"] - prev["burn"],
+		"poison_delta": combo_state["poison"] - prev["poison"],
+		"freeze_delta": combo_state["freeze"] - prev["freeze"],
+		"shock_delta": combo_state["shock"] - prev["shock"],
+		"hemorrhage_delta": combo_state["hemorrhage"] - prev["hemorrhage"],
+		"draw_delta": combo_state["draw"] - prev["draw"],
+		"block": int(round(combo_state["block"])),
+		"title": card_data.title,
+		"msg": calc.msg,
+	}
+
+## Aplica reliquias finales y daño al enemigo. Retorna block final.
+static func finalize_combo(
+	run: RunState, 
+	combo_state: Dictionary, 
+	enemy: Enemy, 
+	combo_size: int
+) -> int:
+	run.apply_relics_to_combo(combo_state, combo_size)
+	var current_block := int(round(combo_state["block"]))
+	enemy.take_damage(int(round(combo_state["dmg"])))
+	return current_block
+
+## Aplica los ticks de fin de turno. Retorna un dict con los daños por status.
+static func tick_enemy_statuses(enemy: Enemy, run: RunState) -> Dictionary:
+	return {
+		"burn": enemy.apply_burn_tick(),
+		"poison": enemy.apply_poison_tick(),
+		"hemorrhage": enemy.apply_hemorrhage_tick(run.player_luck),
+		"hemorrhage_proc_count": enemy.hemorrhage_proc_count,
+	}
+
+## Resuelve el ataque enemigo. Retorna resultado puro (sin HUD ni animaciones).
+static func resolve_enemy_turn(
+	run: RunState, 
+	enemy: Enemy, 
+	player_block: int
+) -> Dictionary:
+	var was_frozen_solid := enemy.freeze >= CombatConstants.FREEZE_STUN_THRESHOLD
+	var shocked := false
+	var effective_dmg := 0
+	var blocked := 0
+	var net_dmg := 0
+	var saving_relic: RelicData = null
+	
+	if was_frozen_solid:
+		enemy.apply_freeze_tick()
+		if enemy.shock > 0:
+			enemy.shock -= CombatConstants.STATUS_DECAY_PER_TURN
+	elif enemy.try_trigger_shock_stun(run.player_luck):
+		enemy.apply_freeze_tick()
+		shocked = true
+	else:
+		effective_dmg = enemy.get_effective_intent_damage()
+		blocked = min(player_block, effective_dmg)
+		net_dmg = 0 if run.god_mode else max(0, effective_dmg - player_block)
+		run.player_hp = max(0, run.player_hp - net_dmg)
+		enemy.apply_freeze_tick()
+	
+	var player_survives := true
+	if run.is_player_dead():
+		saving_relic = run.try_consume_revive_relic()
+		player_survives = saving_relic != null
+	
+	var outcome := "frozen" if was_frozen_solid else ("shocked" if shocked else "attack")
+	
+	return {
+		"outcome": outcome,
+		"effective_dmg": effective_dmg,
+		"blocked": blocked,
+		"net_dmg": net_dmg,
+		"player_survives": player_survives,
+		"saving_relic": saving_relic,
+		"frozen_solid": was_frozen_solid,
+		"shocked": shocked,
+	}
+
+## Calcula el resultado de consumir una carta instantánea, sin tocar UI.
+static func calculate_instant_card(card_data: CardData) -> Dictionary:
+	var temp_state: Dictionary = {
+		"dmg": 0.0, "block": 0.0, "draw": 0,
+		"burn": 0, "poison": 0, "freeze": 0, "shock": 0, "hemorrhage": 0
+	}
+	card_data.apply_effects(temp_state)
+	return temp_state
