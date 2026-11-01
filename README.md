@@ -1,287 +1,427 @@
-# 🃏 Card Prototype — Arquitectura y Documentación Técnica
+# 🃏 Card Prototype — Roguelike Deckbuilder (Godot 4)
 
+Prototipo de juego **2D Roguelike Deckbuilder** desarrollado en **Godot Engine 4.x (GDScript)**. El proyecto implementa una arquitectura desacoplada basada en recursos personalizados (`Resource`), un bus de eventos global (`SignalBus`), generación procedural de mapas por semillas (`FloorGenerator`), sistema de rarezas ponderadas, sinergias de reliquias, armas equipables y persistencia en múltiples ranuras de guardado.
 
-### Características Principales
+---
 
-* **Sistema de Combate Basado en Cartas y Efectos Modulares:** Las cartas ejecutan secuencias de efectos desacoplados (Daño, Defensa, Quemadura, Congelación, Veneno, Hemorragia, Electrocución/Shock, Robo, Multiplicadores).
+## 📑 Tabla de contenidos
 
-* **Mecánica de Armas (`weapons/`):** Los héroes equipan armas (Espadón, Katana, Báculo, etc.) que interactúan con el combate y escalan o condicionan las jugadas.
+1. [Requisitos y ejecución](#-requisitos-y-ejecución)
+2. [Cómo correr los tests](#-cómo-correr-los-tests)
+3. [Arquitectura general y principios de diseño](#-arquitectura-general-y-principios-de-diseño)
+4. [Estructura de directorios](#-estructura-de-directorios)
+5. [Flujo de ejecución](#-flujo-de-ejecución-execution-flow)
+6. [Relación entre componentes principales](#-relación-entre-componentes-principales)
+7. [Guía de edición y extensibilidad](#-guía-de-edición-y-extensibilidad)
+8. [Herramientas de desarrollo y debugging](#-herramientas-de-desarrollo-y-debugging)
+9. [Reglas de oro](#-reglas-de-oro)
+10. [Convenciones](#-convenciones)
+11. [Git](#-git)
+12. [Documentación adicional](#-documentación-adicional)
+13. [Roadmap](#-roadmap)
 
-* **Sistema de Reliquias (`relics/`):** Ítems pasivos que otorgan bonificaciones de estadísticas, aplican estados al inicio del combate, crean sinergias de combos o permiten revivir (ej. *Cenizas de Fénix*, *Catalizador de Combo*).
+---
 
-* **Generación Procedural de Pisos (`floor_generator.gd`):** Creación dinámica del mapa de nodos (`map_node_view.gd`), permitiendo elegir rutas hacia combates, tiendas o santuarios.
+## 🚀 Requisitos y ejecución
 
-* **Sistema de Rarezas y Economía (`rarity_system.gd`, `shop_view.gd`):** Probabilidades ponderadas para la aparición de cartas y reliquias según su rareza.
+### Requisitos
 
-* **Persistencia Multi-Slot (`persistence_manager.gd`):** Guardado y carga del estado de la partida en diferentes ranuras (*slots*).
+- **Godot Engine 4.3+** (recomendado 4.4 por estabilidad de `Resource` UIDs).
+- **GUT (Godot Unit Test)** incluido en `addons/gut/`.
+- Opcional: **GDScript LSP** para tu editor (VSCode, Neovim).
 
-* **Herramientas de Desarrollo Integradas (`debug_overlay.gd`):** Panel de depuración en tiempo real para probar cartas, alterar estados o saltar salas.
+### Setup
 
-## 🏗️ 2. Arquitectura General y Árbol del Proyecto
+```bash
+# 1. Clonar
+git clone <repo-url> card-prototype
+cd card-prototype
 
-El proyecto sigue una **arquitectura orientada a datos (Data-Driven Design)** apoyada en recursos personalizados de Godot (`Resource` / `.tres`) y una **arquitectura desacoplada por eventos** mediante un bus de señales global (`SignalBus`).
+# 2. Abrir el proyecto en Godot
+# Godot Launcher → Import → seleccionar project.godot
 
+# 3. GUT ya viene commiteado en addons/gut/, no hace falta instalar nada.
 ```
+
+### Cómo correr el juego
+
+```bash
+# Desde Godot Editor
+F5  → corre la escena principal (main_menu.tscn)
+F6  → corre la escena actual (útil para probar battle_table.tscn aislada)
+
+# Desde CLI
+godot --path .                          # abre el editor
+godot --path . --main-scene res://ui/menus/main_menu.tscn
+```
+
+---
+
+## 🧪 Cómo correr los tests
+
+```bash
+# CLI (para CI / pre-commit)
+godot --path . --script res://tests/run_tests.cfg
+
+# Desde el editor
+# Panel inferior → GUT → Run All
+```
+
+Resultados esperados: **todos los tests en `tests/` deben pasar en verde** antes de cualquier commit a `main`.
+
+Tests prioritarios cubren: `combat_resolver`, `status_manager`, `deck_manager`, `run_state_machine`, `rarity_system`.
+
+---
+
+## 📐 Arquitectura general y principios de diseño
+
+El proyecto está diseñado bajo tres pilares técnicos para evitar el acoplamiento rígido entre la interfaz (UI) y la lógica de negocio:
+
+### 1. Diseño Orientado a Datos (Data-Driven Design con `Resource`)
+
+Toda entidad estática o configurable (Cartas, Efectos de Cartas, Héroes, Enemigos, Reliquias, Efectos de Reliquias, Armas y Statuses) hereda de `Resource`. La lógica de ejecución se inyecta mediante composición de recursos (patrón *Strategy*), permitiendo crear nuevas cartas o reliquias desde el Inspector de Godot combinando scripts de efectos sin modificar el motor de combate.
+
+**Patrón Data vs Instance**: cada `.tres` es plantilla inmutable; el runtime usa `*_instance.gd` con estado. Esto evita el bug clásico de mutar el `.tres` y romper todo el mazo (ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#decisión-data-vs-instance)).
+
+### 2. Arquitectura Dirigida por Eventos (`SignalBus`)
+
+Los componentes de UI (`battle_hud`, `map_view`, `card_ui`) y los controladores de lógica (`combat_resolver`, `run_director`, `deck_manager`) se comunican a través de un *Autoload* centralizado (`SignalBus`), evitando referencias cruzadas frágiles (`get_node("../../..")`).
+
+Es el bus de eventos central. Cualquier subsistema emite/escucha sin acoplamiento — **crítico** para reliquias reactivas (que se suscriben a `card_played`, `enemy_died`, `turn_started`, etc.).
+
+### 3. Estado Centralizado de Partida (`RunState` & `RunDirector`)
+
+El estado mutable de una *run* (HP actual/máximo, oro, piso, semilla, mazo actual, reliquias equipadas, arma activa y mapa generado) vive en `RunState`, mientras que `RunDirector` orquesta las transiciones entre escenas/vistas (Menú → Selección de Héroe → Mapa → Combate / Tienda / Santuario) y gestiona el guardado automático mediante `PersistenceManager`.
+
+La máquina de estados explícita (`run_state_machine.gd`) define las transiciones válidas y evita el bug clásico de "entré a batalla y al evento al mismo tiempo".
+
+---
+
+## 📂 Estructura de directorios
+
+```text
 card-prototype/
-├── autoload/                  # Singletons globales (Estado global, Base de datos y Eventos)
-│   ├── game_database.gd       # Registro centralizado de todas las cartas, reliquias, armas y héroes
-│   ├── persistence_manager.gd # Sistema de guardado/carga por slots en disco
-│   └── signal_bus.gd          # Bus de eventos global para desacoplar UI de la lógica
+├── README.md
+├── .gitignore
+├── project.godot
 │
-├── cards/                     # Sistema de Cartas
-│   ├── card_data.gd           # Clase Resource base para definir una carta
-│   ├── card_ui.gd / .tscn     # Representación visual e interactiva de la carta en mano/mesa
-│   ├── data/                  # Archivos .tres de cartas (tajo, estocada, sobre_carga, etc.)
-│   └── effects/               # Lógica modular de efectos (burn, damage, defense, freeze, etc.)
+├── docs/                       # Documentación
+│   ├── GDD.md                  # Game Design Document
+│   └── ARCHITECTURE.md         # Detalle técnico archivo por archivo
 │
-├── relics/                    # Sistema de Reliquias (Pasivas)
-│   ├── relic_data.gd          # Clase Resource base para definir una reliquia
-│   ├── data/                  # Archivos .tres de reliquias (anillo_brasas, pata_conejo, etc.)
-│   └── effects/               # Efectos pasivos/triggers (combo_synergy, revive, stat_bonus, etc.)
+├── autoload/                   # Singletons globales (Autoloads)
+│   ├── game_database.gd        # Registro central y catálogo de recursos (.tres)
+│   ├── persistence_manager.gd  # Guardado/Carga en JSON/ConfigFile (3 slots + stats)
+│   └── signal_bus.gd           # Bus de señales globales desacopladas
 │
-├── weapons/                   # Sistema de Armas
-│   ├── weapon_data.gd         # Clase Resource base para definir armas
-│   └── data/                  # Archivos .tres de armas (arma_basica, baculo, espadon, katana_basica)
+├── core/                       # LÓGICA PURA (sin .tscn, sin escenas)
+│   ├── combat/                 # Resolución de turnos y daño
+│   │   ├── combat_resolver.gd
+│   │   ├── combat_action.gd    # Clase base Command pattern (undo/replay)
+│   │   └── actions/            # PlayCard, TakeDamage, ApplyStatus, EndTurn
+│   ├── deck/                   # Pilas: robo, mano, descarte (deck_manager, card_pile)
+│   ├── hero/                   # Lógica de skills activables (hero_ability.gd)
+│   ├── enemies/                # IA enemiga + behaviors/
+│   ├── run/                    # Estado de run, FSM, director, rarezas
+│   │   ├── run_director.gd
+│   │   ├── run_state.gd
+│   │   ├── run_state_machine.gd
+│   │   └── rarity_system.gd
+│   ├── map/                    # Generación procedural (floor_generator, room_data)
+│   └── constants/              # combat_constants.gd
 │
-├── game/                      # Núcleo Jugable (Core Loop)
-│   ├── battleTable/           # Escena principal y orquestador maestro (`battle_table.gd/.tscn`)
-│   ├── combat/                # Motor matemático y de reglas de combate (`combat_resolver.gd`)
-│   ├── constants/             # Constantes globales y enumeraciones (`combat_constants.gd`)
-│   ├── deck/                  # Gestión de pilas: robo, descarte, mano (`deck_manager.gd`, `card_pile.gd`)
-│   ├── hand/                  # Controlador espacial de las cartas en mano (`card_board_controller.gd`)
-│   ├── hero/                  # Definición de clases de personaje (`heroData.gd` y `.tres` en `data/`)
-│   ├── enemies/               # Lógica de IA/estado enemigo (`enemy.gd`, `enemyData.gd` y `data/`)
-│   ├── map/                   # Generador de pisos y datos de salas (`floor_generator.gd`, `room_data.gd`)
-│   └── run/                   # Estado y dirección de la partida (`run_director.gd`, `run_state.gd`, `rarity_system.gd`)
+├── systems/                    # Subsistemas transversales
+│   ├── statuses/               # Buffs/debuffs: data + instance + manager
+│   ├── modifiers/              # Modificadores de atributos
+│   └── events/                 # Eventos de mapa (data + choice + resolver)
 │
-└── ui/                        # Capas de Interfaz de Usuario (Vistas y Modales)
-    ├── menus/                 # Menú principal, selección de slot y selección de héroe
-    ├── run/                   # HUD de batalla, vista del mapa y vista de tienda
-    ├── map/                   # Modales de santuario e inspector de salas/nodos
-    ├── inventory/             # Modal de inventario, mazo y reliquias activas
-    └── system/                # Menú de pausa y Debug Overlay
-
+├── entities/                   # Definición de actores (solo data)
+│   ├── hero/                   # hero_data.gd + data/*.tres
+│   └── enemies/                # enemy_data.gd + data/*.tres
+│
+├── cards/                      # SOLO DATA de cartas
+│   ├── card_data.gd            # Resource base de definición
+│   ├── card_instance.gd        # Runtime state (cost override, upgrades)
+│   ├── data/                   # Instancias .tres (tajo, estocada, etc.)
+│   └── effects/                # Estrategias modulares (CardEffect)
+│
+├── relics/                     # Sistema de Reliquias
+│   ├── relic_data.gd           # Resource base
+│   ├── relic_instance.gd       # Runtime (contador, cargas)
+│   ├── data/                   # .tres (anillo_brasas, cenizas_fenix, etc.)
+│   └── effects/                # Lógica modular (RelicEffect)
+│
+├── weapons/                    # Armas equipables
+│   ├── weapon_data.gd
+│   └── data/                   # .tres (arma_basica, bacuto, espadon, katana_basica)
+│
+├── scenes/                     # Escenas raíz (.tscn + controlador .gd)
+│   ├── battle/                 # battle_table.tscn, battle_table.gd, hand_controller.gd
+│   ├── map/                    # map_view.tscn + .gd
+│   ├── event/                  # event_view.tscn + .gd
+│   └── reward/                 # reward_view.tscn + .gd
+│
+├── ui/                         # Componentes UI atómicos reutilizables
+│   ├── cards/                  # card_ui.tscn + .gd (separado de cards/data)
+│   ├── battle/                 # hp_bar, intent_display, energy_counter, block_indicator
+│   ├── inventory/              # Modal de inventario y equipamiento
+│   ├── map/                    # map_node, sanctuary_view, room_inspector
+│   ├── menus/                  # main_menu, slot_select, hero_select
+│   ├── run/                    # HUD de batalla, overlay de mapa, tienda
+│   └── system/                 # Pausa y Debug Overlay
+│
+├── assets/                     # Recursos binarios
+│   ├── art/                    # cards, enemies, heroes, relics, ui, map
+│   ├── audio/                  # sfx, music, ui
+│   └── fonts/
+│
+├── addons/
+│   └── gut/                    # Godot Unit Test (commiteado)
+│
+└── tests/                      # Tests con GUT
+	├── combat/
+	├── deck/
+	├── run/
+	└── run_tests.cfg
 ```
 
-## ⚙️ 3. Componentes Principales y su Relación
+> **Regla de oro**: `scenes/` = pantallas completas (una instancia activa por vez). `ui/` = componentes atómicos (múltiples instancias). Detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#decisión-scenes-vs-ui).
 
-### 3.1. Autoloads (Singletons)
+---
 
-1. **`SignalBus` (`autoload/signal_bus.gd`):**
+## 🔄 Flujo de ejecución (Execution Flow)
 
-   * **Rol:** Evita referencias directas frágiles (`get_node()`) entre nodos lejanos.
+### 1. Inicialización y Menús (`ui/menus/`)
 
-   * **Relación:** Cuando una carta se juega, un enemigo recibe daño, o cambia el estado de la *Run*, el componente emisor dispara una señal en `SignalBus` y las vistas (`battle_hud.gd`, `inventory_modal_view.gd`) reaccionan actualizando la pantalla.
+1. Al iniciar el proyecto, se cargan en memoria los Autoloads: `SignalBus`, `GameDatabase` (indexando todas las cartas, reliquias, héroes, armas y enemigos disponibles) y `PersistenceManager`.
+2. **`main_menu.tscn`** presenta el ingreso principal y deriva a **`slot_select.tscn`**.
+3. En **`slot_select.tscn`**, el jugador elige entre **3 ranuras de guardado (Save Slots)**:
+   - Si el slot tiene una partida activa, `PersistenceManager` deserializa el estado hacia `RunState` y `RunDirector` reanuda la partida en la vista del mapa (`map_view.tscn`).
+   - Si el slot está vacío (o se borra), se transiciona a **`hero_select.tscn`**, donde se instancian tarjetas visuales leyendo los recursos de `entities/hero/data/`.
 
-2. **`GameDatabase` (`autoload/game_database.gd`):**
+### 2. Creación de la Run y Generación Procedural (`core/run/` & `core/map/`)
 
-   * **Rol:** Carga y mantiene un catálogo indexado de todos los recursos `.tres` (Cartas, Reliquias, Armas, Héroes y Enemigos).
+1. Al confirmar un héroe (`guerrero.tres`, `mago.tres`, `picaro.tres`), **`RunDirector`** inicializa un nuevo **`RunState`**:
+   - Asigna estadísticas base del `HeroData` (HP máximo, energía base, oro inicial, arma inicial y mazo de origen).
+   - Genera o asigna la **semilla (Seed)** de la partida para garantizar determinismo en la generación aleatoria.
+2. **`FloorGenerator`** construye la topología del piso actual creando una red/grilla de objetos **`RoomData`** (Salas de Combate normal, Élite, Jefe, Tienda, Tesoro y Santuario/Descanso).
+3. Se guarda el estado inicial en el slot activo mediante `PersistenceManager` y se despliega **`map_view.tscn`**.
 
-   * **Relación:** Es consultado por `RaritySystem`, `ShopView`, `FloorGenerator` y `PersistenceManager` (para reconstruir objetos a partir de sus IDs al cargar una partida).
+### 3. Navegación en el Mapa (`scenes/map/` & `ui/map/`)
 
-3. **`PersistenceManager` (`autoload/persistence_manager.gd`):**
+- El jugador visualiza los nodos (`map_node.tscn`) conectados. Puede inspeccionar detalles con `room_inspector.tscn` o abrir su inventario/mazo con `inventory_modal.tscn`.
+- Al seleccionar un nodo adyacente válido, `RunDirector` evalúa el tipo de `RoomData`:
+  - **Santuario (`sanctuary_view.tscn`):** Permite curar un porcentaje de HP o mejorar/modificar recursos antes de seguir.
+  - **Tienda (`shop_view.tscn`):** Utiliza `RaritySystem` y `GameDatabase` para ofertar cartas, reliquias y armas a cambio de oro.
+  - **Evento (`event_view.tscn`):** Muestra `EventData` y sus `EventChoice`, ejecuta `EventResolver.apply_choice()`.
+  - **Combate / Jefe (`battle_table.tscn`):** Transiciona a la mesa de batalla instanciando al enemigo correspondiente (`esqueleto.tres`, `jefe_ogro.tres`).
 
-   * **Rol:** Serializa y deserializa el objeto `RunState` y los datos del perfil en archivos locales por ranura (*Slot*).
+### 4. Ciclo de Combate (`scenes/battle/battle_table.gd` & `core/combat/combat_resolver.gd`)
 
-### 3.2. Gestión de la Partida (`game/run/` y `game/map/`)
+El combate sigue una máquina de estados por turnos orquestada entre `battle_table.gd`, `combat_resolver.gd` y `deck_manager.gd`:
 
-* **`RunState` (`run_state.gd`):** Contiene la "fotografía" actual de la partida: vida actual/máxima del héroe, oro, piso actual, mazo de cartas acumulado, reliquias equipadas, arma activa y el grafo del mapa.
+1. **Inicio del Combate (`Battle Start`):**
+   - `DeckManager` clona el mazo de `RunState` en la pila de robo (`draw_pile` vía `CardPile`) y la baraja.
+   - Se disparan los efectos de reliquias de inicio de combate (suscriptos a `SignalBus.battle_started`).
+   - Se inicializa `hud_battle.tscn` mostrando vida, escudo, energía, arma equipada y estados alterados.
+2. **Inicio del Turno del Jugador (`Player Turn Start`):**
+   - Se restaura la energía máxima del jugador y se resetea o actualiza el bloqueo según las reglas de `combat_constants.gd`.
+   - Se procesan estados de inicio de turno sobre el jugador (ej. daño por quemadura/veneno si aplica).
+   - `DeckManager` roba $N$ cartas de `draw_pile` hacia `hand` (si `draw_pile` se vacía, recicla y baraja `discard_pile`).
+   - `hand_controller.gd` organiza visualmente las instancias de `card_ui.tscn` en la mano.
+3. **Fase de Acción (Juego de Cartas y Armas):**
+   - Cuando el jugador arrastra o selecciona una carta (`card_ui.gd`), se verifica si tiene energía suficiente.
+   - Al jugarse, `CombatResolver` despacha un `PlayCardAction` (Command pattern) que itera sobre el array `effects: Array[CardEffect]` del `CardData` (y aplica modificadores del arma activa en `WeaponData` o sinergias de combo como `on_play_card_effect.gd`).
+   - Cada `CardEffect` ejecuta su método polimórfico aplicando daño, defensa, robo de cartas o estados alterados.
+   - La carta jugada pasa a `discard_pile` y se emite señal por `SignalBus` para actualizar el HUD.
+4. **Fin del Turno y Turno Enemigo (`Enemy Turn`):**
+   - Las cartas restantes en mano se descartan.
+   - El enemigo (`enemy_data.gd` + `enemy_ai.gd` + `behaviors/`) ejecuta su intención declarada (ataque, bloqueo o aplicación de estado).
+   - Se procesan los *ticks* de estados alterados de fin de turno (Veneno, Quemadura, Hemorragia, Congelación, Shock).
+5. **Resolución del Combate (`Victory / Defeat`):**
+   - Si el HP del jugador llega a 0, `CombatResolver` verifica si posee una reliquia de resurrección (`on_take_damage_effect.gd` como *Cenizas de Fénix*). Si no, declara derrota, actualiza estadísticas globales en `PersistenceManager` y limpia la *run* activa del slot.
+   - Si el enemigo muere, se otorga recompensa de oro/cartas/reliquias ponderadas por `RaritySystem`, se actualiza `RunState`, se guarda el progreso y se regresa a `map_view.tscn`.
 
-* **`RunDirector` (`run_director.gd`):** Es el director de orquesta de alto nivel. Decide qué vista mostrar (Menú $\rightarrow$ Selección de Héroe $\rightarrow$ Mapa $\rightarrow$ Combate / Tienda / Santuario) y gestiona las transiciones entre salas.
+---
 
-* **`FloorGenerator` (`floor_generator.gd`) y `RoomData` (`room_data.gd`):** Generan la estructura del piso asignando tipos de salas (Combate normal, Élite, Jefe, Tienda, Santuario) en instancias de `RoomData`.
+## 🧩 Relación entre componentes principales
 
-### 3.3. Motor de Combate y Mesa (`game/battleTable/`, `combat/`, `deck/`, `hand/`)
+| Componente | Responsabilidad Principal | Se comunica con... |
+| :--- | :--- | :--- |
+| **`SignalBus`** *(Autoload)* | Canal central de notificaciones (cambios de HP, energía, robo de cartas, fin de turno, navegación). | Todos los nodos de UI y controladores de combate/run. |
+| **`GameDatabase`** *(Autoload)* | Carga y expone diccionarios/arrays con todas las cartas, reliquias, armas, héroes y enemigos del juego por ID. | `PersistenceManager`, `ShopView`, `RaritySystem`, `DebugOverlay`. |
+| **`PersistenceManager`** *(Autoload)* | Serializa `RunState` en disco para los 3 slots y registra métricas históricas de partidas. | `RunDirector`, `SlotSelectView`, `GameDatabase`. |
+| **`RunDirector` & `RunState`** | Mantiene los datos vivos de la partida actual y controla qué pantalla se muestra en cada momento. | `FloorGenerator`, `BattleTable`, `MapView`, `ShopView`, `SanctuaryView`. |
+| **`RunStateMachine`** | FSM explícita: `MENU → MAP → BATTLE → REWARD → EVENT → SHOP → DEAD → VICTORY`. | `RunDirector`, `SignalBus`. |
+| **`CombatResolver`** | Calcula daños finales, bloqueos, resistencias, estados alterados, bonus de armas y triggers de reliquias. Despacha `CombatAction` (Command pattern). | `BattleTable`, `Enemy`, `CardEffect`, `RelicEffect`, `WeaponData`, `StatusManager`. |
+| **`DeckManager` & `CardPile`** | Administra el ciclo de vida lógico de las cartas entre Pila de Robo, Mano y Pila de Descarte. | `BattleTable`, `HandController`, `DrawEffect`. |
+| **`StatusManager`** | Aplica, hace tick y expira statuses por entidad (poison, vulnerable, weak, strength, etc.). | `CombatResolver`, `CombatAction`. |
+| **`DebugOverlay`** | Consola/panel in-game para alterar oro, vida, agregar cartas/reliquias/armas en caliente o forzar victorias. | `RunState`, `CombatResolver`, `DeckManager`, `GameDatabase`. |
 
-* **`BattleTable` (`battle_table.gd`):** Nodo raíz de la escena principal de juego. Conecta a los controladores lógicos (`CombatResolver`, `DeckManager`, `RunDirector`) con las capas de UI.
+---
 
-* **`DeckManager` (`deck_manager.gd`) y `CardPile` (`card_pile.gd`):**
+## 🛠️ Guía de edición y extensibilidad
 
-  * `CardPile` administra una colección de `CardData` (barajar, extraer, meter al fondo, vaciar).
+Gracias a la arquitectura basada en `Resource`, **no necesitás tocar el código del motor de combate para agregar contenido**. Todo se edita desde el Inspector de Godot.
 
-  * `DeckManager` coordina las pilas de **Robo (Draw Pile)**, **Mano (Hand)** y **Descarte (Discard Pile)** al inicio de cada turno.
+### 1. Cómo crear o editar una Carta (`CardData`)
 
-* **`CardBoardController` (`card_board_controller.gd`):** Controla la disposición visual en la mesa/mano, el *drag & drop* o selección de instancias de `CardUI`, y valida si la carta puede jugarse.
+1. En el panel *FileSystem* de Godot, navegá a `res://cards/data/`.
+2. Hacé clic derecho → **Create New → Resource...** y buscá la clase **`CardData`** (`card_data.gd`). Guardala como `mi_nueva_carta.tres`.
+3. En el **Inspector**, configurá sus propiedades exportadas (`@export`):
+   - **Identificación y UI:** ID único, Nombre, Descripción, Icono/Textura y Costo de Energía.
+   - **Rareza / Tipo:** Ataque, Habilidad, Poder, y su nivel de rareza (usado por `RaritySystem`).
+   - **Efectos (`effects`):** En el array de efectos, agregá nuevos elementos instanciando subclases de `CardEffect` (ubicadas en `res://cards/effects/`):
+	 - `damage_effect.gd`: Daño directo.
+	 - `block_effect.gd`: Otorga escudo/bloqueo.
+	 - `burn_effect.gd`: Aplica acumulaciones de Quemadura.
+	 - `poison_effect.gd`: Aplica Veneno.
+	 - `freeze_effect.gd`: Aplica Congelación.
+	 - `hemorrhage_effect.gd`: Aplica Sangrado/Hemorragia.
+	 - `shock_effect.gd`: Aplica Electrocución/Shock.
+	 - `draw_effect.gd`: Roba cartas adicionales del `DeckManager`.
+	 - `apply_status_effect.gd`: Aplica un status genérico.
+	 - `heal_effect.gd`: Cura al héroe.
+	 - `multiply_effect.gd`: Multiplica valores de estado o daño.
+4. Registrá o verificá que la ruta esté indexada en `autoload/game_database.gd` si el cargador no escanea el directorio automáticamente.
 
-* **`CombatResolver` (`combat_resolver.gd`):**
+### 2. Cómo crear un Nuevo Efecto de Carta (`CardEffect`)
 
-  * **Rol:** Es el cerebro matemático del combate.
+Si querés una mecánica que no existe (ej. curar vida al golpear):
 
-  * **Relación:** Recibe la carta jugada o el ataque del arma, consulta las reliquias activas en `RunState` (por ejemplo, `RelicComboSynergyEffect`), ejecuta secuencialmente cada `CardEffect` de la carta sobre el objetivo (`Enemy` o Héroe), procesa estados alterados (Quemadura, Veneno, Congelación, Shock, Hemorragia) y verifica condiciones de victoria o derrota (incluyendo `RelicReviveEffect`).
+1. Creá un nuevo script en `res://cards/effects/heal_effect.gd` que herede de `CardEffect` (`extends CardEffect`).
+2. Declarale un `class_name HealEffect` y tus variables `@export var heal_amount: int = 5`.
+3. Sobrescribí el método de ejecución (`execute` / `apply`) recibiendo el contexto del `CombatResolver` / objetivo, y modificá el estado correspondiente. Automáticamente aparecerá en el desplegable del Inspector para cualquier carta.
 
-## 🔄 4. Flujo de Ejecución (Execution Flow)
+### 3. Cómo crear o editar un Héroe (`HeroData`)
 
+1. Andá a `res://entities/hero/data/` y hacé doble clic en cualquiera de los existentes (`guerrero.tres`, `mago.tres`, `picaro.tres`) o creá un nuevo recurso de tipo **`HeroData`** (`hero_data.gd`).
+2. Desde el Inspector podés modificar:
+   - Nombre de clase, descripción y retrato.
+   - Vida máxima inicial (`max_hp`), Energía por turno y Oro inicial.
+   - **Arma inicial:** Arrastrá un archivo `.tres` de `res://weapons/data/` al slot de arma inicial.
+   - **Mazo inicial (`starting_deck`):** Arrastrá los archivos `.tres` de `res://cards/data/` que conforman las cartas iniciales del personaje.
+   - **Habilidad (`ability`):** Referencia a un `HeroAbility` de `res://core/hero/`.
+
+### 4. Cómo crear o editar un Arma (`WeaponData`)
+
+1. Navegá a `res://weapons/data/` (ej. `arma_basica.tres`, `baculo.tres`, `espadon.tres`, `katana_basica.tres`).
+2. Creá o editá un recurso **`WeaponData`** (`weapon_data.gd`).
+3. Ajustá sus modificadores de daño base, escalado elemental/físico, pasivas asociadas o sinergias con tipos de cartas. El campo `special_effect` puede referenciar un `CardEffect` para habilidades únicas (ej. "Katana: al atacar, aplicar Sangrado").
+
+### 5. Cómo crear o editar una Reliquia (`RelicData`)
+
+1. En `res://relics/data/`, creá un recurso de tipo **`RelicData`** (`relic_data.gd`).
+2. Configurá su nombre, icono, rareza, descripción y asignale uno o más recursos hijos de **`RelicEffect`** (`res://relics/effects/`):
+   - `on_play_card_effect.gd`: Trigger al jugar una carta (ej. *Anillo de Brasas*: +2 daño en cartas de ataque).
+   - `on_take_damage_effect.gd`: Trigger al recibir daño (ej. *Cenizas de Fénix*: revive al morir con 50% HP).
+   - `on_turn_start_effect.gd`: Trigger al inicio de turno (ej. *Ojo Auditivo*: +1 energía en el primer turno).
+   - `on_kill_enemy_effect.gd`: Trigger al matar enemigo (ej. +5 oro por kill).
+   - `relic_stat_bonus_effect.gd`: Modifica stats máximos (ej. +HP, +Energía como *Núcleo Sobrecargado*, +Tamaño de mano como *Bolsillo Dimensional*).
+   - `relic_start_status_effect.gd`: Aplica estados al enemigo o al jugador al iniciar la pelea (ej. *Colmillo de Víbora*).
+   - `relic_combo_synergy_effect.gd`: Otorga bonificaciones al encadenar múltiples cartas en un mismo turno (ej. *Catalizador de Combo*).
+   - `relic_revive_effect.gd`: Impide la muerte del jugador una vez y restaura vida.
+
+### 6. Cómo crear o editar un Enemigo (`EnemyData`)
+
+1. En `res://entities/enemies/data/`, creá un recurso **`EnemyData`** (`enemy_data.gd`).
+2. Definí su nombre, sprite, HP máximo, si es Jefe/Élite, `intent_pattern` (patrones de intenciones: rangos de daño de ataque, valores de escudo y estados que aplica) y `loot_table`.
+3. Para IA: componé behaviors desde `res://core/enemies/behaviors/` (`attack_behavior.gd`, `defend_behavior.gd`, `flee_behavior.gd`) y referencialos desde el `EnemyData`.
+
+### 7. Cómo crear o editar un Status (`StatusData`)
+
+1. En `res://systems/statuses/data/`, creá un recurso **`StatusData`** (`status_data.gd`).
+2. Configurá: `id`, `name`, `icon`, `stack_behavior` (REPLACE / ADD / MAX_CAP), `tick_type` (NONE / TURN_START / TURN_END).
+3. Si tiene lógica custom al aplicarse, creá un `CardEffect` dedicado que dispare `StatusManager.apply()`.
+
+### 8. Cómo crear o editar un Evento de mapa (`EventData`)
+
+1. En `res://systems/events/data/`, creá un recurso **`EventData`** (`event_data.gd`).
+2. Configurá `title`, `description` y un array de `EventChoice` (`event_choice.gd`), cada uno con `label` y un `outcome` (Callable o `effect_id`).
+3. `EventResolver.apply_choice()` ejecuta la lógica al elegir.
+
+---
+
+## 🔧 Herramientas de desarrollo y debugging
+
+El proyecto incluye un **`DebugOverlay`** (`res://ui/system/debug_overlay.tscn`) integrado para acelerar el testeo y balanceo sin tener que jugar toda la *run*:
+
+- Permite inyectar oro, curar o dañar al héroe en tiempo real.
+- Permite agregar cualquier carta, reliquia o arma registrada en `GameDatabase` directamente al inventario o a la mano actual.
+- Permite matar instantáneamente enemigos para probar recompensas y transiciones de pisos en `FloorGenerator`.
+- **Solo en builds de debug** (se desactiva en release vía flag de compilación).
+
+---
+
+## 🥇 Reglas de oro
+
+1. **`core/` no conoce `scenes/` ni `ui/`.** La lógica de juego es testeable sin levantar escenas.
+2. **Data vs Instance**: cada `.tres` es plantilla inmutable; el runtime usa `*_instance.gd` con estado.
+3. **Signal bus primero**: si dos subsistemas necesitan hablar, usan `SignalBus`, no referencias directas.
+4. **No `load()` desparramado**: todo recurso se pide a `GameDatabase`.
+5. **Tests obligatorios** para `combat_resolver`, `status_manager`, `deck_manager`, `run_state_machine` y `rarity_system`.
+6. **No crear acoplamientos nuevos entre `systems/`**: si `statuses` necesita hablar con `events`, lo hace por signal bus.
+7. **UI fuera del resolver: `**: CombatResolver es stateless (todos static). Cualquier cosa con await, hud, card.pulse(), card.queue_free() va en scenes/battle/battle_table.gd, no en core/combat/.
+8. **`*.tres` solo data, nunca lógica**: si un resource necesita comportamiento, vá a `effects/` con un script.
+
+---
+
+## 📐 Convenciones
+
+- **Nombres de archivos**: `snake_case.gd`, `snake_case.tscn`, `snake_case.tres`.
+- **Nombres de clases**: `PascalCase` con `class_name` declarado.
+- **Recursos `.tres`**: nombres descriptivos en español (`tajo.tres`, `cenizas_fenix.tres`).
+- **IDs**: strings en minúsculas con guion bajo (`"card_tajo"`, `"relic_anillo_brasas"`).
+- **Señales del signal bus**: pasado simple (`card_played`, `enemy_died`, `turn_started`).
+- **`scenes/` vs `ui/`**: pantallas completas en `scenes/`, componentes atómicos reutilizables en `ui/`.
+
+---
+
+## 🔧 Git
+
+### `.gitignore` recomendado
+
+```gitignore
+# Godot
+.godot/
+*.import
+export_presets.cfg
+/android/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
 ```
-[Inicio del Juego]
-       │
-       ▼
-┌──────────────────────┐
-│   MainMenuView       │ ──► Selección de Slot (`SlotSelectView`)
-└──────────────────────┘
-       │ (Nueva Partida o Continuar vía `PersistenceManager`)
-       ▼
-┌──────────────────────┐
-│   HeroSelectView     │ ──► Lee `hero/data/*.tres` desde `GameDatabase`
-└──────────────────────┘     Inicializa `RunState` (Mazo base + Arma + Reliquia inicial)
-       │
-       ▼
-┌──────────────────────┐
-│   RunDirector        │ ──► Llama a `FloorGenerator` para crear el mapa de `RoomData`
-└──────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        BUCLE DE LA RUN (`MapView`)              │
-│  El jugador selecciona un nodo disponible (`MapNodeView`)       │
-└──────┬──────────────────────┬──────────────────────────┬────────┘
-       │                      │                          │
-  [Sala Combate/Jefe]    [Sala Tienda]            [Sala Santuario]
-       │                      │                          │
-       ▼                      ▼                          ▼
-┌──────────────┐      ┌───────────────┐         ┌────────────────────┐
-│ BattleTable  │      │   ShopView    │         │ SanctuaryModalView │
-└──────┬───────┘      └───────┬───────┘         └────────┬───────────┘
-       │                      │                          │
-       └──────────────────────┴──────────────────────────┘
-                              │ (Al completar sala, actualiza `RunState`,
-                              ▼  guarda progreso y vuelve a `MapView`)
 
-```
+### Commits
 
-### Flujo Detallado de un Turno de Combate
+- Commitear `addons/gut/` completo (evita reinstalar en CI).
+- **No commitear** `*.import` ni `.godot/` (regenerados por Godot).
 
-1. **Inicio del Combate:**
+---
 
-   * `BattleTable` instancia al enemigo basado en `EnemyData` (`enemigo_basico.tres`, `jefe_basico.tres`).
+## 📚 Documentación adicional
 
-   * Se disparan las reliquias de inicio de combate (`RelicStartStatusEffect`, `RelicStatBonusEffect`).
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — reglas de "qué va dónde", detalle archivo por archivo, patrones aplicados, decisión Data/Instance, `scenes/` vs `ui/`, guía de migración, checklists por tipo de adición.
+- [`docs/GDD.md`](docs/GDD.md) — Game Design Document: visión, core loop, mecánicas, 3 héroes detallados, catálogo de cartas/reliquias/armas, statuses, enemigos, mapa procedural, eventos, rarezas, economía, balance numérico, UI/UX, roadmap.
 
-   * `DeckManager` clona el mazo de `RunState` en la pila de robo y la baraja.
+---
 
-2. **Fase de Robo y Preparación:**
+## 🗺️ Roadmap
 
-   * `DeckManager` roba $N$ cartas hacia la mano. Si la pila de robo se vacía, recicla y baraja la pila de descarte.
+1. **MVP**: combate 1v1, mazo básico, 1 héroe, 1 enemigo, 1 piso.
+2. **Run loop**: mapa procedural, 3 pisos, 1 boss, recompensas.
+3. **Sistemas**: statuses, reliquias, tienda, eventos.
+4. **Contenido**: 3 héroes, 30 cartas, 15 reliquias, 10 enemigos, 3 bosses.
+5. **Meta-progreso**: 3 slots, stats globales, unlocks.
 
-   * `CardBoardController` instancia los nodos `card_ui.tscn` y los posiciona en pantalla.
+---
 
-   * El enemigo calcula y anuncia su intención para el turno.
+## 📄 Licencia
 
-3. **Fase de Acción del Jugador:**
-
-   * El jugador selecciona/juega cartas (`CardUI`) o utiliza su arma (`WeaponData`).
-
-   * `CombatResolver` recibe la acción, aplica modificadores de armas/reliquias y ejecuta el array de `CardEffect` de la carta.
-
-   * La carta jugada pasa a la pila de descarte y `BattleHUD` se actualiza mediante `SignalBus`.
-
-4. **Fin del Turno del Jugador y Turno Enemigo:**
-
-   * Se resuelven efectos de daño por turno (Veneno, Quemadura, Hemorragia) y estados de control (Congelación, Shock).
-
-   * Si el enemigo sigue vivo y no está incapacitado, ejecuta su acción contra el héroe.
-
-5. **Resolución del Encuentro:**
-
-   * **Si el Héroe muere:** `CombatResolver` verifica si posee una reliquia con `RelicReviveEffect` (ej. *Cenizas de Fénix*). Si no, termina la *Run*.
-
-   * **Si el Enemigo muere:** Se otorgan recompensas apoyadas en `RaritySystem`, se guarda el estado con `PersistenceManager` y se regresa al mapa.
-
-## 🛠️ 5. Guía de Edición: ¿Cómo crear o modificar elementos?
-
-Gracias al diseño basado en `Resource` de Godot, **no necesitas tocar el código del motor de combate para agregar contenido nuevo**. Todo se edita desde el Inspector de Godot o creando archivos `.tres`.
-
-### 5.1. ¿Cómo crear o editar una Carta?
-
-1. Ve a la carpeta `cards/data/`.
-
-2. Haz clic derecho en el FileSystem de Godot $\rightarrow$ **Create New** $\rightarrow$ **Resource** y selecciona `CardData` (o duplica una existente como `tajo.tres` o `golpe_fuego.tres`).
-
-3. En el **Inspector**, configura sus propiedades:
-
-   * Nombre, descripción, costo de energía/uso, rareza y textura/icono.
-
-   * **Array de Efectos (`effects`):** Agrega uno o más recursos hijos que hereden de `CardEffect`:
-
-     * `DamageEffect` (`damage_effect.gd`): Daño directo.
-
-     * `DefenseEffect` (`defense_effect.gd`): Otorga escudo/bloqueo.
-
-     * `BurnEffect` (`burn_effect.gd`): Aplica acumulaciones de quemadura.
-
-     * `FreezeEffect` (`freeze_effect.gd`): Aplica congelación.
-
-     * `PoisonEffect` (`poison_effect.gd`): Aplica veneno.
-
-     * `HemorrhageEffect` (`hemorrhage_effect.gd`): Aplica sangrado/hemorragia.
-
-     * `ShockEffect` (`shock_effect.gd`): Aplica electrocución.
-
-     * `StealEffect` (`steal_effect.gd`): Roba cartas o recursos.
-
-     * `MultiplyEffect` (`multiply_effect.gd`): Multiplica valores o efectos previos/siguientes.
-
-4. Guarda el archivo `.tres` en `cards/data/` (asegúrate de que `GameDatabase` lo escanee o esté registrado en su lista).
-
-### 5.2. ¿Cómo crear un Nuevo Efecto de Carta desde cero?
-
-1. Crea un nuevo script en `cards/effects/` que extienda de `CardEffect` (`extends CardEffect`).
-
-2. Declara un `class_name MiNuevoEffect` al inicio del archivo para que aparezca en el Inspector de Godot.
-
-3. Exporta las variables configurables con `@export` (ej. `@export var amount: int = 5`).
-
-4. Sobrescribe el método de ejecución de `CardEffect` para aplicar la lógica sobre el objetivo o el `CombatResolver`.
-
-### 5.3. ¿Cómo crear o editar un Héroe?
-
-1. Ve a `game/hero/data/` (donde están `warrior_hero.tres`, `samurai_hero.tres`, `magic_hero.tres`, `fenix.tres`).
-
-2. Crea o selecciona un recurso de tipo `HeroData` (`heroData.gd`).
-
-3. Edita desde el Inspector:
-
-   * Nombre de la clase, retrato, vida máxima inicial (`max_hp`).
-
-   * **Mazo Inicial:** Array de referencias a recursos `.tres` de `cards/data/`.
-
-   * **Arma Inicial:** Referencia a un recurso `.tres` de `weapons/data/`.
-
-   * **Reliquia Inicial:** Referencia a un recurso `.tres` de `relics/data/`.
-
-### 5.4. ¿Cómo crear o editar una Reliquia?
-
-1. Ve a `relics/data/` (ej. `anillo_brasas.tres`, `catalizador_combo.tres`, `trebol_abismo.tres`).
-
-2. Crea un recurso de tipo `RelicData` (`relic_data.gd`).
-
-3. Asígnale nombre, descripción, rareza, precio en tienda y su efecto modular desde `relics/effects/`:
-
-   * `RelicStatBonusEffect`: Aumenta estadísticas base.
-
-   * `RelicStartStatusEffect`: Aplica un estado al héroe o a los enemigos al empezar la batalla.
-
-   * `RelicComboSynergyEffect`: Reacciona cuando se cumplen secuencias o combos de cartas.
-
-   * `RelicReviveEffect`: Intercepta la muerte del jugador y restaura vida.
-
-### 5.5. ¿Cómo crear o editar un Arma?
-
-1. Ve a `weapons/data/` (`espadon.tres`, `katana_basica.tres`, `baculo.tres`).
-
-2. Edita las propiedades definidas en `weapon_data.gd` (daño base, modificadores pasivos, sinergias con tipos de carta).
-
-### 5.6. ¿Cómo crear o editar un Enemigo?
-
-1. Ve a `game/enemies/data/` (`enemigo_basico.tres`, `jefe_basico.tres`).
-
-2. Crea un recurso de tipo `EnemyData` (`enemyData.gd`).
-
-3. Configura su vida máxima, nombre, sprite, categoría (Normal, Élite, Jefe) y sus patrones de ataque/intenciones que luego ejecutará `enemy.gd`.
-
-## 🧹 6. Notas de Mantenimiento y Buenas Prácticas del Proyecto
-
-* **Constantes de Combate:** Si deseas ajustar valores globales, topes de estados alterados o identificadores de tipos de daño, edita siempre `game/constants/combat_constants.gd` en lugar de usar "números mágicos" dentro de los efectos.
-
-* **Limpieza de Archivos Temporales:** En el directorio `game/battleTable/` existen múltiples archivos temporales generados por Godot (`battle_table.tscn*.tmp`). Es seguro eliminarlos y agregar `*.tmp` a tu `.gitignore`.
-
-* **Uso del Debug Overlay:** Durante las pruebas en el editor, utiliza `ui/system/debug_overlay.gd` para inyectar cartas específicas a tu mano, otorgar oro o forzar saltos de piso sin tener que jugar toda la partida.
+Por definir. Sugerido: MIT para código, CC-BY 4.0 para assets.
