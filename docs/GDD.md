@@ -29,6 +29,7 @@ Estado: prototipo
 18. [UI/UX](#uiux)
 19. [Arte y audio](#arte-y-audio)
 20. [Roadmap](#roadmap)
+21. [Transiciones](#Matriz de transiciones legales)
 
 ---
 
@@ -738,6 +739,21 @@ const WEAK_MULTIPLIER: float = 0.75
 - [ ] SFX.
 - [ ] Animaciones.
 - [ ] Localización (ES + EN).
+
+
+## Matriz de transiciones legales
+| Desde \ Hacia | MENU | MAP | BATTLE | REWARD | EVENT | SHOP | DEAD | VICTORY |
+|---|---|---|---|---|---|---|---|---|
+| **MENU** | — | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **MAP** | ❌ | — | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **BATTLE** | ❌ | ❌ | — | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **REWARD** | ❌ | ✅ | ❌ | — | ❌ | ✅ | ❌ | ❌ |
+| **EVENT** | ❌ | ✅ | ✅ | ❌ | — | ❌ | ✅ | ❌ |
+| **SHOP** | ❌ | ✅ | ❌ | ❌ | ❌ | — | ❌ | ❌ |
+| **DEAD** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | — | ❌ |
+| **VICTORY** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — |
+
+
 
 ---
 

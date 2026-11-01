@@ -5,6 +5,10 @@
 extends RefCounted
 class_name RunDirector
 
+## Máquina de estados de la run.
+var state_machine: RunStateMachine = RunStateMachine.new()
+## Escena de recompensas post-batalla.
+var reward_view_scene: PackedScene = preload(CombatConstants.REWARD_VIEW_SCN)
 ## Referencia inyectada a la Mesa de Combate (`BattleTable`).
 var table: Variant
 ## Referencia inyectada al estado vivo de la partida (`RunState`).
@@ -71,6 +75,9 @@ func _init(p_table: Control, p_run: RunState) -> void:
 	var heroes: Array[HeroData] = GameDatabase.load_all_heroes()
 	main_menu.setup_heroes(heroes)
 	
+	#  Escuchar transiciones de la FSM
+	state_machine.state_changed.connect(_on_state_changed)
+
 	# 6. Bifurcación de arranque: Auto-login o Selector de Ranuras
 	var last_slot: int = PersistenceManager.get_last_played_slot()
 	
@@ -121,6 +128,7 @@ func _start_new_run(hero: HeroData, p_seed: int, map_message: String) -> void:
 	table.deck.build_initial_deck_for_hero(run)
 	table.current_energy = run.max_energy
 	table.discards_remaining = run.discards_per_combat
+	state_machine.transition_to(RunStateMachine.State.MAP) 
 	open_map(map_message)
 
 ## Persiste los cambios de equipo realizados desde el mapa para evitar perderlos al cerrar el juego.
@@ -180,7 +188,6 @@ func _on_map_room_selected(room: RoomData) -> void:
 	if room.cleared:
 		open_map("Te desplazaste a una sala ya asegurada.")
 		return
-
 	match room.room_type:
 		#Otorga reliquia aleatoria, limpia la sala y actualiza el mapa.
 		RoomData.Type.TREASURE:
@@ -208,20 +215,22 @@ func _on_map_room_selected(room: RoomData) -> void:
 			)
 		#Oculta el mapa e inicia el encuentro en `table.start_combat_encounter(is_boss)`.
 		RoomData.Type.COMBAT:
+			state_machine.transition_to(RunStateMachine.State.BATTLE)  # NUEVO
 			map_view.visible = false
 			table.start_combat_encounter(false)
 		RoomData.Type.BOSS:
+			state_machine.transition_to(RunStateMachine.State.BATTLE)  # NUEVO
 			map_view.visible = false
 			table.start_combat_encounter(true)
 		# Genera el stock de la tienda una sola vez y abre `shop_view`.
 		RoomData.Type.SHOP:
+			state_machine.transition_to(RunStateMachine.State.SHOP)  # NUEVO
 			# No llamamos a clear_and_discover_room para que la tienda no se cierre
 			# Solo descubrimos sus vecinos para poder seguir moviéndonos
 			var rooms: Dictionary = run.floor_data.get("rooms", {})
 			for n_pos in room.neighbors:
 				if rooms.has(n_pos):
 					rooms[n_pos].discovered = true
-			
 			_open_shop_for_room(room)
 
 ## Genera el stock una sola vez y abre la tienda para una sala concreta.
@@ -239,7 +248,10 @@ func _open_shop_for_room(room: RoomData) -> void:
 ## Disparado tras la victoria en un encuentro. Guarda el estado después de aplicar la victoria.
 ## Si era un Jefe, orquesta el avance a la siguiente planta. 
 ## Si era un enemigo estándar, despeja la sala actual y devuelve el foco al mapa.
+## Ahora transiciona a REWARD en vez de ir directo al mapa.
 func _on_combat_won() -> void:
+	
+	state_machine.transition_to(RunStateMachine.State.REWARD)
 	# El guardado se realiza desde open_map() después de marcar la sala como
 	# despejada o generar la siguiente planta. Guardar antes permitiría reanudar
 	# un combate que el jugador ya había ganado.
@@ -263,6 +275,7 @@ func _on_combat_won() -> void:
 func _on_combat_lost() -> void:
 	var defeated_floor: int = run.current_floor
 	var enemy_name: String = table.enemy.enemy_name if table.enemy else "un enemigo"
+	state_machine.transition_to(RunStateMachine.State.DEAD)  
 
 	# La muerte es definitiva: el snapshot anterior no debe poder reanudarse.
 	PersistenceManager.delete_active_run()
@@ -283,9 +296,10 @@ func _on_combat_lost() -> void:
 	main_menu.show_menu("HAS MUERTO en la Planta %d ante %s." % [defeated_floor, enemy_name])
 
 func _on_shop_closed() -> void:
+	state_machine.transition_to(RunStateMachine.State.MAP) 
 	table.refresh_ui()
 	open_map("Saliste de la tienda.")
-
+	
 func _on_shop_card_bought(card: CardData, cost: int) -> void:
 	if card == null or cost < 0 or run.player_gold < cost:
 		return
@@ -332,7 +346,7 @@ func _on_shop_relic_bought(relic: RelicData, cost: int) -> void:
 
 func _on_slot_confirmed() -> void:
 	slot_view.visible = false
-
+	state_machine.transition_to(RunStateMachine.State.MENU)
 	# Si el slot tenía una run congelada, restaurarla
 	if PersistenceManager.has_active_run():
 		if PersistenceManager.load_active_run(run, table.deck):
@@ -362,6 +376,7 @@ func handle_unhandled_key(event: InputEvent) -> void:
 ## Elimina permanentemente la partida en curso del disco duro y computa la derrota en las estadísticas del perfil.
 ## Purga las vistas actuales y regresa al menú de selección de Héroes.
 func _on_pause_abandon_run() -> void:
+	state_machine.transition_to(RunStateMachine.State.MENU) 
 	# Eliminamos el snapshot y registramos el abandono como una derrota.
 	PersistenceManager.delete_active_run()
 	PersistenceManager.record_run_finished(false, run.current_floor)
@@ -391,6 +406,50 @@ func _on_pause_quit_game() -> void:
 func _on_main_menu_quit_requested() -> void:
 	table.get_tree().quit()
 
+## Reacciona a los cambios de estado de la FSM.
+func _on_state_changed(new_state: RunStateMachine.State) -> void:
+	match new_state:
+		RunStateMachine.State.REWARD:
+			_open_reward_view()
+		_:
+			pass
+
+
+## Crea y muestra la vista de recompensas post-batalla.
+func _open_reward_view() -> void:
+	# Ocultar el mapa y la tienda si estaban visibles
+	map_view.visible = false
+	shop_view.visible = false
+
+	var reward_view := reward_view_scene.instantiate() as RewardView
+	table.add_child(reward_view)
+	reward_view.setup(run, state_machine, table)
+	reward_view.reward_completed.connect(_on_reward_completed)
+
+
+## Callback cuando el jugador terminó de elegir recompensas.
+func _on_reward_completed() -> void:
+	# La FSM ya transicionó a MAP desde el RewardView.
+	# Ahora sí limpiar la sala y abrir el mapa.
+	if run.current_room:
+		run.clear_and_discover_room(run.current_room)
+
+	# Si era boss, avanzar de piso (esto estaba en tu _on_combat_won original)
+	if run.current_room and run.current_room.room_type == RoomData.Type.BOSS:
+		table.hud.set_banner_message("JEFE DERROTADO! AVANZANDO A LA PLANTA %d..." % (run.current_floor + 1))
+		await table.get_tree().create_timer(1.4).timeout
+		run.start_floor(run.current_floor + 1)
+		map_view.free_travel_enabled = run.god_mode
+		if run.god_mode:
+			run.reveal_entire_floor()
+		SignalBus.floor_started.emit(run.current_floor)
+		open_map("Bienvenido a la Planta %d! La matriz se ha regenerado con una nueva sub-semilla." % run.current_floor)
+	else:
+		table.hud.set_banner_message("COMBATE GANADO! VOLVIENDO AL MAPA...")
+		await table.get_tree().create_timer(1.2).timeout
+		open_map("Sala despejada! Nuevos pasillos descubiertos en el mapa.")
+
+
 ## Recolecta todos los datos (`CardData`) de las cartas que actualmente están flotando 
 ## visualmente en la mano o en la zona de combo, para poder serializarlas junto al mazo durante el autoguardado.
 func _get_active_board_cards() -> Array[CardData]:
@@ -416,16 +475,23 @@ func _resume_loaded_run(slot: int) -> void:
 
 	if room and not room.cleared:
 		if room.room_type == RoomData.Type.COMBAT:
+			state_machine.transition_to(RunStateMachine.State.MAP)  #: primero MAP
+			state_machine.transition_to(RunStateMachine.State.BATTLE)  # después BATTLE
 			map_view.visible = false
 			table.start_combat_encounter(false)
 			return
 		elif room.room_type == RoomData.Type.BOSS:
+			state_machine.transition_to(RunStateMachine.State.MAP)  
+			state_machine.transition_to(RunStateMachine.State.BATTLE) 
 			map_view.visible = false
 			table.start_combat_encounter(true)
 			return
 		elif room.room_type == RoomData.Type.SHOP:
+			state_machine.transition_to(RunStateMachine.State.MAP) 
+			state_machine.transition_to(RunStateMachine.State.SHOP)  
 			_open_shop_for_room(room)
 			return
 
 	# Si ya estaba despejada o es cualquier otra sala, va al mapa.
+	state_machine.transition_to(RunStateMachine.State.MAP)
 	open_map("Continuando partida anterior (Ranura %d)" % slot)

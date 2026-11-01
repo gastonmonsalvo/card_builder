@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dynqj3i4lfpdu"]
 
-[ext_resource type="Script" uid="uid://b0v3yoosr5s0m" path="res://cards/card_ui.gd" id="1_card_ui"]
+[ext_resource type="Script" uid="uid://b0v3yoosr5s0m" path="res://ui/cards/card_ui.gd" id="1_tsrad"]
 
 [node name="CardUI" type="Control" unique_id=1272805354]
 custom_minimum_size = Vector2(140, 200)
@@ -8,7 +8,7 @@ layout_mode = 3
 anchors_preset = 0
 offset_right = 140.0
 offset_bottom = 200.0
-script = ExtResource("1_card_ui")
+script = ExtResource("1_tsrad")
 
 [node name="Panel" type="Panel" parent="." unique_id=475171073]
 layout_mode = 1

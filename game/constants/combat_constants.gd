@@ -9,6 +9,8 @@ const RELIC_PATH :String = "res://relics/data"
 const CARD_PATH : String = "res://cards/data"
 const WEAPON_PATH: String = "res://weapons/data"
 const BASIC_WEAPON : WeaponData = preload("res://weapons/data/arma_basica.tres")
+const CARD_UI_SCN : String = "res://ui/cards/card_ui.tscn"
+const REWARD_VIEW_SCN: String = "res://scenes/reward/reward_view.tscn"
 # --- UMBRALES Y BALANCE DE ESTADOS (STATUS EFFECTS) ---
 
 ## Cargas de hielo necesarias para congelar por completo al enemigo (0 daño en su turno).

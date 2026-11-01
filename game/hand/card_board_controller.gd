@@ -9,7 +9,7 @@ signal card_clicked(card: CardUI)
 signal card_dropped(card: CardUI, dropped_in_combo: bool)
 signal board_order_changed()
 
-const CARD_SCENE: PackedScene = preload("res://cards/card_ui.tscn")
+const CARD_SCENE: PackedScene = preload(CombatConstants.CARD_UI_SCN)
 const CARD_WIDTH: float = 140.0
 
 var hand_zone: Panel
