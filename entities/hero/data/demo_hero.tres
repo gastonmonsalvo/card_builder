@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://dsvpoh8j58rv0"]
 
-[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://game/hero/hero_data.gd" id="1_a8doh"]
+[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://entities/hero/hero_data.gd" id="1_a8doh"]
 [ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_getei"]
 [ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="3_ntp5c"]
 [ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="3_q2b6c"]

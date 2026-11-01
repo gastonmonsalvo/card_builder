@@ -6,7 +6,7 @@ extends Node
 ## Escanea el directorio especificado, instancia los recursos `.tres`/`.res` de tipo `HeroData`
 ## y devuelve un arreglo ordenado de menor a mayor según su `sort_order`.
 
-func load_all_heroes(dir_path: String = "res://game/hero/data") -> Array[HeroData]:
+func load_all_heroes(dir_path: String = CombatConstants.HERO_PATH) -> Array[HeroData]:
 	var heroes_list: Array[HeroData] = []
 	if not DirAccess.dir_exists_absolute(dir_path):
 		return heroes_list

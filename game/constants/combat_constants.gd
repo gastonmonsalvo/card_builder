@@ -2,7 +2,8 @@
 extends RefCounted
 class_name CombatConstants
 
-const DEFAULT_HERO_PATH: String = "res://game/hero/definitions/warrior_hero.tres"
+const DEFAULT_HERO_PATH: String = "res://entities/hero/data/warrior_hero.tres"
+const HERO_PATH: String = "res://entities/hero/data/"
 # --- UMBRALES Y BALANCE DE ESTADOS (STATUS EFFECTS) ---
 
 ## Cargas de hielo necesarias para congelar por completo al enemigo (0 daño en su turno).

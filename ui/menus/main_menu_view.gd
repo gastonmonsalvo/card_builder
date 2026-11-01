@@ -194,7 +194,7 @@ func setup_heroes(heroes: Array[HeroData]) -> void:
 	hero_buttons.clear()
 
 	if available_heroes.is_empty():
-		status_label.text = "No se encontraron héroes disponibles. Revisá game/hero/data."
+		status_label.text = "No se encontraron héroes disponibles. Revisá game/entities/hero/data."
 		return
 
 	var count: int = available_heroes.size()

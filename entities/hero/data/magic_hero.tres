@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://b82kywloehva2"]
 
-[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://game/hero/hero_data.gd" id="1_hfmn6"]
+[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://entities/hero/hero_data.gd" id="1_hfmn6"]
 [ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_3s0qq"]
 [ext_resource type="Resource" uid="uid://i1pytn6coan6" path="res://cards/data/golpe_congelante.tres" id="3_3s0qq"]
 [ext_resource type="Resource" uid="uid://c0v7wyupevpsx" path="res://cards/data/lanza_rayo.tres" id="4_hp66r"]
