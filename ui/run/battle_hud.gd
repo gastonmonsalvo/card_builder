@@ -116,7 +116,7 @@ func refresh_all(
 	]
 
 	if player_block > 0:
-		player_lines.insert(3, "⚔️: +%d" % player_block)
+		player_lines.insert(3, "🛡️: +%d" % player_block)
 
 	player_stats_label.text = "\n".join(player_lines)
 

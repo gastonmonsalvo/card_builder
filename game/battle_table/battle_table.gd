@@ -79,11 +79,16 @@ func start_combat_encounter(is_boss: bool) -> void:
 	attack_button.disabled = false
 	discard_button.disabled = true
 	discards_remaining = 99 if run.god_mode else run.discards_per_combat
-
+	
 	var remaining_board_cards: Array[CardData] = board.clear_all_and_extract_data()
 	deck.reset_for_new_combat(remaining_board_cards)
-
+	
 	enemy = run.create_enemy_for_room(is_boss)
+	if enemy == null:
+		push_error("[BattleTable] No se pudo crear el enemigo para este encuentro.")
+		refresh_ui()
+		return
+	enemy.update_intent(run)   # calcular primer intent
 	if enemy == null:
 		push_error("[BattleTable] No se pudo crear el enemigo para este encuentro.")
 		refresh_ui()
@@ -93,15 +98,22 @@ func start_combat_encounter(is_boss: bool) -> void:
 ## Pone el escudo en 0, restaura la energía al máximo y calcula matemáticamente 
 ## cuántas cartas le faltan a la mano física para alcanzar el `target_hand_size`, robándolas desde el mazo.
 func _start_new_turn() -> void:
-	
 	current_energy = 99 if run.god_mode else run.max_energy
 	player_block = 0
 
+	if enemy:
+		enemy.update_intent(run)   # recalcular intent
+	
+	
 	var needed: int = max(0, run.target_hand_size - board.hand_cards.size())
 	if needed > 0:
 		draw_cards(needed)
-
+	
 	board.layout_cards()
+	
+	if enemy:
+		enemy.update_intent(run)   # NUEVO: recalcular intent para este turno
+	
 	refresh_ui()
 	
 ## Intermediario de robo. Solicita un conjunto de datos `CardData` vírgenes al `DeckManager` 
@@ -311,10 +323,10 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Orquesta la ejecución secuencial asíncrona del combo de cartas jugado.
 ## Llama a `CombatResolver` para la lógica pura y maneja la UI + animaciones entre medio.
 ## Retorna el block final acumulado.
-func execute_combo_turn(run: RunState, enemy: Enemy, initial_block: int) -> int:
+func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -> int:
 	var combo_state: Dictionary = {
 		"dmg": 0.0,
-		"block": float(initial_block),
+		"block": float(p_initial_block),
 		"draw": 0,
 		"burn": 0,
 		"freeze": 0,
@@ -322,7 +334,7 @@ func execute_combo_turn(run: RunState, enemy: Enemy, initial_block: int) -> int:
 		"shock": 0,
 		"hemorrhage": 0
 	}
-	var current_block: int = initial_block
+	var current_block: int = p_initial_block
 
 	# 1. Procesar cada carta del combo (lógica + UI intercaladas)
 	for card in board.combo_cards:
@@ -333,10 +345,10 @@ func execute_combo_turn(run: RunState, enemy: Enemy, initial_block: int) -> int:
 		card.pulse()  # UI
 		
 		# LÓGICA: delegar al resolver
-		var delta: Dictionary = CombatResolver.process_card_in_combo(cdata, run, combo_state)
+		var delta: Dictionary = CombatResolver.process_card_in_combo(cdata, p_run, combo_state)
 		
 		# Aplicar statuses al enemigo
-		enemy.add_statuses(
+		p_enemy.add_statuses(
 			delta["burn_delta"],
 			delta["poison_delta"],
 			delta["freeze_delta"],
@@ -402,9 +414,9 @@ func execute_combo_turn(run: RunState, enemy: Enemy, initial_block: int) -> int:
 
 ## Resuelve el turno del enemigo: delega la lógica a `CombatResolver` y maneja la UI.
 ## Retorna `true` si el jugador sobrevive.
-func execute_enemy_turn(run: RunState, enemy: Enemy, player_block: int) -> bool:
+func execute_enemy_turn(p_run: RunState, p_enemy: Enemy, p_player_block: int) -> bool:
 	# 1. LÓGICA: delegar al resolver (método puro, sin UI)
-	var result: Dictionary = CombatResolver.resolve_enemy_turn(run, enemy, player_block)
+	var result: Dictionary = CombatResolver.resolve_enemy_turn(p_run, p_enemy, p_player_block)
 	
 	# 2. UI: mensajes según el resultado
 	if result["frozen_solid"]:
@@ -412,11 +424,20 @@ func execute_enemy_turn(run: RunState, enemy: Enemy, player_block: int) -> bool:
 	elif result["shocked"]:
 		hud.set_banner_message("¡PARÁLISIS ELÉCTRICA! EL ENEMIGO QUEDÓ ATURDIDO Y FALLÓ SU ATAQUE.")
 	else:
-		if run.god_mode:
-			hud.set_banner_message("ENEMIGO ATACA POR %d -> ANULADO POR GOD MODE!" % result["effective_dmg"])
-		else:
-			hud.set_banner_message("ENEMIGO ATACA POR %d (BLOQUEASTE %d)!" % [result["effective_dmg"], result["blocked"]])
+		match result["outcome"]:
+			"attack":
+				if run.god_mode:
+					hud.set_banner_message("ENEMIGO ATACA POR %d -> ANULADO POR GOD MODE!" % result["effective_dmg"])
+				else:
+					hud.set_banner_message("ENEMIGO ATACA POR %d (BLOQUEASTE %d)!" % [result["effective_dmg"], result["blocked"]])
+			"defend":
+				hud.set_banner_message("EL ENEMIGO GANA ESCUDO Y SE PREPARA.")
+			"charge":
+				hud.set_banner_message("EL ENEMIGO ESTÁ CARGANDO UN ATAQUE DEVASTADOR...")
+			_:
+				hud.set_banner_message("ENEMIGO EN ESPERA.")
 	
+	refresh_ui()
 	# 3. Game Over o revive
 	if not result["player_survives"]:
 		return false

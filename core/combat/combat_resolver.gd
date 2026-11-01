@@ -229,13 +229,16 @@ static func resolve_enemy_turn(
 	enemy: Enemy, 
 	player_block: int
 ) -> Dictionary:
-	var was_frozen_solid := enemy.freeze >= CombatConstants.FREEZE_STUN_THRESHOLD
+	var was_frozen_solid: bool = enemy.freeze >= CombatConstants.FREEZE_STUN_THRESHOLD
+
 	var shocked := false
 	var effective_dmg := 0
 	var blocked := 0
 	var net_dmg := 0
 	var saving_relic: RelicData = null
-	
+	var intent_type := "attack"
+
+	enemy.reset_block_for_new_turn()
 	if was_frozen_solid:
 		enemy.apply_freeze_tick()
 		if enemy.shock > 0:
@@ -244,21 +247,42 @@ static func resolve_enemy_turn(
 		enemy.apply_freeze_tick()
 		shocked = true
 	else:
-		effective_dmg = enemy.get_effective_intent_damage()
-		blocked = min(player_block, effective_dmg)
-		net_dmg = 0 if run.god_mode else max(0, effective_dmg - player_block)
-		run.player_hp = max(0, run.player_hp - net_dmg)
+		# pedir intent al AI
+		var intent: EnemyIntent = enemy.current_intent
+		if intent == null:
+			# fallback si nunca se calculó
+			intent = enemy.get_current_intent(run)
+		
+		intent_type = EnemyIntent.Type.keys()[intent.type].to_lower()
+		
+		match intent.type:
+			EnemyIntent.Type.ATTACK:
+				effective_dmg = intent.damage
+				# aplicar freeze mitigation al intent damage
+				effective_dmg = max(0, effective_dmg - enemy.freeze)
+				blocked = min(player_block, effective_dmg)
+				net_dmg = 0 if run.god_mode else max(0, effective_dmg - player_block)
+				run.player_hp = max(0, run.player_hp - net_dmg)
+			EnemyIntent.Type.DEFEND:
+				# el enemigo gana block
+				enemy.add_block(intent.block)
+			EnemyIntent.Type.CHARGE:
+				# no hace daño este turno
+				pass
+			_:
+				pass
+		
 		enemy.apply_freeze_tick()
+	
+	enemy.advance_turn()  # avanza turn_count y resetea block (si avanzó)
 	
 	var player_survives := true
 	if run.is_player_dead():
 		saving_relic = run.try_consume_revive_relic()
 		player_survives = saving_relic != null
 	
-	var outcome := "frozen" if was_frozen_solid else ("shocked" if shocked else "attack")
-	
 	return {
-		"outcome": outcome,
+		"outcome": "frozen" if was_frozen_solid else ("shocked" if shocked else intent_type),
 		"effective_dmg": effective_dmg,
 		"blocked": blocked,
 		"net_dmg": net_dmg,

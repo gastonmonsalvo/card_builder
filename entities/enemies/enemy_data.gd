@@ -18,3 +18,8 @@ class_name EnemyData
 
 ## (Opcional) Textura o imagen representativa del enemigo para mostrar en la mesa.
 @export var artwork: Texture2D
+
+## Patrón de intenciones. Si está vacío, el enemigo solo ataca (comportamiento viejo).
+## Combiná behaviors para crear patrones complejos.
+## Ej: [ChargeBehavior(every=3), AttackBehavior(every=1)] → carga cada 3, ataca los demás
+@export var intent_pattern: Array[EnemyBehavior] = []

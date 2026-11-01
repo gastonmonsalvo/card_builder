@@ -103,7 +103,7 @@ func _on_start_seeded_run(hero: HeroData, custom_seed: int) -> void:
 	_start_new_run(hero, custom_seed, "Partida iniciada con %s | Semilla: %d" % [hero.hero_name, custom_seed])
 
 ## Limpia los elementos efímeros de la run anterior antes de crear una nueva.
-func _start_new_run(hero: HeroData, seed: int, map_message: String) -> void:
+func _start_new_run(hero: HeroData, p_seed: int, map_message: String) -> void:
 	main_menu.visible = false
 	map_view.visible = false
 	shop_view.visible = false
@@ -117,7 +117,7 @@ func _start_new_run(hero: HeroData, seed: int, map_message: String) -> void:
 	table.attack_button.disabled = false
 	table.discard_button.disabled = false
 
-	run.start_new_run(seed, hero)
+	run.start_new_run(p_seed, hero)
 	table.deck.build_initial_deck_for_hero(run)
 	table.current_energy = run.max_energy
 	table.discards_remaining = run.discards_per_combat

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://byw2rem6ml3au"]
+
+[ext_resource type="Script" uid="uid://kwb80i6v6875" path="res://entities/enemies/enemy_data.gd" id="1_dvn6m"]
+[ext_resource type="Script" uid="uid://d1w4tjg5w8jrt" path="res://core/enemies/behaviors/defend_behavior.gd" id="2_cpdjx"]
+
+[sub_resource type="Resource" id="Resource_2v7yc"]
+script = ExtResource("2_cpdjx")
+block = 5
+every_n_turns = 2
+metadata/_custom_type_script = "uid://d1w4tjg5w8jrt"
+
+[resource]
+script = ExtResource("1_dvn6m")
+enemy_name = "Esqueleto"
+intent_pattern = Array[Resource]([SubResource("Resource_2v7yc")])
+metadata/_custom_type_script = "uid://kwb80i6v6875"
