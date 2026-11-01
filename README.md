@@ -118,7 +118,9 @@ card-prototype/
 │   ├── combat/                 # Resolución de turnos y daño
 │   │   ├── combat_resolver.gd
 │   ├── deck/                   # Pilas: robo, mano, descarte (deck_manager, card_pile)
-│   ├── enemies/                # IA enemiga + behaviors/
+│   ├── enemies/                # IA enemiga: orquestador + behaviors
+│   │   ├── enemy_ai.gd
+│   │   └── behaviors/          # Attack, Defend, Charge (componibles)
 │   ├── run/                    # Estado de run, FSM, director, rarezas
 │   │   ├── run_director.gd
 │   │   ├── run_state.gd
@@ -254,6 +256,8 @@ El combate sigue una máquina de estados por turnos orquestada entre `battle_tab
 | **`DeckManager` & `CardPile`** | Administra el ciclo de vida lógico de las cartas entre Pila de Robo, Mano y Pila de Descarte. | `BattleTable`, `HandController`, `DrawEffect`. |
 | **`StatusManager`** | Aplica, hace tick y expira statuses por entidad (poison, vulnerable, weak, strength, etc.). | `CombatResolver`, `CombatAction`. |
 | **`DebugOverlay`** | Consola/panel in-game para alterar oro, vida, agregar cartas/reliquias/armas en caliente o forzar victorias. | `RunState`, `CombatResolver`, `DeckManager`, `GameDatabase`. |
+| **`EnemyAI`** | Orquestador de IA enemiga. Itera los behaviors del `EnemyData.intent_pattern` y devuelve el primer `EnemyIntent` no-null. Fallback a Attack. | `Enemy`, `EnemyBehavior`, `EnemyIntent`. |
+
 
 ---
 
@@ -320,10 +324,17 @@ Si querés una mecánica que no existe (ej. curar vida al golpear):
 
 ### 6. Cómo crear o editar un Enemigo (`EnemyData`)
 
-1. En `res://entities/enemies/data/`, creá un recurso **`EnemyData`** (`enemy_data.gd`).
-2. Definí su nombre, sprite, HP máximo, si es Jefe/Élite, `intent_pattern` (patrones de intenciones: rangos de daño de ataque, valores de escudo y estados que aplica) y `loot_table`.
-3. Para IA: componé behaviors desde `res://core/enemies/behaviors/` (`attack_behavior.gd`, `defend_behavior.gd`, `flee_behavior.gd`) y referencialos desde el `EnemyData`.
+6. Cómo crear o editar un Enemigo (EnemyData)
+1. En `res://entities/enemies/data/`, creá un recurso de tipo EnemyData (enemy_data.gd).
+2. Configurá: `enemy_name`, `base_hp`, `base_damage`, `is_boss`, `artwork`.
+3. Patrón de IA (intent_pattern): agregá behaviors desde el Inspector. El EnemyAI los itera en orden y usa el primer intent no-null.
+	AttackBehavior(damage=8, every=1) — ataca cada turno.
+	DefendBehavior(block=10, every=3) — gana escudo cada 3 turnos.
+	ChargeBehavior(bonus=1.5, every=3) — carga un turno, golpea fuerte el siguiente.
+4. El bloqueo del enemigo persiste 2 turnos: gana block en su turno, lo usa contra tu combo del turno siguiente, y se resetea al inicio de su próximo turno.
+5. Ejemplo: esqueleto.tres con [DefendBehavior(5, every=3), AttackBehavior(8, every=1)] → defiende cada 3, ataca el resto.
 
+UI fuera del resolver: CombatResolver es stateless (todos static). Cualquier cosa con await, hud, card.pulse(), card.queue_free() va en scenes/battle/battle_table.gd, no en core/combat/.
 ### 7. Cómo crear o editar un Status (`StatusData`)
 
 1. En `res://systems/statuses/data/`, creá un recurso **`StatusData`** (`status_data.gd`).

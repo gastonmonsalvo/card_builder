@@ -76,43 +76,43 @@ Estado: prototipo
 │  → Seleccionar slot (3 disponibles)                 │
 │  → Seleccionar héroe                                │
 └─────────────────────────────────────────────────────┘
-                        │
-                        ▼
+						│
+						▼
 ┌─────────────────────────────────────────────────────┐
 │  MAPA (procedural por piso)                         │
 │  Elegir próximo nodo: BATTLE / ELITE / EVENT /     │
 │  SHOP / REST / TREASURE                             │
 └─────────────────────────────────────────────────────┘
-                        │
-                        ▼
+						│
+						▼
 ┌─────────────────────────────────────────────────────┐
 │  BATALLA (1v1 a 1v3)                               │
 │  Robar 5, 3 energía/turno                           │
 │  Jugar cartas, terminar turno                       │
 │  Enemigo muestra intent antes de actuar             │
 └─────────────────────────────────────────────────────┘
-                        │
-                        ▼
+						│
+						▼
 ┌─────────────────────────────────────────────────────┐
 │  RECOMPENSA                                          │
 │  Elegir 1 de 3 cartas (raridad roll)                │
 │  + oro                                               │
 │  Posible relic drop                                  │
 └─────────────────────────────────────────────────────┘
-                        │
-                        ▼
-                  (volver a MAPA)
-                        │
-                        ▼ al llegar al final del piso
+						│
+						▼
+				  (volver a MAPA)
+						│
+						▼ al llegar al final del piso
 ┌─────────────────────────────────────────────────────┐
 │  BOSS del piso                                       │
 │  Recompensa: relic garantizada + carta rare          │
 └─────────────────────────────────────────────────────┘
-                        │
-                        ▼
-                  (siguiente piso, más difícil)
-                        │
-                        ▼ al piso 3
+						│
+						▼
+				  (siguiente piso, más difícil)
+						│
+						▼ al piso 3
 ┌─────────────────────────────────────────────────────┐
 │  BOSS FINAL                                          │
 │  → VICTORIA                                          │
@@ -377,6 +377,16 @@ Sistema de equipamiento. 1 arma activa por héroe, ocupa 1 o 2 slots de manos.
 
 ## Enemigos
 
+Sistema de IA
+Los enemigos usan un sistema de behaviors componibles. Cada EnemyData declara un intent_pattern: Array[EnemyBehavior] que el EnemyAI itera para decidir el intent de cada turno. Si el array está vacío, el enemigo solo ataca (compatibilidad con el sistema viejo).
+
+Behaviors disponibles:
+
+AttackBehavior(damage, every_n_turns) — ataca cada N turnos.
+DefendBehavior(block, every_n_turns) — gana escudo cada N turnos.
+ChargeBehavior(bonus_multiplier, every_n_turns) — carga un turno, golpea fuerte el siguiente.
+Ciclo de block: el escudo ganado en el turno del enemigo persiste durante tu próximo combo y se resetea al inicio del siguiente turno del enemigo (no entre medias).
+
 ### Comunes (Acto 1)
 
 | Enemigo | HP | Patrón de IA | Loot |
@@ -414,7 +424,7 @@ Cada columna: 2-4 nodos
 Última columna: BOSS (1 nodo)
 
    [BATTLE] ─┬─ [EVENT] ── [BATTLE] ── [SHOP] ── [BOSS]
-             │
+			 │
    [BATTLE] ─┴─ [ELITE] ── [REST] ──── [TREASURE] ─┘
 ```
 

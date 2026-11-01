@@ -258,11 +258,13 @@ card-prototype/
 
 | Archivo | Contenido | Por qué |
 |---|---|---|
-| `enemy_ai.gd` | Clase abstracta. `decide_action(enemy, combat_state) -> CombatAction`. El enemigo recibe contexto y devuelve una acción. | Separar dato (EnemyData) de comportamiento. |
-| `enemies/behaviors/attack_behavior.gd` | `extends Behavior`. `decide()` devuelve `TakeDamageAction` al héroe. | Estrategia de IA compuesta. |
-| `enemies/behaviors/defend_behavior.gd` | `decide()` aplica `Block` a sí mismo. | |
-| `enemies/behaviors/flee_behavior.gd` | `decide()` decide huir si HP < umbral. | |
-
+| `enemy_ai.gd` | `class_name EnemyAI`. `static func decide_intent(enemy, run, turn_count) -> EnemyIntent`. Itera los behaviors de `enemy.data.intent_pattern` y devuelve el primer intent no-null. Fallback a Attack. | Orquestador de IA. |
+| `behaviors/enemy_behavior.gd` | `class_name EnemyBehavior extends Resource`. Abstract: `decide(context) -> EnemyIntent`. | Clase base para estrategias de IA. Es Resource para que aparezca en el Inspector. |
+| `behaviors/enemy_intent.gd` | `class_name EnemyIntent extends RefCounted`. Enum Type { ATTACK, DEFEND, CHARGE, APPLY_STATUS, NOTHING }. Campos: `damage`, `block`, `status_id`, `description`. | Tipo de dato que viaja entre el behavior y el resolver. |
+| `behaviors/enemy_context.gd` | `class_name EnemyContext extends RefCounted`. Campos: `enemy`, `run`, `turn_count`. | Contexto inyectado en `decide()`. |
+| `behaviors/attack_behavior.gd` | `class_name AttackBehavior`. `@export var damage, every_n_turns`. `decide()` retorna `AttackIntent`. | Ataca cada N turnos. |
+| `behaviors/defend_behavior.gd` | `class_name DefendBehavior`. `@export var block, every_n_turns`. `decide()` retorna `DefendIntent`. | Gana escudo cada N turnos. |
+| `behaviors/charge_behavior.gd` | `class_name ChargeBehavior`. `@export var bonus_multiplier, every_n_turns`. `decide()` retorna `Charge` el primer turno y `Attack` cargado el siguiente. | Carga + golpe devastador. |
 **Composición de IA**: un enemigo puede tener `[AttackBehavior, FleeBehavior]`. El `enemy_ai.gd` itera los behaviors y elige según prioridad.
 
 ---
@@ -578,86 +580,6 @@ Sin regla clara, esto se vuelve caos. Definición:
 - ¿Se instancia múltiples veces? → `ui/`
 - ¿Es una "pantalla" completa? → `scenes/`
 - ¿Es un componente que otra pantalla instancia? → `ui/`
-
----
-
-## Guía de migración desde la arquitectura anterior
-
-Si venís de la versión con `game/` monolítico, esta es la migración sugerida:
-
-### Paso a paso (un commit por paso)
-
-1. **Crear la estructura de carpetas vacías** con archivos `.gd` placeholder (`class_name` declarado, `## TODO` en el cuerpo).
-
-2. **Mover autoloads** (si cambiaron path):
-   - `autoload/game_database.gd` → igual
-   - `autoload/persistence_manager.gd` → igual
-   - `autoload/signal_bus.gd` → igual
-   - Actualizar paths en `project.godot` (sección `[autoload]`).
-
-3. **Mover `game/battleTable/` → `scenes/battle/`**:
-   - `battle_table.gd` → `scenes/battle/battle_table.gd`
-   - `battle_table.tscn` → `scenes/battle/battle_table.tscn`
-   - `card_board_controller.gd` → `scenes/battle/hand_controller.gd` (renombrar)
-
-4. **Mover lógica de `game/` → `core/`**:
-   - `game/combat/combat_resolver.gd` → `core/combat/combat_resolver.gd`
-   - `game/deck/deck_manager.gd, card_pile.gd` → `core/deck/`
-   - `game/run/run_director.gd, run_state.gd, rarity_system.gd` → `core/run/`
-   - `game/map/floor_generator.gd, room_data.gd` → `core/map/`
-   - `game/constants/combat_constants.gd` → `core/constants/`
-
-5. **Crear `core/hero/`** (nuevo, simetría con enemies):
-
-6. **Mover `game/enemies/` → `core/enemies/` + `entities/enemies/`**:
-   - Lógica IA → `core/enemies/enemy_ai.gd` + `behaviors/`
-   - Data → `entities/enemies/enemy_data.gd` + `data/`
-
-7. **Mover `game/hero/` → `entities/hero/`**:
-   - `heroData.gd` → `entities/hero/hero_data.gd` (renombrar a snake_case)
-   - `data/*.tres` → `entities/hero/data/`
-
-8. **Separar UI de cartas**:
-   - `cards/card_data.gd` → `cards/card_data.gd` (igual)
-   - `cards/card_ui.gd, .tscn` → `ui/cards/card_ui.gd, .tscn`
-   - `cards/data/*.tres` → `cards/data/`
-   - `cards/effects/` → `cards/effects/`
-
-9. **Crear `card_instance.gd`** (nuevo). Migrar runtime state que estaba en `card_ui.gd` o donde sea.
-
-10. **Crear `systems/statuses/`** (nuevo):
-	- `status_data.gd`, `status_instance.gd`, `status_manager.gd`
-	- Migrar status logic que estaba desparramada en `combat_resolver.gd`.
-
-11. **Crear `systems/modifiers/`** (nuevo).
-
-12. **Crear `systems/events/`** (nuevo):
-	- Migrar eventos que estaban en `game/map/` o en `ui/map/`.
-
-13. **Crear `core/combat/actions/`** (nuevo):
-	- Refactor `combat_resolver.gd` para despachar acciones en vez de mutar directamente.
-	- Crear `combat_action.gd`, `play_card_action.gd`, `take_damage_action.gd`, `apply_status_action.gd`, `end_turn_action.gd`.
-
-14. **Crear `core/run/run_state_machine.gd`** (nuevo):
-	- Si ya tenías lógica de transiciones, moverla acá.
-
-15. **Crear `assets/`, `addons/gut/`, `tests/`**:
-	- Mover arte y audio a `assets/`.
-	- Instalar GUT en `addons/gut/`.
-	- Escribir tests prioritarios: `test_combat_resolver.gd`, `test_deck_manager.gd`.
-
-16. **Actualizar todos los `preload`/`load`** que apunten a los viejos paths. Godot te va a marcar los rotos en el editor.
-
-17. **Correr el juego y verificar que funciona igual que antes.**
-
-18. **Commit final: "refactor: migrate to layered architecture"**.
-
-### Consejos
-
-- Hacelo en un branch dedicado: `refactor/architecture`.
-- Un commit por paso. Si rompés algo, revertís un commit, no todo.
-- Corré el juego después de cada paso.
-- Los `.tres` no se rompen al moverlos (Godot guarda UIDs). Pero si renombrás clases (`class_name`), tenés que actualizar los `.tres` que las referencian.
 
 ---
 
