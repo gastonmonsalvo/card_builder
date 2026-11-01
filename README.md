@@ -1,10 +1,5 @@
 # 🃏 Card Prototype — Arquitectura y Documentación Técnica
 
-Bienvenido a la documentación técnica de **Card Prototype**. Este documento describe de punta a punta el propósito del proyecto, su arquitectura en **Godot Engine 4.x**, el flujo de ejecución completo (desde el menú hasta la resolución de combate), la relación entre sus sistemas y cómo extender o editar cualquier elemento del juego (cartas, efectos, reliquias, armas, héroes y enemigos).
-
-## 📖 1. ¿De qué trata el proyecto?
-
-**Card Prototype** es un juego **Roguelike Deckbuilder** (construcción de mazos con progresión por pisos generados proceduralmente). El jugador selecciona un **Héroe** (con estadísticas base, arma inicial y mazo propio) y se adentra en una partida (*Run*) compuesta por pisos con distintas salas (combates normales, jefes, tiendas, santuarios).
 
 ### Características Principales
 
