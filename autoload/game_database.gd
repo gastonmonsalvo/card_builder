@@ -23,7 +23,7 @@ func load_all_heroes(dir_path: String = CombatConstants.HERO_PATH) -> Array[Hero
 
 ## Escanea recursivamente el directorio instanciando los recursos `CardData`.
 ## Ignora intencionalmente las subcarpetas nombradas "effects/" para aislar la carga de cartas base.
-func load_all_cards(dir_path: String = "res://cards/data") -> Array[CardData]:
+func load_all_cards(dir_path: String = CombatConstants.CARD_PATH) -> Array[CardData]:
 	var cards_list: Array[CardData] = []
 	if not DirAccess.dir_exists_absolute(dir_path):
 		return cards_list
@@ -42,7 +42,7 @@ func load_all_cards(dir_path: String = "res://cards/data") -> Array[CardData]:
 	
 ## Escanea el directorio especificado y devuelve un arreglo plano con todas las instancias `RelicData`
 ## encontradas para poblar el catálogo de la partida.
-func load_all_relics(dir_path: String = "res://relics/data") -> Array[RelicData]:
+func load_all_relics(dir_path: String = CombatConstants.RELIC_PATH) -> Array[RelicData]:
 	var relics_list: Array[RelicData] = []
 	if not DirAccess.dir_exists_absolute(dir_path):
 		return relics_list
@@ -58,7 +58,7 @@ func load_all_relics(dir_path: String = "res://relics/data") -> Array[RelicData]
 	
 ## Escanea el directorio especificado y carga todos los recursos estáticos de tipo `EnemyData`.
 ## Filtra automáticamente otros tipos de archivos (como .import) para evitar errores.
-func load_all_enemies(dir_path: String = "res://game/enemies/data") -> Array[EnemyData]:
+func load_all_enemies(dir_path: String = CombatConstants.ENEMY_PATH) -> Array[EnemyData]:
 	var enemies_list: Array[EnemyData] = []
 	if not DirAccess.dir_exists_absolute(dir_path):
 		return enemies_list
@@ -73,7 +73,7 @@ func load_all_enemies(dir_path: String = "res://game/enemies/data") -> Array[Ene
 	return enemies_list
 	
 ## Carga masivamente todos los recursos de armas (.tres / .res) desde una ruta específica.
-func load_all_weapons(dir_path: String = "res://weapons/data") -> Array[WeaponData]:
+func load_all_weapons(dir_path: String = CombatConstants.WEAPON_PATH) -> Array[WeaponData]:
 	var weapons_list: Array[WeaponData] = []
 	if not DirAccess.dir_exists_absolute(dir_path):
 		return weapons_list

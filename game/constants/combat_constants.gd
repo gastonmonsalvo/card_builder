@@ -4,6 +4,11 @@ class_name CombatConstants
 
 const DEFAULT_HERO_PATH: String = "res://entities/hero/data/warrior_hero.tres"
 const HERO_PATH: String = "res://entities/hero/data/"
+const ENEMY_PATH : String =  "res://entities/enemies/data"
+const RELIC_PATH :String = "res://relics/data"
+const CARD_PATH : String = "res://cards/data"
+const WEAPON_PATH: String = "res://weapons/data"
+const BASIC_WEAPON : WeaponData = preload("res://weapons/data/arma_basica.tres")
 # --- UMBRALES Y BALANCE DE ESTADOS (STATUS EFFECTS) ---
 
 ## Cargas de hielo necesarias para congelar por completo al enemigo (0 daño en su turno).
@@ -37,7 +42,5 @@ const SHOCK_LUCK_BONUS_PER_POINT: float = 0.03
 
 ## Tope máximo de probabilidad de aturdimiento por electricidad (80% máx).
 const SHOCK_MAX_STUN_CHANCE: float = 0.80
-
-const BASIC_WEAPON : WeaponData = preload("res://weapons/data/arma_basica.tres")
 
 const MAX_INVENTORY_SIZE: int = 4

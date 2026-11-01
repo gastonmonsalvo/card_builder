@@ -258,7 +258,6 @@ card-prototype/
 
 | Archivo | Contenido | Por qué |
 |---|---|---|
-| `hero_ability.gd` | Clase abstracta `class_name HeroAbility`. `activate(combat_resolver) -> void`. Subclases concretas definen skills. | Skills activables del héroe (no son cartas). Ej: "Curar 5 HP", "Robar 2 cartas". |
 | `enemy_ai.gd` | Clase abstracta. `decide_action(enemy, combat_state) -> CombatAction`. El enemigo recibe contexto y devuelve una acción. | Separar dato (EnemyData) de comportamiento. |
 | `enemies/behaviors/attack_behavior.gd` | `extends Behavior`. `decide()` devuelve `TakeDamageAction` al héroe. | Estrategia de IA compuesta. |
 | `enemies/behaviors/defend_behavior.gd` | `decide()` aplica `Block` a sí mismo. | |
@@ -342,7 +341,7 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 
 | Archivo | Contenido | Por qué |
 |---|---|---|
-| `hero_data.gd` | `class_name HeroData extends Resource`. `id`, `name`, `max_hp`, `starting_deck: Array[CardData]`, `starting_relic: RelicData`, `ability: HeroAbility`, `portrait: Texture2D`. | Definición del héroe. El `ability` se carga como sub-resource o por id. |
+| `hero_data.gd` | `class_name HeroData extends Resource`. `id`, `name`, `max_hp`, `starting_deck: Array[CardData]`, `starting_relic: RelicData`, `portrait: Texture2D`. | Definición del héroe. |
 | `enemies/enemy_data.gd` | `class_name EnemyData extends Resource`. `id`, `name`, `max_hp_range: Vector2i`, `ai: EnemyAI`, `intent_pattern: Array`, `loot_table: Dictionary`. | Definición del enemigo. El `ai` es un resource con la composición de behaviors. |
 
 **Instancias concretas**:
@@ -609,7 +608,6 @@ Si venís de la versión con `game/` monolítico, esta es la migración sugerida
    - `game/constants/combat_constants.gd` → `core/constants/`
 
 5. **Crear `core/hero/`** (nuevo, simetría con enemies):
-   - `hero_ability.gd` (clase abstracta vacía).
 
 6. **Mover `game/enemies/` → `core/enemies/` + `entities/enemies/`**:
    - Lógica IA → `core/enemies/enemy_ai.gd` + `behaviors/`

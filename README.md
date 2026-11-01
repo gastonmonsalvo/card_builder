@@ -298,7 +298,6 @@ Si querés una mecánica que no existe (ej. curar vida al golpear):
    - Vida máxima inicial (`max_hp`), Energía por turno y Oro inicial.
    - **Arma inicial:** Arrastrá un archivo `.tres` de `res://weapons/data/` al slot de arma inicial.
    - **Mazo inicial (`starting_deck`):** Arrastrá los archivos `.tres` de `res://cards/data/` que conforman las cartas iniciales del personaje.
-   - **Habilidad (`ability`):** Referencia a un `HeroAbility` de `res://core/hero/`.
 
 ### 4. Cómo crear o editar un Arma (`WeaponData`)
 
