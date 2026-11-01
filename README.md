@@ -117,10 +117,7 @@ card-prototype/
 ├── core/                       # LÓGICA PURA (sin .tscn, sin escenas)
 │   ├── combat/                 # Resolución de turnos y daño
 │   │   ├── combat_resolver.gd
-│   │   ├── combat_action.gd    # Clase base Command pattern (undo/replay)
-│   │   └── actions/            # PlayCard, TakeDamage, ApplyStatus, EndTurn
 │   ├── deck/                   # Pilas: robo, mano, descarte (deck_manager, card_pile)
-│   ├── hero/                   # Lógica de skills activables (hero_ability.gd)
 │   ├── enemies/                # IA enemiga + behaviors/
 │   ├── run/                    # Estado de run, FSM, director, rarezas
 │   │   ├── run_director.gd

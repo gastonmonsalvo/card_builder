@@ -41,19 +41,13 @@ card-prototype/
 │
 ├── core/
 │   ├── combat/
-│   │   └── combat_resolver.gd      # Lógica pura stateless (todos static)
-│   │                                # NO usa Command pattern;
+│   │   └── combat_resolver.gd
 │   ├── deck/
 │   │   ├── deck_manager.gd
 │   │   └── card_pile.gd
-│   ├── hero/
-│   │   └── hero_ability.gd
 │   ├── enemies/
 │   │   ├── enemy_ai.gd
 │   │   └── behaviors/
-│   │       ├── attack_behavior.gd
-│   │       ├── defend_behavior.gd
-│   │       └── flee_behavior.gd
 │   ├── run/
 │   │   ├── run_director.gd
 │   │   ├── run_state.gd
