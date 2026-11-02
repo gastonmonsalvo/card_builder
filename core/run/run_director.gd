@@ -7,8 +7,7 @@ class_name RunDirector
 
 ## Máquina de estados de la run.
 var state_machine: RunStateMachine = RunStateMachine.new()
-## Escena de recompensas post-batalla.
-var reward_view_scene: PackedScene = preload(CombatConstants.REWARD_VIEW_SCN)
+
 ## Referencia inyectada a la Mesa de Combate (`BattleTable`).
 var table: Variant
 ## Referencia inyectada al estado vivo de la partida (`RunState`).
@@ -245,32 +244,13 @@ func _open_shop_for_room(room: RoomData) -> void:
 	map_view.visible = false
 	shop_view.open_shop(run.player_gold, room.shop_cards, room.shop_relics)
 
-## Disparado tras la victoria en un encuentro. Guarda el estado después de aplicar la victoria.
-## Si era un Jefe, orquesta el avance a la siguiente planta. 
-## Si era un enemigo estándar, despeja la sala actual y devuelve el foco al mapa.
+## Disparado tras la victoria en un encuentro. 
+##Guarda el estado después de aplicar la victoria.
 ## Ahora transiciona a REWARD en vez de ir directo al mapa.
 func _on_combat_won() -> void:
 	
 	state_machine.transition_to(RunStateMachine.State.REWARD)
-	# El guardado se realiza desde open_map() después de marcar la sala como
-	# despejada o generar la siguiente planta. Guardar antes permitiría reanudar
-	# un combate que el jugador ya había ganado.
-	if run.current_room and run.current_room.room_type == RoomData.Type.BOSS:
-		table.hud.set_banner_message("JEFE DERROTADO! AVANZANDO A LA PLANTA %d..." % (run.current_floor + 1))
-		table.attack_button.text = "SUBIENDO DE PLANTA..."
-		await table.get_tree().create_timer(1.4).timeout
-		run.start_floor(run.current_floor + 1)
-		map_view.free_travel_enabled = run.god_mode
-		if run.god_mode:
-			run.reveal_entire_floor()
-		SignalBus.floor_started.emit(run.current_floor)
-		open_map("Bienvenido a la Planta %d! La matriz se ha regenerado con una nueva sub-semilla." % run.current_floor)
-	else:
-		table.hud.set_banner_message("COMBATE GANADO! VOLVIENDO AL MAPA...")
-		table.attack_button.text = "VICTORIA!"
-		run.clear_and_discover_room(run.current_room)
-		await table.get_tree().create_timer(1.2).timeout
-		open_map("Sala despejada! Nuevos pasillos descubiertos en el mapa.")
+
 
 func _on_combat_lost() -> void:
 	var defeated_floor: int = run.current_floor
@@ -417,24 +397,32 @@ func _on_state_changed(new_state: RunStateMachine.State) -> void:
 
 ## Crea y muestra la vista de recompensas post-batalla.
 func _open_reward_view() -> void:
-	# Ocultar el mapa y la tienda si estaban visibles
 	map_view.visible = false
 	shop_view.visible = false
-
-	var reward_view := reward_view_scene.instantiate() as RewardView
+	
+	# Pausar el BattleTable
+	table.process_mode = Node.PROCESS_MODE_DISABLED
+	
+	# Crear el RewardView en código (sin .tscn)
+	var reward_view := RewardView.new()
 	table.add_child(reward_view)
+	
+	# El RewardView sí funciona aunque el BattleTable esté pausado
+	reward_view.process_mode = Node.PROCESS_MODE_ALWAYS
+	
 	reward_view.setup(run, state_machine, table)
 	reward_view.reward_completed.connect(_on_reward_completed)
-
-
+	
 ## Callback cuando el jugador terminó de elegir recompensas.
 func _on_reward_completed() -> void:
 	# La FSM ya transicionó a MAP desde el RewardView.
 	# Ahora sí limpiar la sala y abrir el mapa.
+	
+	table.process_mode = Node.PROCESS_MODE_INHERIT
 	if run.current_room:
 		run.clear_and_discover_room(run.current_room)
 
-	# Si era boss, avanzar de piso (esto estaba en tu _on_combat_won original)
+	# Si era boss, avanzar de piso 
 	if run.current_room and run.current_room.room_type == RoomData.Type.BOSS:
 		table.hud.set_banner_message("JEFE DERROTADO! AVANZANDO A LA PLANTA %d..." % (run.current_floor + 1))
 		await table.get_tree().create_timer(1.4).timeout
