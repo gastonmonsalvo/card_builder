@@ -7,7 +7,8 @@ class_name RunDirector
 
 ## Máquina de estados de la run.
 var state_machine: RunStateMachine = RunStateMachine.new()
-
+## Cache de las recompensas actuales para saber qué aplicar cuando el jugador elige
+var current_rewards: Dictionary = {}
 ## Referencia inyectada a la Mesa de Combate (`BattleTable`).
 var table: Variant
 ## Referencia inyectada al estado vivo de la partida (`RunState`).
@@ -399,30 +400,68 @@ func _on_state_changed(new_state: RunStateMachine.State) -> void:
 func _open_reward_view() -> void:
 	map_view.visible = false
 	shop_view.visible = false
-	
-	# Pausar el BattleTable
+
+	# Pausar el BattleTable para que no reciba input detrás del RewardView
 	table.process_mode = Node.PROCESS_MODE_DISABLED
-	
+
+	# Generar recompensas en RunState (lógica de dominio, determinista)
+	current_rewards = run.generate_combat_rewards()
+
 	# Crear el RewardView en código (sin .tscn)
 	var reward_view := RewardView.new()
 	table.add_child(reward_view)
-	
+
 	# El RewardView sí funciona aunque el BattleTable esté pausado
 	reward_view.process_mode = Node.PROCESS_MODE_ALWAYS
-	
-	reward_view.setup(run, state_machine, table)
-	reward_view.reward_completed.connect(_on_reward_completed)
-	
-## Callback cuando el jugador terminó de elegir recompensas.
-func _on_reward_completed() -> void:
-	# La FSM ya transicionó a MAP desde el RewardView.
-	# Ahora sí limpiar la sala y abrir el mapa.
-	
+
+	# Pasarle las recompensas YA GENERADAS (no las genera RewardView)
+	reward_view.setup(run, state_machine, table, current_rewards)
+
+	# Escuchar las señales que emite RewardView
+	reward_view.card_chosen.connect(_on_reward_card_chosen)
+	reward_view.skipped.connect(_on_reward_skipped)
+
+## Handler cuando el jugador ELIGIÓ una carta.
+func _on_reward_card_chosen(chosen_card: CardData) -> void:
+	# Aplicar recompensas al estado del juego (lógica de dominio)
+	run.apply_combat_rewards(
+		chosen_card,
+		int(current_rewards["gold"]),
+		current_rewards["relic"],
+		table.deck
+	)
+
+	# Reactivar el BattleTable
 	table.process_mode = Node.PROCESS_MODE_INHERIT
+
+	# Limpiar la sala y avanzar
+	_clear_room_after_combat()
+
+	# Limpiar cache
+	current_rewards = {}
+
+
+## Handler cuando el jugador SKIPPEÓ (no eligió carta).
+func _on_reward_skipped() -> void:
+	# Aplicar oro y relic (si la hubo), pero no carta
+	run.player_gold += int(current_rewards["gold"])
+	if current_rewards["relic"]:
+		run.equip_specific_relic(current_rewards["relic"])
+
+	# Reactivar el BattleTable
+	table.process_mode = Node.PROCESS_MODE_INHERIT
+
+	# Limpiar la sala y avanzar
+	_clear_room_after_combat()
+
+	# Limpiar cache
+	current_rewards = {}
+
+## Lógica común para limpiar la sala y volver al mapa (extraída del viejo _on_reward_completed).
+func _clear_room_after_combat() -> void:
 	if run.current_room:
 		run.clear_and_discover_room(run.current_room)
 
-	# Si era boss, avanzar de piso 
 	if run.current_room and run.current_room.room_type == RoomData.Type.BOSS:
 		table.hud.set_banner_message("JEFE DERROTADO! AVANZANDO A LA PLANTA %d..." % (run.current_floor + 1))
 		await table.get_tree().create_timer(1.4).timeout
@@ -436,7 +475,6 @@ func _on_reward_completed() -> void:
 		table.hud.set_banner_message("COMBATE GANADO! VOLVIENDO AL MAPA...")
 		await table.get_tree().create_timer(1.2).timeout
 		open_map("Sala despejada! Nuevos pasillos descubiertos en el mapa.")
-
 
 ## Recolecta todos los datos (`CardData`) de las cartas que actualmente están flotando 
 ## visualmente en la mano o en la zona de combo, para poder serializarlas junto al mazo durante el autoguardado.

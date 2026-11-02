@@ -5,7 +5,11 @@
 extends Control
 class_name RewardView
 
-signal reward_completed()
+
+signal reward_completed()           
+signal card_chosen(card_data: CardData) 
+signal skipped()                         
+
 
 var run: RunState
 var state_machine: RunStateMachine
@@ -34,20 +38,25 @@ var _time: float = 0.0
 
 const CARD_SIZE := Vector2(180, 240)
 
-
-## Inicializa la vista de recompensas. Asegura que el nodo esté en el árbol antes de construir el layout.
-func setup(p_run: RunState, p_state_machine: RunStateMachine, p_table: Control) -> void:
+## Inicializa la vista. Recibe las recompensas YA GENERADAS por RunState.
+func setup(
+	p_run: RunState, 
+	p_state_machine: RunStateMachine, 
+	p_table: Control, 
+	rewards: Dictionary
+) -> void:
 	run = p_run
 	state_machine = p_state_machine
 	table = p_table
+	gold_reward = rewards.gold
+	offered_cards = rewards.cards
+	relic_reward = rewards.relic
 	
 	if not is_inside_tree():
 		await tree_entered
-		
-	_generate_rewards()
+	
 	_build_ui()
 	_render_rewards()
-
 
 ## Actualiza cuadro a cuadro la animación de flotación idle y el efecto de imán/tilt al pasar el mouse.
 func _process(delta: float) -> void:
@@ -88,47 +97,6 @@ func _process(delta: float) -> void:
 			card.rotation = lerp_angle(card.rotation, float_rot, delta * 10.0)
 			card.scale = card.scale.lerp(Vector2.ONE, delta * 10.0)
 			card.z_index = 1
-
-
-## Genera la cantidad de oro, 3 cartas sin repetir según RaritySystem y la probabilidad de reliquia.
-func _generate_rewards() -> void:
-	gold_reward = 10 + (run.current_floor * 2) + randi() % 5
-
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var available_pool: Array[CardData] = run.available_card_pool.filter(
-		func(c): return c != null
-	)
-
-	for i in range(3):
-		if available_pool.is_empty():
-			break
-		var rolled_tier: RaritySystem.Tier = RaritySystem.roll_tier(
-			rng, run.current_floor, run.player_luck
-		)
-		var card := _pick_card_by_tier(available_pool, rolled_tier, rng)
-		if card:
-			offered_cards.append(card.duplicate())
-			available_pool.erase(card)
-
-	if randf() < 0.3 and not run.relic_catalog.is_empty():
-		relic_reward = run.relic_catalog[rng.randi_range(0, run.relic_catalog.size() - 1)]
-
-	print("[RewardView] Generadas: %d oro, %d cartas, relic=%s" % [
-		gold_reward, offered_cards.size(), relic_reward.title if relic_reward else "none"
-	])
-
-
-## Selecciona una carta del pool filtrando por tier. Hace fallback al pool completo si el tier está vacío.
-func _pick_card_by_tier(
-	pool: Array[CardData], tier: RaritySystem.Tier, rng: RandomNumberGenerator
-) -> CardData:
-	var candidates: Array[CardData] = pool.filter(func(c): return c.rarity == tier)
-	if candidates.is_empty():
-		candidates = pool
-	if candidates.is_empty():
-		return null
-	return candidates[rng.randi_range(0, candidates.size() - 1)]
 
 
 ## Construye toda la jerarquía de nodos UI en código forzando el tamaño del viewport y centrado en pantalla.
@@ -302,36 +270,21 @@ func _on_card_clicked_reward(clicked_card: CardUI, card_data: CardData) -> void:
 	await get_tree().create_timer(0.48).timeout
 	_select_card_reward(card_data)
 
+## Emite la señal de finalización y elimina la vista del árbol de escenas.
 
-## Otorga la carta elegida al mazo, suma el oro, equipa la reliquia si existe y transiciona hacia el mapa.
+func _close() -> void:
+	reward_completed.emit()
+	queue_free()
+
 func _select_card_reward(card_data: CardData) -> void:
-	if table and table.deck:
-		table.deck.draw_pile.add_card(card_data)
-		print("[RewardView] Carta '%s' agregada al mazo." % card_data.title)
-
-	run.player_gold += gold_reward
-
-	if relic_reward:
-		run.equip_specific_relic(relic_reward)
-		print("[RewardView] Reliquia '%s' adquirida." % relic_reward.title)
-
-	state_machine.transition_to(RunStateMachine.State.MAP)
+	# Ya no mutamos run ni deck directamente desde acá
+	# Solo emitimos la señal con los datos elegidos
+	card_chosen.emit(card_data)
 	_close()
 
-
-## Omite la selección de carta, otorga el oro y la reliquia (si tocó) y transiciona hacia el mapa.
 func _on_skip_button_pressed() -> void:
 	if _is_selecting:
 		return
 	_is_selecting = true
-	run.player_gold += gold_reward
-	if relic_reward:
-		run.equip_specific_relic(relic_reward)
-	state_machine.transition_to(RunStateMachine.State.MAP)
+	skipped.emit()
 	_close()
-
-
-## Emite la señal de finalización y elimina la vista del árbol de escenas.
-func _close() -> void:
-	reward_completed.emit()
-	queue_free()

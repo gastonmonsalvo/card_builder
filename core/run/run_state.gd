@@ -629,3 +629,67 @@ func add_weapon_to_inventory(weapon: WeaponData, force_debug: bool = false) -> b
 	inventory_weapons.append(weapon)
 	print("Arma agregada a la mochila: %s" % weapon.weapon_name)
 	return true
+## Genera las recompensas de un combate ganado de forma determinista.
+## Usa la semilla maestra + piso + contador para garantizar reproducibilidad.
+func generate_combat_rewards(combat_index: int = 0) -> Dictionary:
+	# Oro base escalado por piso
+	var gold := 10 + (current_floor * 2) + randi() % 5
+	
+	# Crear un RNG determinista basado en la semilla maestra y el piso actual
+	var rng := RandomNumberGenerator.new()
+	var reward_seed := FloorGenerator.get_floor_subseed(
+		master_seed, 
+		current_floor * 1000 + combat_index
+	)
+	rng.seed = reward_seed
+	
+	# 3 cartas sin repetir según RaritySystem
+	var cards: Array[CardData] = []
+	var pool: Array[CardData] = available_card_pool.filter(func(c): return c != null)
+	
+	for i in range(3):
+		if pool.is_empty():
+			break
+		var tier := RaritySystem.roll_tier(rng, current_floor, player_luck)
+		var card := _pick_card_by_tier(pool, tier, rng)
+		if card:
+			cards.append(card.duplicate())
+			pool.erase(card)
+	
+	# 30% chance de relic (determinista)
+	var relic: RelicData = null
+	if rng.randf() < 0.3 and not relic_catalog.is_empty():
+		relic = relic_catalog[rng.randi_range(0, relic_catalog.size() - 1)]
+	
+	return {
+		"gold": gold,
+		"cards": cards,
+		"relic": relic
+	}
+
+
+## Selecciona una carta del pool filtrando por tier. Fallback al pool completo si el tier está vacío.
+## (Este método lo movemos desde RewardView hacia acá, RunState)
+func _pick_card_by_tier(
+	pool: Array[CardData], tier: RaritySystem.Tier, rng: RandomNumberGenerator
+) -> CardData:
+	var candidates: Array[CardData] = pool.filter(func(c): return c.rarity == tier)
+	if candidates.is_empty():
+		candidates = pool
+	if candidates.is_empty():
+		return null
+	return candidates[rng.randi_range(0, candidates.size() - 1)]
+	
+## Aplica las recompensas elegidas por el jugador al estado de la run.
+func apply_combat_rewards(
+	chosen_card: CardData, gold: int, relic: RelicData, deck: DeckManager
+) -> void:
+	# 1. Agregar carta elegida al mazo (DrawPile)
+	deck.draw_pile.add_card(chosen_card)
+	
+	# 2. Sumar oro
+	player_gold += gold
+	
+	# 3. Equipar relic si la hubo
+	if relic:
+		equip_specific_relic(relic)
