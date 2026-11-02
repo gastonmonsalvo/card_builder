@@ -434,13 +434,14 @@ func _on_reward_card_chosen(chosen_card: CardData) -> void:
 	# Reactivar el BattleTable
 	table.process_mode = Node.PROCESS_MODE_INHERIT
 
+	# NUEVO: transicionar la FSM a MAP antes de abrir el mapa
+	state_machine.transition_to(RunStateMachine.State.MAP)
+
 	# Limpiar la sala y avanzar
 	_clear_room_after_combat()
 
 	# Limpiar cache
 	current_rewards = {}
-
-
 ## Handler cuando el jugador SKIPPEÓ (no eligió carta).
 func _on_reward_skipped() -> void:
 	# Aplicar oro y relic (si la hubo), pero no carta
@@ -451,12 +452,14 @@ func _on_reward_skipped() -> void:
 	# Reactivar el BattleTable
 	table.process_mode = Node.PROCESS_MODE_INHERIT
 
+	#  transicionar la FSM a MAP antes de abrir el mapa
+	state_machine.transition_to(RunStateMachine.State.MAP)
+
 	# Limpiar la sala y avanzar
 	_clear_room_after_combat()
 
 	# Limpiar cache
 	current_rewards = {}
-
 ## Lógica común para limpiar la sala y volver al mapa (extraída del viejo _on_reward_completed).
 func _clear_room_after_combat() -> void:
 	if run.current_room:

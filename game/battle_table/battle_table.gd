@@ -259,6 +259,9 @@ func _on_attack_pressed() -> void:
 
 	# 2. Verificar si el enemigo murió por el combo
 	if enemy.is_dead():
+		is_resolving = false          # ← NUEVO: liberar la mesa
+		attack_button.disabled = true  # sigue deshabilitado porque terminó el combate
+		discard_button.disabled = true
 		refresh_ui()
 		combat_won.emit()
 		return
@@ -269,6 +272,10 @@ func _on_attack_pressed() -> void:
 	var survived: bool = await execute_enemy_turn(run, enemy, player_block)
 	
 	if not survived:
+		is_resolving = false          # ← NUEVO: liberar la mesa
+		attack_button.disabled = true
+		discard_button.disabled = true
+		refresh_ui()
 		combat_lost.emit()
 		return
 

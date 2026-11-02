@@ -75,7 +75,7 @@ func _process(delta: float) -> void:
 		var phase := _time * 2.8 + (i * 1.35)
 		
 		if card == _hovered_card:
-			# --- COMPORTAMIENTO HOVER (Imán al mouse + Tilt Balatro) ---
+			# --- COMPORTAMIENTO HOVER (Imán al mouse + Tilt ) ---
 			var card_center := card.global_position + (CARD_SIZE * 0.5)
 			var offset := (mouse_pos - card_center) / (CARD_SIZE * 0.5)
 			offset = offset.clamp(Vector2(-1.0, -1.0), Vector2(1.0, 1.0))
