@@ -43,7 +43,14 @@ card-prototype/
 │
 ├── core/
 │   ├── combat/
-│   │   └── combat_resolver.gd
+│   │   ├── combat_resolver.gd
+│   │   ├── combat_action.gd        # FALTA
+│   │   └── actions/                 # FALTA
+│   │       ├── play_card_action.gd	 # FALTA
+│   │       ├── take_damage_action.gd	 # FALTA
+│   │       ├── apply_status_action.gd	 # FALTA
+│   │       └── end_turn_action.gd	 # FALTA
+│   │  
 │   ├── deck/
 │   │   ├── deck_manager.gd
 │   │   └── card_pile.gd
@@ -86,6 +93,7 @@ card-prototype/
 ├── entities/
 │   ├── hero/
 │   │   ├── hero_data.gd
+│   │   ├──hero_ability.gd 	FALTA
 │   │   └── data/
 │   │       ├── guerrero.tres
 │   │       ├── mago.tres
@@ -115,14 +123,14 @@ card-prototype/
 │
 ├── relics/
 │   ├── relic_data.gd
-│   ├── relic_instance.gd
+│   ├── relic_instance.gd	# FALTA
 │   ├── data/
 │   │   ├── anillo_brasas.tres
 │   │   ├── cenizas_fenix.tres
-│   │   └── ojo_auditivo.tres
+│   │   └── ...
 │   └── effects/
 │       ├── relic_effect.gd
-│       ├── on_play_card_effect.gd
+│       ├── on_play_card_effect.gd	#FALTA
 │       ├── on_take_damage_effect.gd
 │       ├── on_turn_start_effect.gd
 │       └── on_kill_enemy_effect.gd
@@ -147,7 +155,6 @@ card-prototype/
 │   │   ├── event_view.tscn
 │   │   └── event_view.gd
 │   └── reward/
-│       ├── reward_view.tscn
 │       └── reward_view.gd
 │
 ├── ui/
@@ -426,7 +433,7 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 | `scenes/battle/hand_controller.gd` | Maneja el layout espacial de la mano (fan, posición de cartas, hover). Recibe orden de `DeckManager`. | Separado de la lógica de mazo. |
 | `scenes/map/map_view.tscn` + `.gd` | Renderiza los `RoomData` del floor actual. Click en nodo → `RunStateMachine.transition_to(BATTLE)`. | |
 | `scenes/event/event_view.tscn` + `.gd` | Muestra `EventData` y sus `EventChoice`. Click → `EventResolver.apply_choice()`. | |
-| `scenes/reward/reward_view.tscn` + `.gd` | Pantalla post-batalla: elegir carta, oro, relic. | |
+| `scenes/reward/reward_view.gd` | Pantalla post-batalla: elegir carta, oro, relic. | |
 
 ---
 

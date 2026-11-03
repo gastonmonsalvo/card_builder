@@ -116,7 +116,6 @@ card-prototype/
 │
 ├── core/                       # LÓGICA PURA (sin .tscn, sin escenas)
 │   ├── combat/                 # Resolución de turnos y daño
-│   │   ├── combat_resolver.gd
 │   ├── deck/                   # Pilas: robo, mano, descarte (deck_manager, card_pile)
 │   ├── enemies/                # IA enemiga: orquestador + behaviors
 │   │   ├── enemy_ai.gd
@@ -140,7 +139,7 @@ card-prototype/
 │
 ├── cards/                      # SOLO DATA de cartas
 │   ├── card_data.gd            # Resource base de definición
-│   ├── card_instance.gd        # Runtime state (cost override, upgrades)
+│   ├── card_instance.gd        # Runtime state (cost override, upgrades) FALTA
 │   ├── data/                   # Instancias .tres (tajo, estocada, etc.)
 │   └── effects/                # Estrategias modulares (CardEffect)
 │
@@ -275,15 +274,15 @@ Gracias a la arquitectura basada en `Resource`, **no necesitás tocar el código
    - **Rareza / Tipo:** Ataque, Habilidad, Poder, y su nivel de rareza (usado por `RaritySystem`).
    - **Efectos (`effects`):** En el array de efectos, agregá nuevos elementos instanciando subclases de `CardEffect` (ubicadas en `res://cards/effects/`):
 	 - `damage_effect.gd`: Daño directo.
-	 - `block_effect.gd`: Otorga escudo/bloqueo.
+	 - `defense_effect.gd`: Otorga escudo/bloqueo.
 	 - `burn_effect.gd`: Aplica acumulaciones de Quemadura.
 	 - `poison_effect.gd`: Aplica Veneno.
 	 - `freeze_effect.gd`: Aplica Congelación.
 	 - `hemorrhage_effect.gd`: Aplica Sangrado/Hemorragia.
 	 - `shock_effect.gd`: Aplica Electrocución/Shock.
-	 - `draw_effect.gd`: Roba cartas adicionales del `DeckManager`.
-	 - `apply_status_effect.gd`: Aplica un status genérico.
-	 - `heal_effect.gd`: Cura al héroe.
+	 - `steal_effect.gd`: Roba cartas adicionales del `DeckManager`.
+	 - `apply_status_effect.gd`: Aplica un status genérico.	FALTA
+	 - `heal_effect.gd`: Cura al héroe.	 FALTA
 	 - `multiply_effect.gd`: Multiplica valores de estado o daño.
 4. Registrá o verificá que la ruta esté indexada en `autoload/game_database.gd` si el cargador no escanea el directorio automáticamente.
 
