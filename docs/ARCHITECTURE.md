@@ -177,7 +177,6 @@ card-prototype/
 │   ├── map/
 │   │   ├── map_node.gd
 │   │   ├── sanctuary_view.gd
-│   │   └── room_inspector.gd
 │   ├── menus/
 │   │   ├── slot_select.gd
 │   │   └── hero_select.gd

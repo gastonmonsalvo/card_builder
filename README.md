@@ -165,7 +165,7 @@ card-prototype/
 │   ├── cards/                  # card_ui.tscn + .gd (separado de cards/data)
 │   ├── battle/                 # hp_bar, intent_display, energy_counter, block_indicator
 │   ├── inventory/              # Modal de inventario y equipamiento
-│   ├── map/                    # map_node, sanctuary_view, room_inspector
+│   ├── map/                    # map_node, sanctuary_view
 │   ├── menus/                  # main_menu, slot_select, hero_select
 │   ├── run/                    # HUD de batalla, overlay de mapa, tienda
 │   └── system/                 # Pausa y Debug Overlay
@@ -209,7 +209,7 @@ card-prototype/
 
 ### 3. Navegación en el Mapa (`scenes/map/` & `ui/map/`)
 
-- El jugador visualiza los nodos (`map_node.tscn`) conectados. Puede inspeccionar detalles con `room_inspector.tscn` o abrir su inventario/mazo con `inventory_modal.tscn`.
+- El jugador visualiza los nodos (`map_node.tscn`) conectados. Puede inspeccionar detalles con `inspector...` o abrir su inventario/mazo con `inventory_modal.gd`.
 - Al seleccionar un nodo adyacente válido, `RunDirector` evalúa el tipo de `RoomData`:
   - **Santuario (`sanctuary_view.tscn`):** Permite curar un porcentaje de HP o mejorar/modificar recursos antes de seguir.
   - **Tienda (`shop_view.tscn`):** Utiliza `RaritySystem` y `GameDatabase` para ofertar cartas, reliquias y armas a cambio de oro.
