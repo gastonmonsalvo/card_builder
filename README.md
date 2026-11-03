@@ -158,7 +158,7 @@ card-prototype/
 │   ├── battle/                 # battle_table.tscn, battle_table.gd, hand_controller.gd
 │   ├── map/                    # map_view.tscn + .gd
 │   ├── event/                  # event_view.tscn + .gd
-│   └── reward/                 # reward_view.tscn + .gd
+│   └── reward/                 # reward_view.gd (UI EN CODIGO)
 │
 ├── ui/                         # Componentes UI atómicos reutilizables
 │   ├── cards/                  # card_ui.tscn + .gd (separado de cards/data)
@@ -257,7 +257,8 @@ El combate sigue una máquina de estados por turnos orquestada entre `battle_tab
 | **`StatusManager`** | Aplica, hace tick y expira statuses por entidad (poison, vulnerable, weak, strength, etc.). | `CombatResolver`, `CombatAction`. |
 | **`DebugOverlay`** | Consola/panel in-game para alterar oro, vida, agregar cartas/reliquias/armas en caliente o forzar victorias. | `RunState`, `CombatResolver`, `DeckManager`, `GameDatabase`. |
 | **`EnemyAI`** | Orquestador de IA enemiga. Itera los behaviors del `EnemyData.intent_pattern` y devuelve el primer `EnemyIntent` no-null. Fallback a Attack. | `Enemy`, `EnemyBehavior`, `EnemyIntent`. |
-
+| **`RunStateMachine`** | FSM explícita de la run. Valida transiciones legales (`BATTLE → REWARD → MAP`). Evita bugs de estados simultáneos. | `RunDirector`, `SignalBus`. |
+| **`RewardView`** | Vista pura de recompensas. Muestra oro + 3 cartas + relic. Anima con tweens. Emite `card_chosen` o `skipped`. No muta dominio. | `RunDirector`, `RunState` (vía signals). |
 
 ---
 
@@ -347,6 +348,15 @@ UI fuera del resolver: CombatResolver es stateless (todos static). Cualquier cos
 2. Configurá `title`, `description` y un array de `EventChoice` (`event_choice.gd`), cada uno con `label` y un `outcome` (Callable o `effect_id`).
 3. `EventResolver.apply_choice()` ejecuta la lógica al elegir.
 
+### 9 Cómo crear o editar Recompensas de combate ### 
+Las recompensas se generan en RunState.generate_combat_rewards() (lógica de dominio, determinista). Para modificar los parámetros:
+1. Abrí run_state.gd → generate_combat_rewards().
+2. Oro base: gold := 10 + (current_floor * 2) + randi() % 5. Ajustá la fórmula.
+3. Cantidad de cartas: el for i in range(3) controla cuántas cartas se ofrecen.
+4. Chance de relic: if rng.randf() < 0.3 → ajustá el 0.3 (30%).
+5. Seed determinista: usa FloorGenerator.get_floor_subseed(master_seed, current_floor * 1000 + combat_index). Cada sala tiene recompensas únicas y reproducibles.
+r
+Para agregar un nuevo tipo de recompensa (ej: pociones), agregá el campo al Dictionary retornado y manejalo en apply_combat_rewards() y en RewardView._render_rewards().
 ---
 
 ## 🔧 Herramientas de desarrollo y debugging
@@ -370,7 +380,7 @@ El proyecto incluye un **`DebugOverlay`** (`res://ui/system/debug_overlay.tscn`)
 6. **No crear acoplamientos nuevos entre `systems/`**: si `statuses` necesita hablar con `events`, lo hace por signal bus.
 7. **UI fuera del resolver: `**: CombatResolver es stateless (todos static). Cualquier cosa con await, hud, card.pulse(), card.queue_free() va en scenes/battle/battle_table.gd, no en core/combat/.
 8. **`*.tres` solo data, nunca lógica**: si un resource necesita comportamiento, vá a `effects/` con un script.
-
+9. **`Las vistas no mutan dominio**:  RewardView no llama a run.player_gold += ... directamente. Emite señales (card_chosen, skipped) y el RunDirector aplica los cambios vía RunState.apply_combat_rewards().
 ---
 
 ## 📐 Convenciones

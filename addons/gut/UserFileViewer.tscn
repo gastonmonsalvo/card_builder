@@ -1,47 +1,35 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene format=3 uid="uid://bqqdhctuniqul"]
 
-[ext_resource path="res://addons/gut/UserFileViewer.gd" type="Script" id=1]
+[ext_resource type="Script" uid="uid://bn22be7scsyk1" path="res://addons/gut/UserFileViewer.gd" id="1"]
 
-[node name="UserFileViewer" type="WindowDialog"]
+[node name="UserFileViewer" type="WindowDialog" unique_id=450844074]
 margin_top = 20.0
 margin_right = 800.0
 margin_bottom = 450.0
-rect_min_size = Vector2( 800, 180 )
+rect_min_size = Vector2(800, 180)
 popup_exclusive = true
 window_title = "View  File"
 resizable = true
-script = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+script = ExtResource("1")
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="FileDialog" type="FileDialog" parent="."]
-margin_right = 416.0
-margin_bottom = 184.0
-rect_min_size = Vector2( 400, 140 )
-rect_scale = Vector2( 2, 2 )
-popup_exclusive = true
-window_title = "Open a File"
-resizable = true
-mode = 0
+[node name="FileDialog" type="FileDialog" parent="." unique_id=919977238]
 access = 1
 show_hidden_files = true
-__meta__ = {
-"_edit_use_anchors_": false
-}
 
-[node name="TextDisplay" type="ColorRect" parent="."]
+[node name="TextDisplay" type="ColorRect" parent="." unique_id=367764448]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-margin_left = 8.0
-margin_right = -10.0
-margin_bottom = -65.0
-color = Color( 0.2, 0.188235, 0.188235, 1 )
-__meta__ = {
-"_edit_use_anchors_": false
-}
+color = Color(0.2, 0.188235, 0.188235, 1)
 
-[node name="RichTextLabel" type="RichTextLabel" parent="TextDisplay"]
+[node name="RichTextLabel" type="RichTextLabel" parent="TextDisplay" unique_id=1096156244]
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 focus_mode = 2
@@ -51,74 +39,44 @@ Lorem ipsum is typically a corrupted version of De finibus bonorum et malorum, a
 
 Versions of the Lorem ipsum text have been used in typesetting at least since the 1960s, when it was popularized by advertisements for Letraset transfer sheets. Lorem ipsum was introduced to the digital world in the mid-1980s when Aldus employed it in graphic and word-processing templates for its desktop publishing program PageMaker. Other popular word processors including Pages and Microsoft Word have since adopted Lorem ipsum as well."
 selection_enabled = true
-__meta__ = {
-"_edit_use_anchors_": false
-}
 
-[node name="OpenFile" type="Button" parent="."]
+[node name="OpenFile" type="Button" parent="." unique_id=121186335]
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-margin_left = -158.0
-margin_top = -50.0
-margin_right = -84.0
-margin_bottom = -30.0
-rect_scale = Vector2( 2, 2 )
 text = "Open File"
 
-[node name="Home" type="Button" parent="."]
+[node name="Home" type="Button" parent="." unique_id=386371302]
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-margin_left = -478.0
-margin_top = -50.0
-margin_right = -404.0
-margin_bottom = -30.0
-rect_scale = Vector2( 2, 2 )
 text = "Home"
-__meta__ = {
-"_edit_use_anchors_": false
-}
 
-[node name="Copy" type="Button" parent="."]
+[node name="Copy" type="Button" parent="." unique_id=490594278]
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-margin_left = 160.0
-margin_top = -50.0
-margin_right = 234.0
-margin_bottom = -30.0
-rect_scale = Vector2( 2, 2 )
 text = "Copy"
-__meta__ = {
-"_edit_use_anchors_": false
-}
 
-[node name="End" type="Button" parent="."]
+[node name="End" type="Button" parent="." unique_id=169461494]
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-margin_left = -318.0
-margin_top = -50.0
-margin_right = -244.0
-margin_bottom = -30.0
-rect_scale = Vector2( 2, 2 )
 text = "End"
 
-[node name="Close" type="Button" parent="."]
+[node name="Close" type="Button" parent="." unique_id=1157919944]
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-margin_left = 10.0
-margin_top = -50.0
-margin_right = 80.0
-margin_bottom = -30.0
-rect_scale = Vector2( 2, 2 )
 text = "Close"
 
 [connection signal="file_selected" from="FileDialog" to="." method="_on_FileDialog_file_selected"]
-[connection signal="popup_hide" from="FileDialog" to="." method="_on_FileDialog_popup_hide"]
 [connection signal="pressed" from="OpenFile" to="." method="_on_OpenFile_pressed"]
 [connection signal="pressed" from="Home" to="." method="_on_Home_pressed"]
 [connection signal="pressed" from="Copy" to="." method="_on_Copy_pressed"]

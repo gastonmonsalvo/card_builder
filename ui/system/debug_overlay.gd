@@ -152,7 +152,7 @@ func _build_columns() -> void:
 
 	actions_content.add_child(_make_action_btn("INSTA-KILL Enemigo", _on_instakill_enemy))
 	actions_content.add_child(_make_action_btn("Revelar todo el mapa", _on_reveal_map))
-	actions_content.add_child(_make_action_btn("Mostrar / Ocultar mapa", _on_toggle_map_view))
+	actions_content.add_child(_make_action_btn("Mostrar / Ocultar mapa (el mapa mismo)", _on_toggle_map_view))
 	actions_content.add_child(_make_action_btn("Robar +1 carta", _on_draw_card))
 	actions_content.add_child(_make_action_btn("+3 descartes", _on_add_discards))
 	actions_content.add_child(_make_action_btn("Aplicar +5 Quemadura y Veneno", _on_status_enemy))

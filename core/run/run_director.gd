@@ -288,26 +288,30 @@ func _on_shop_card_bought(card: CardData, cost: int) -> void:
 		push_error("No se pudo comprar la carta: el mazo de robo no está disponible.")
 		return
 
-	var card_path: String = card.resource_path if card.resource_path != "" else card.resource_name
-	if card_path == "" or not ResourceLoader.exists(card_path):
-		push_error("No se pudo comprar la carta '%s': falta una ruta de recurso válida." % card.title)
-		return
-
-	var copy := card.duplicate() as CardData
-	copy.resource_name = card_path
-	table.deck.draw_pile.add_card(copy)
+	# 1. Descontar oro PRIMERO (transacción atómica)
 	run.player_gold -= cost
 
+	# 2. Marcar el slot como vendido ANTES de cualquier operación propensa a fallar
 	if run.current_room and run.current_room.room_type == RoomData.Type.SHOP:
 		var idx: int = run.current_room.shop_cards.find(card)
 		if idx != -1:
 			run.current_room.shop_cards[idx] = null
 
+	# 3. Agregar la carta al mazo. No usamos ResourceLoader.exists porque
+	#    generate_shop_cards() devuelve duplicates en memoria sin resource_path.
+	var copy := card.duplicate() as CardData
+	if copy:
+		if card.resource_path != "":
+			copy.resource_name = card.resource_path
+		table.deck.draw_pile.add_card(copy)
+	else:
+		push_warning("No se pudo duplicar la carta '%s', pero el oro ya se debitó." % card.title)
+
+	# 4. Refrescar UI y persistir
 	shop_view.update_after_purchase(run.player_gold)
 	table.refresh_ui()
 	if PersistenceManager.current_slot > 0:
 		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
-
 func _on_shop_relic_bought(relic: RelicData, cost: int) -> void:
 	if relic == null or cost < 0 or run.player_gold < cost:
 		return

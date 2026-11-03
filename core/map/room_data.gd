@@ -74,29 +74,41 @@ func get_display_name() -> String:
 	return ""
 
 ## Calcula y devuelve el color de renderizado representativo para la celda en la interfaz.
-## Prioriza la niebla de guerra (gris opaco),
-##  seguido de la posición actual del jugador (verde brillante) 
-## y el estado de limpieza (verde apagado). Si está activa, devuelve su color temático distintivo.
+## Modula el color temático original de la sala según su estado actual de descubrimiento,
+## si es la posición del jugador, o si ya fue completada.
 func get_room_color(is_current: bool) -> Color:
-	if not discovered:
-		return Color(0.12, 0.12, 0.15, 0.4)
-	if is_current:
-		return Color(0.206, 0.585, 0.186, 1.0)
-	if cleared:
-		return Color(0.25, 0.32, 0.28)
-
+	# 1. Definimos primero el color base según el tipo de sala
+	var base_color: Color
 	match room_type:
+		Type.START:
+			base_color = Color(0.3, 0.7, 0.9) # Azul/celeste inicial por defecto (puedes cambiarlo)
 		Type.COMBAT:
-			return Color(0.65, 0.25, 0.25)
+			base_color = Color(0.65, 0.25, 0.25)
 		Type.TREASURE:
-			return Color(0.85, 0.65, 0.12)
+			base_color = Color(0.85, 0.65, 0.12)
 		Type.REST:
-			return Color(0.20, 0.65, 0.45)
+			base_color = Color(0.20, 0.65, 0.45)
 		Type.SANCTUARY:
-			return Color(0.58, 0.22, 0.88)
+			base_color = Color(0.58, 0.22, 0.88)
 		Type.BOSS:
-			return Color(0.407, 0.0, 0.077, 1.0)
+			base_color = Color(0.407, 0.0, 0.077, 1.0)
 		Type.SHOP:
-			return Color(0.913, 0.771, 0.0, 1.0)
-	
-	return Color(0.3, 0.3, 0.3)
+			base_color = Color(0.913, 0.771, 0.0, 1.0)
+		_:
+			base_color = Color(0.3, 0.3, 0.3)
+
+	# 2. Aplicamos las modificaciones de estado en base a ese color
+	if not discovered:
+		# Oscurece el color original de la sala y le da opacidad (niebla de guerra)
+		return base_color * Color(0.2, 0.2, 0.25, 0.4)
+		
+	if is_current:
+		# Tiñe la sala actual mezclándola con un 40% de tu verde brillante original
+		return base_color.lerp(Color(0.206, 0.585, 0.186, 1.0), 0.4)
+		
+	if cleared:
+		# Desatura/apaga el color original mezclándolo con un 60% de un verde grisáceo
+		return base_color.lerp(Color(0.25, 0.32, 0.28, 1.0), 0.6)
+
+	# Si está descubierta, no es la actual y no está limpia, muestra su color temático puro
+	return base_color

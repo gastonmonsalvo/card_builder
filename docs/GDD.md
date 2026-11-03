@@ -54,7 +54,7 @@ Estado: prototipo
 - Fans de *Slay the Spire*, *Monster Train*, *Inscryption*, *Balatro*.
 - Jugadores que disfrutan optimización y sinergias.
 - Sesiones de 30-60 minutos por run.
-- Plataforma inicial: PC (Windows/Linux/Mac). Consola (Switch) como objetivo secundario.
+- Plataforma inicial: PC (Windows/Linux/Mac).
 
 ---
 
@@ -63,7 +63,6 @@ Estado: prototipo
 | Juego | Qué tomamos | Qué NO tomamos |
 |---|---|---|
 | Slay the Spire | Mapa de nodos, statuses (vulnerable/weak), intents enemigos, rarezas | — |
-| Monster Train | Múltiples pisos por run | No multilane, solo 1 lane |
 | Inscryption | Cartas con efectos narrativos | No horror/ARG |
 | Balatro | Sinergias explosivas | No poker scoring |
 
@@ -95,10 +94,15 @@ Estado: prototipo
 						│
 						▼
 ┌─────────────────────────────────────────────────────┐
-│  RECOMPENSA                                          │
-│  Elegir 1 de 3 cartas (raridad roll)                │
-│  + oro                                               │
-│  Posible relic drop                                  │
+│  RECOMPENSA (RewardView)                            │
+│  Al ganar un combate, el jugador recibe:            │
+│  - Oro: escalado por piso                           │
+│    (10 + floor * 2 + random 0-5).                   │
+│  - 3 cartas: roll de rareza según                   │
+│    RaritySystem.roll_tier() con RNG determinista.   │
+│    El jugador elige 1 o saltea.                     │
+│  - Reliquia opcional: 30% de chance, rollada del    │
+│    relic_catalog sin repetir las que ya tiene.      │
 └─────────────────────────────────────────────────────┘
 						│
 						▼
@@ -125,10 +129,24 @@ Estado: prototipo
 | Hito | Tiempo |
 |---|---|
 | 1 piso | 8-12 min |
-| 3 pisos (run completa) | 30-45 min |
+| 5 pisos (run completa) | 30-45 min |
 | Run + muerte temprana | 10-20 min |
 
 ---
+## Flujo técnico:
+
+1. BattleTable emite combat_won.
+2. RunDirector transiciona FSM a REWARD y crea RewardView (UI en código, sin .tscn).
+3. RewardView muestra las recompensas y anima las cartas (idle float + hover magnético estilo Balatro).
+4. Jugador elige carta o skippea → RewardView emite card_chosen o skipped.
+5. RunDirector aplica recompensas vía RunState.apply_combat_rewards() y transiciona FSM a MAP.
+
+##Animaciones estilo Balatro: las cartas en RewardView tienen:
+
+- Pop-in escalonado: aparecen de a una, con escala elástica (TRANS_BACK).
+- Idle float: flotación suave con ondas senoidales desfasadas por índice.
+- Hover magnético: al pasar el mouse, la carta se inclina y escala como si fuera atraída.
+- Selección coreográfica: al elegir, la carta elegida sube y se desvanece, las otras caen.
 
 ## Mecánicas principales
 
@@ -615,21 +633,35 @@ const WEAK_MULTIPLIER: float = 0.75
 ### Layout de batalla
 
 ```
-┌─────────────────────────────────────────────┐
-│  [HUD: Piso 2 | Oro 45 | HP 60/80]          │
-│                                              │
-│  ┌─────────┐                ┌────────────┐ │
-│  │ Enemigo │ ←─ intent ─── │  Heroe     │ │
-│  │   ❤ 25  │   (⚔ 10)     │   ❤ 60/80  │ │
-│  └─────────┘                │  🛡 5      │ │
-│                              └────────────┘ │
-│                                              │
-│  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐        │
-│  │cart│ │cart│ │cart│ │cart│ │cart│ ← mano  │
-│  └────┘ └────┘ └────┘ └────┘ └────┘        │
-│                                              │
-│  ⚡ 3/3 energía        [Fin de Turno]       │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │   Esqueleto   |   HP: 50 / 50   |   Defensa: +5 Bloqueo                 │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                                                                         │   │
+│   │                                                                         │   │
+│   │                                                                         │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+│                     Selecciona o arrastra cartas a la Zona de Combo             │
+│                                                                                 │
+│   ┌───────────┐   ┌─────────────────────────────────────────────────────────┐   │
+│   │           │   │   Escudo   │   Escudo   │ Estocada │ Estocada │ Escudo  │   │
+│   │  GUERRERO │   │   +8 Esc.  │   +8 Esc.  │ Costo: 1 │ Costo: 1 │ +8 Esc. │   │
+│   │  ❤️ 50/50 │   │   Costo: 1 │   Costo: 1 │ [Comun]  │ [Comun]  │ Costo: 1│   │
+│   │  ⚔️ Arma  │   │  [P.Comun] │  [P.Comun] │          │          │[P.Comun]│   │
+│   │  ⚡ 4/4   │   └─────────────────────────────────────────────────────────┘   │
+│   │  🍀 1     │                                                                 │
+│   └───────────┘                                        [PASAR TURNO]            │
+│                                                                                 │
+│   ┌───────────┐                                        [DESCARTAR (2)]          │
+│   │ Mazo (2)  │                                                                 │
+│   └───────────┘                                        [Descarte (0)]           │
+│                                                        [Cementerio (0)]         │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Interacciones clave
@@ -741,7 +773,6 @@ const WEAK_MULTIPLIER: float = 0.75
 - [ ] Localización (ES + EN).
 
 
-## Matriz de transiciones legales
 | Desde \ Hacia | MENU | MAP | BATTLE | REWARD | EVENT | SHOP | DEAD | VICTORY |
 |---|---|---|---|---|---|---|---|---|
 | **MENU** | — | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -752,7 +783,6 @@ const WEAK_MULTIPLIER: float = 0.75
 | **SHOP** | ❌ | ✅ | ❌ | ❌ | ❌ | — | ❌ | ❌ |
 | **DEAD** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | — | ❌ |
 | **VICTORY** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — |
-
 
 
 ---

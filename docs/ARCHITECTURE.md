@@ -17,6 +17,8 @@ Documento de referencia para todo desarrollo en `card-prototype`. Define qué va
 		6.1 [Decision: Por qué CombatResolver no usa Command pattern] (#¿Por qué CombatResolver no usa Command pattern?)
 		6.2 [Decisión: Data vs Instance](#decisión-data-vs-instance)
 		6.3 [Decisión: `scenes/` vs `ui/`](#decisión-scenes-vs-ui)
+		6.4 [Decisión: `¿Por qué RewardView se construye 100% en código ?`](#¿Por qué RewardView se construye 100% en código (sin .tscn)?)
+		6.5[Decisión: `¿Por qué RewardView no genera sus propias recompensas?`](#¿Por qué RewardView no genera sus propias recompensas?)
 8. [Guía de migración desde la arquitectura anterior](#guía-de-migración-desde-la-arquitectura-anterior)
 9. [Checklist: agregar X al proyecto](#checklist-agregar-x-al-proyecto)
 
@@ -51,7 +53,7 @@ card-prototype/
 │   ├── run/
 │   │   ├── run_director.gd
 │   │   ├── run_state.gd
-│   │   ├── run_state_machine.gd
+│   │   ├── run_state_machine.gd  #FSM
 │   │   └── rarity_system.gd
 │   ├── map/
 │   │   ├── floor_generator.gd
@@ -273,10 +275,21 @@ card-prototype/
 
 | Archivo | Contenido | Por qué |
 |---|---|---|
-| `run_state.gd` | Datos: `floor: int`, `gold: int`, `current_hero: HeroData`, `deck: Array[CardInstance]`, `relics: Array[RelicInstance]`, `hp: int`, `max_hp: int`. | El estado serializable. Lo que se guarda/carga. |
-| `run_state_machine.gd` | Enum `State { MENU, MAP, BATTLE, REWARD, EVENT, SHOP, DEAD, VICTORY }`. `transition_to(new_state)`. Emite señales por signal_bus. | **FSM explícita**. Evita el bug clásico de "entré a batalla y al evento al mismo tiempo". |
-| `run_director.gd` | Orquestador de alto nivel. Decide qué hacer en cada transición: si `BATTLE → REWARD`, llama al `floor_generator` para ver si ganaste el piso. | El "director de película" de la run. |
-| `rarity_system.gd` | Pesos de rareza: `COMMON = 70`, `UNCOMMON = 25`, `RARE = 5`. `roll_rarity()` devuelve un enum. Pool bonus por floor. | StS-style: a mayor floor, más chances de rarezas. |
+| `run_state.gd` | Datos: `floor`, `gold`, `current_hero`, `deck`, `relics`, `hp`, `max_hp`. Métodos de negocio: `generate_combat_rewards()`, `apply_combat_rewards()`, `start_new_run()`, `rest_at_campfire()`. | Estado serializable + lógica de negocio. Lo que se guarda/carga. |
+| `run_director.gd` | Orquestador. Genera recompensas, crea `RewardView`, escucha señales de UI, llama a `RunState.apply_combat_rewards()`. | El "director de película" de la run. Conecta UI con lógica de dominio. |
+| `run_state_machine.gd` | `enum State { MENU, MAP, BATTLE, REWARD, EVENT, SHOP, DEAD, VICTORY }`. `transition_to(state) -> bool` valida si la transición es legal. Emite `state_changed`. | FSM explícita. Evita bugs de transiciones simultáneas. |
+| `rarity_system.gd` | `roll_tier(rng, floor, luck, bonus) -> Tier`. Pesos dinámicos por piso y suerte. | Sorteo determinista de rarezas. |
+| Archivo | Contenido | Por qué |
+|---|---|---|
+| `reward_view.gd` | `extends Control`. Recibe `rewards: Dictionary` en `setup()`. Anima cartas (idle, hover, pop-in). Emite `card_chosen(card_data)` o `skipped()`. | Vista pura: no muta estado del juego. Toda la lógica de "qué recompensas tocaron" vive en `RunState.generate_combat_rewards()`. |
+
+Flujo de recompensas:
+
+1. BattleTable emite combat_won cuando el enemigo muere.
+2. RunDirector._on_combat_won() transiciona FSM a REWARD y abre RewardView.
+3. RewardView muestra las recompensas ya generadas y anima las cartas.
+4. Jugador elige carta o skippea → RewardView emite card_chosen o skipped.
+5. RunDirector escucha, aplica recompensas vía RunState.apply_combat_rewards() y transiciona FSM a MAP.
 
 ---
 
@@ -476,7 +489,7 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 
 ## Reglas de oro
 
-1. **`core/` no conoce `scenes/` ni `ui/`.** La lógica de juego es testeable sin levantar escenas.
+1. **`core/` no conoce `scenes/` ni `ui/`.** La lógica de juego es testeable sin levantar escenas.RunState.generate_combat_rewards() no sabe que existe un RewardView.
 2. **Data vs Instance**: cada `.tres` es plantilla inmutable; el runtime usa `*_instance.gd` con estado.
 3. **Signal bus primero**: si dos subsistemas necesitan hablar, usan `SignalBus`, no referencias directas.
 4. **No `load()` desparramado**: todo recurso se pide a `GameDatabase`.
@@ -484,6 +497,7 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 6. **No crear acoplamientos nuevos entre `systems/`**: si `statuses` necesita hablar con `events`, lo hace por signal bus.
 7. **Una acción = un `CombatAction`**: cualquier cosa que modifique estado de combate va por el command pattern.
 8. **`*.tres` solo data, nunca lógica**: si un resource necesita comportamiento, vá a `effects/` con un script.
+9. **Las vistas no mutan dominio** : RewardView no llama a run.player_gold += ... directamente. Emite señales (card_chosen, skipped) y el RunDirector aplica los cambios vía RunState.apply_combat_rewards().
 
 ---
 
@@ -502,6 +516,24 @@ Diferencia con statuses: modifiers son **operaciones** sobre atributos base (mul
 ---
 ## Decisiones Tecnicas
 ---
+## ¿Por qué RewardView no genera sus propias recompensas?
+RewardView es una vista pura. No decide qué recompensas tocaron, no muta el estado del juego. Toda la lógica de "qué oro/cartas/relic salen" vive en RunState.generate_combat_rewards(), que es determinista (usa FloorGenerator.get_floor_subseed()) y testeable con GUT.
+
+Beneficios:
+
+Determinismo: al recargar una partida, las recompensas son las mismas.
+Testeable: generate_combat_rewards() es una función pura, se puede testear sin escena.
+Reusabilidad: si en el futuro se quiere mostrar un panel "recompensas obtenidas" en el inventario, se llama al mismo método de RunState.
+Separación de capas: la vista solo muestra y emite señales; el orquestador (RunDirector) muta el estado.
+
+## ¿Por qué RewardView se construye 100% en código (sin .tscn)?
+Porque RewardView es un modal transitorio que se crea y destruye en runtime, con muchas animaciones procedurales (tweens, hover magnético, idle float). Construirlo en código:
+
+Evita problemas de layout (top_level = true, set_anchors_and_offsets_preset).
+Permite forzar top_level = true para que se dibuje sobre todo, sin heredar el transform del padre.
+Centraliza las animaciones en un solo lugar (sin repartirlas entre .gd y .tscn).
+Las escenas .tscn se reservan para layouts estáticos que se diseñan visualmente en el editor. RewardView no es eso.
+
 ## ¿Por qué CombatResolver no usa Command pattern?
 El CombatResolver es stateless: todos sus métodos son static, no mantieneestado mutable entre llamadas, y cada cálculo es puro (entrada → salida sinside effects). Esto significa que no hay estado que proteger con comandosreversibles.
 
