@@ -160,10 +160,10 @@ card-prototype/
 │   ├── reward/                 # reward_view.gd (UI EN CODIGO)
 │   ├── shop/                   # TIENDA
 │   └── menus/                  # Menús principales 
-│
+
 ├── ui/                         # Componentes UI atómicos reutilizables
 │   ├── cards/                  # card_ui.tscn + .gd (separado de cards/data)
-│   ├── battle/                 # hp_bar, intent_display, energy_counter, block_indicator
+│   ├── battle/                 # player_hud.gd, enemy_hud.gd, etc.
 │   ├── inventory/              # Modal de inventario y equipamiento
 │   ├── map/                    # map_node, sanctuary_view
 │   ├── menus/                  # main_menu, slot_select, hero_select

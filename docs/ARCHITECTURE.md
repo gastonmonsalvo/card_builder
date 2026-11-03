@@ -168,10 +168,11 @@ card-prototype/
 │   │   ├── card_ui.tscn
 │   │   └── card_ui.gd
 │   ├── battle/
-│   │   ├── hp_bar.tscn
-│   │   ├── intent_display.tscn
-│   │   ├── energy_counter.tscn
-│   │   └── block_indicator.tscn
+│   │   ├── battle_hud.gd          
+│   │   ├── player_hud.gd   
+│   │   ├── enemy_hud.gd          
+│   │   ├── combo_banner.gd 
+│   │   └── pile_inspector.gd  
 │   ├── inventory/
 │   │   └── inventory_modal.gd
 │   ├── map/

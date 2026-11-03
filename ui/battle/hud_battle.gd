@@ -122,10 +122,10 @@ func refresh_all(
 
 	# 3. Panel del enemigo.
 	if enemy != null:
-		enemy_stats_label.text = enemy.get_status_text(player_luck)
+		enemy_stats_label.text = _format_enemy_text(enemy.get_hud_data(player_luck))
 	else:
 		enemy_stats_label.text = "ENEMIGO\nSin objetivo"
-
+	
 	# 4. Banner del combo.
 	combo_banner_label.text = _format_combo_preview(preview)
 
@@ -176,3 +176,32 @@ func _show_pile(pile: CardPile) -> void:
 		return
 	pile_popup_label.text = pile.get_contents_summary()
 	pile_popup.visible = true
+
+## Renderiza el diccionario de datos del enemigo en un texto formateado multilínea.
+## (Mantiene el formato viejo para no romper el layout existente).
+func _format_enemy_text(d: Dictionary) -> String:
+	var text: String = "%s   |   HP: %d / %d" % [
+		d.get("name", "?"),
+		int(d.get("current_hp", 0)),
+		int(d.get("max_hp", 0))
+	]
+	if int(d.get("block", 0)) > 0:
+		text += "   |   🛡 %d" % int(d["block"])
+	text += "   |   %s" % str(d.get("intent_text", ""))
+	
+	var statuses: Array = d.get("statuses", [])
+	if not statuses.is_empty():
+		var parts: Array[String] = []
+		for s in statuses:
+			var label: String = str(s.get("label", ""))
+			var stacks: int = int(s.get("stacks", 0))
+			if s.get("id") == "shock" and s.has("stun_chance_pct"):
+				parts.append("%s: %d (%d%% Stun)" % [label, stacks, int(s["stun_chance_pct"])])
+			elif s.get("id") == "freeze":
+				var threshold: int = CombatConstants.FREEZE_STUN_THRESHOLD
+				parts.append("%s: %d/%d" % [label, stacks, threshold])
+			else:
+				parts.append("%s: %d" % [label, stacks])
+		text += "\nEstados:  %s" % "  |  ".join(parts)
+	
+	return text

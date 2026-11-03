@@ -180,44 +180,32 @@ func try_trigger_shock_stun(player_luck) -> bool:
 		shock = max(0, shock - CombatConstants.STATUS_DECAY_PER_TURN) # Decae en 1 si no se activó
 	return stunned
 	
-## Construye un bloque de texto formateado multilínea para la interfaz gráfica del combate.
-## Agrupa y formatea el nombre, HP, intención de daño con mitigación, 
-## y lista detalladamente las cargas de todos los estados activos.
-func get_status_text(player_luck) -> String:
-	var intent_str: String
-	if freeze >= CombatConstants.FREEZE_STUN_THRESHOLD:
-		intent_str = "¡CONGELADO! (No ataca)"
-	elif freeze > 0 and current_intent != null and current_intent.type == EnemyIntent.Type.ATTACK:
-		var eff_dmg: int = max(0, current_intent.damage - freeze)
-		intent_str = "Ataque: %d DMG (-%d por Hielo)" % [eff_dmg, freeze]
-	else:
-		intent_str = get_intent_text()
 	
-	var text: String = "%s   |   HP: %d / %d" % [enemy_name, current_hp, max_hp]
-	
-	# NUEVO: mostrar block si tiene
-	if block > 0:
-		text += "   |   🛡 %d" % block
-	
-	text += "   |   %s" % intent_str
-	
-	var active_statuses: Array[String] = []
+## Retorna un diccionario con los datos crudos para que el HUD los renderice.
+func get_hud_data(player_luck) -> Dictionary:
+	var statuses: Array[Dictionary] = []
 	if burn > 0:
-		active_statuses.append("Quemadura: %d" % burn)
+		statuses.append({"id": "burn", "stacks": burn, "label": "Quemadura"})
 	if poison > 0:
-		active_statuses.append("Veneno: %d" % poison)
-	if hemorrhage >0:
-		active_statuses.append("Hemorragia: %d" % hemorrhage)
+		statuses.append({"id": "poison", "stacks": poison, "label": "Veneno"})
+	if hemorrhage > 0:
+		statuses.append({"id": "hemorrhage", "stacks": hemorrhage, "label": "Hemorragia"})
 	if freeze > 0:
-		active_statuses.append("Congelamiento: %d/%d" % [freeze, CombatConstants.FREEZE_STUN_THRESHOLD])
+		statuses.append({"id": "freeze", "stacks": freeze, "label": "Congelamiento"})
 	if shock > 0:
-		var pct: int = int(round(get_shock_stun_chance(player_luck) * 100.0))
-		active_statuses.append("Electrocutado: %d (%d%% Stun)" % [shock, pct])
-		
-	if not active_statuses.is_empty():
-		text += "\nEstados:  %s " % "  |  ".join(active_statuses)
-		
-	return text
+		statuses.append({
+			"id": "shock", 
+			"stacks": shock, 
+			"stun_chance_pct": int(get_shock_stun_chance(player_luck) * 100.0),
+			"label": "Electrocutado"})
+	return {
+		"name": enemy_name,
+		"current_hp": current_hp,
+		"max_hp": max_hp,
+		"block": block,
+		"intent_text": get_intent_text(),
+		"statuses": statuses
+	}
 
 static func decide_intent(enemy: Enemy, run: RunState, p_turn_count: int) -> EnemyIntent:
 	var context := EnemyContext.new(enemy, run, p_turn_count)

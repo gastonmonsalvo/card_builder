@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bvth6rdbf4uqt"]
 
 [ext_resource type="Script" uid="uid://hjfh62gf7npe" path="res://scenes/battle/battle_table.gd" id="1_gl7cs"]
-[ext_resource type="Script" uid="uid://cheka754sxi67" path="res://ui/run/hud_battle.gd" id="2_hud"]
+[ext_resource type="Script" uid="uid://cheka754sxi67" path="res://ui/battle/hud_battle.gd" id="2_hud"]
 
 [node name="BattleTable" type="Control" unique_id=2051320047]
 layout_mode = 3
