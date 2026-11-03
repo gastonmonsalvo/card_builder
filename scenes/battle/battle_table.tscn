@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://hjfh62gf7npe" path="res://scenes/battle/battle_table.gd" id="1_gl7cs"]
 [ext_resource type="Script" uid="uid://cheka754sxi67" path="res://ui/battle/hud_battle.gd" id="2_hud"]
+[ext_resource type="Script" uid="uid://6kcqvcxp0ul7" path="res://ui/battle/player_hud.gd" id="3_o1c4d"]
+[ext_resource type="Script" uid="uid://cnqotpxmlvya3" path="res://ui/battle/enemy_hud.gd" id="4_1251h"]
+[ext_resource type="Script" uid="uid://dptoy1xq8b47h" path="res://ui/battle/combo_banner.gd" id="5_2w4ea"]
+[ext_resource type="Script" uid="uid://holmh5hp1dw1" path="res://ui/battle/pile_inspector.gd" id="6_1l7dl"]
 
 [node name="BattleTable" type="Control" unique_id=2051320047]
 layout_mode = 3
@@ -63,6 +67,7 @@ offset_top = 100.0
 offset_right = 200.0
 offset_bottom = 264.0
 mouse_filter = 2
+script = ExtResource("3_o1c4d")
 
 [node name="PlayerStatsLabel" type="Label" parent="HUD/PlayerPanel" unique_id=9001003]
 layout_mode = 1
@@ -77,7 +82,6 @@ grow_vertical = 2
 text = "DATOS
 DEL JUGADOR"
 vertical_alignment = 1
-autowrap_mode = 2
 
 [node name="EnemyPanel" type="Panel" parent="HUD" unique_id=9001004]
 layout_mode = 0
@@ -86,6 +90,7 @@ offset_top = 15.0
 offset_right = 920.0
 offset_bottom = 85.0
 mouse_filter = 2
+script = ExtResource("4_1251h")
 
 [node name="EnemyStatsLabel" type="Label" parent="HUD/EnemyPanel" unique_id=9001005]
 layout_mode = 1
@@ -111,6 +116,7 @@ offset_bottom = 385.0
 text = "Selecciona o arrastra cartas a la Zona de Combo"
 horizontal_alignment = 1
 vertical_alignment = 1
+script = ExtResource("5_2w4ea")
 
 [node name="DrawPileBtn" type="Button" parent="HUD" unique_id=9001007]
 layout_mode = 0
@@ -143,6 +149,7 @@ offset_left = 270.0
 offset_top = 160.0
 offset_right = 870.0
 offset_bottom = 420.0
+script = ExtResource("6_1l7dl")
 
 [node name="PilePopupLabel" type="Label" parent="HUD/PilePopup" unique_id=9001011]
 custom_minimum_size = Vector2(560, 0)

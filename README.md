@@ -167,7 +167,6 @@ card-prototype/
 │   ├── inventory/              # Modal de inventario y equipamiento
 │   ├── map/                    # map_node, sanctuary_view
 │   ├── menus/                  # main_menu, slot_select, hero_select
-│   ├── run/                    # HUD de batalla, overlay de mapa, tienda
 │   └── system/                 # Pausa y Debug Overlay
 │
 ├── assets/                     # Recursos binarios

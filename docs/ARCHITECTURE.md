@@ -181,9 +181,6 @@ card-prototype/
 │   ├── menus/
 │   │   ├── slot_select.gd
 │   │   └── hero_select.gd
-│   ├── run/
-│   │   ├── hud_battle.gd
-│   │   ├── map_overlay.gd
 │   └── system/
 │       ├── pause_menu.gd
 │       └── debug_overlay.gd
