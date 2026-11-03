@@ -25,7 +25,8 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		"freeze": 0,
 		"poison": 0,
 		"shock": 0,
-		"hemorrhage": 0
+		"hemorrhage": 0,
+		"multipliers": [] 
 	}
 
 	for card_node in combo_cards:
@@ -51,7 +52,8 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		"poison": int(combo_state["poison"]),
 		"freeze": int(combo_state["freeze"]),
 		"shock": int(combo_state["shock"]),
-		"hemo": int(combo_state["hemorrhage"])
+		"hemorrhage": int(combo_state["hemorrhage"]),
+		"multipliers": combo_state.get("multipliers", [])
 	}
 
 ## Calcula el daño base de la carta y aplica las bonificaciones/penalizaciones del arma.
@@ -296,7 +298,8 @@ static func resolve_enemy_turn(
 static func calculate_instant_card(card_data: CardData) -> Dictionary:
 	var temp_state: Dictionary = {
 		"dmg": 0.0, "block": 0.0, "draw": 0,
-		"burn": 0, "poison": 0, "freeze": 0, "shock": 0, "hemorrhage": 0
+		"burn": 0, "poison": 0, "freeze": 0, "shock": 0, "hemorrhage": 0,
+		"multipliers": []
 	}
 	card_data.apply_effects(temp_state)
 	return temp_state

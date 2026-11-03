@@ -8,6 +8,7 @@
 [ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="6_wuqwb"]
 [ext_resource type="Resource" uid="uid://cmunbbbok70c" path="res://cards/data/sobre_carga.tres" id="7_4gk60"]
 [ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="8_wuqwb"]
+[ext_resource type="Resource" uid="uid://b3gccp5tyg7jh" path="res://weapons/data/baculo.tres" id="9_vevfc"]
 
 [resource]
 script = ExtResource("1_hfmn6")
@@ -18,6 +19,10 @@ max_hp_base = 45
 energy_base = 5
 gold = 120
 discards_base = 3
-starting_deck = Array[ExtResource("2_3s0qq")]([ExtResource("3_3s0qq"), ExtResource("4_hp66r"), ExtResource("5_syeyc"), ExtResource("6_wuqwb"), ExtResource("7_4gk60"), ExtResource("5_syeyc")])
 sort_order = 1
+starting_deck = Array[ExtResource("2_3s0qq")]([ExtResource("3_3s0qq"), ExtResource("4_hp66r"), ExtResource("5_syeyc"), ExtResource("6_wuqwb"), ExtResource("7_4gk60"), ExtResource("5_syeyc")])
+base_str = 3
+base_int = 6
+base_dex = 2
+starting_weapon = ExtResource("9_vevfc")
 metadata/_custom_type_script = "uid://crbebhweegtm"

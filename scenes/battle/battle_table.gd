@@ -339,7 +339,8 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 		"freeze": 0,
 		"poison": 0,
 		"shock": 0,
-		"hemorrhage": 0
+		"hemorrhage": 0,
+		"multipliers" : []
 	}
 	var current_block: int = p_initial_block
 
@@ -376,9 +377,9 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 		if delta["msg"] != "":
 			hud.set_banner_message("[ %s ] %s" % [delta["title"], delta["msg"]])
 		else:
-			hud.set_banner_message("DISPARANDO: [ %s ]" % delta["title"])
+			hud.set_banner_message("DISPARANDO:  %s " % delta["title"])
 		
-		await get_tree().create_timer(0.45).timeout
+		await get_tree().create_timer(0.65).timeout
 
 	# 2. Finalizar combo (lógica pura)
 	current_block = CombatResolver.finalize_combo(run, combo_state, enemy, board.combo_cards.size())
@@ -386,7 +387,7 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 	refresh_ui()
 
 	if not board.combo_cards.is_empty():
-		await get_tree().create_timer(0.35).timeout
+		await get_tree().create_timer(1.2).timeout
 
 	# 3. Ruteo al descarte (UI + deck state)
 	for card in board.combo_cards:
@@ -467,7 +468,7 @@ func consume_instant_card(card: CardUI) -> int:
 	# LÓGICA: calcular efectos sin tocar UI
 	var temp_state: Dictionary = CombatResolver.calculate_instant_card(card.card_data)
 	
-	await get_tree().create_timer(0.45).timeout
+	await get_tree().create_timer(0.55).timeout
 	
 	deck.route_played_card(card.card_data)
 	card.queue_free()

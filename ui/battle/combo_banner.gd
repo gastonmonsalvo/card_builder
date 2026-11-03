@@ -11,22 +11,39 @@ func show_message(msg: String) -> void:
 
 func _format_combo_preview(p: Dictionary) -> String:
 	var parts: Array[String] = []
+	
+	# 1. Daño (si MultiplyEffect lo modificó, esto ya muestra el valor final)
 	if p.get("dmg", 0) > 0:
-		parts.append("%d DAÑO" % p["dmg"])
+		parts.append("%d DAÑO" % int(p["dmg"]))
+	
+	# 2. Resto de efectos
 	if p.get("block", 0) > 0:
-		parts.append("+%d ESCUDO" % p["block"])
+		parts.append("+%d ESCUDO" % int(p["block"]))
 	if p.get("burn", 0) > 0:
-		parts.append("+%d QUEMADURA" % p["burn"])
+		parts.append("+%d QUEMADURA" % int(p["burn"]))
 	if p.get("poison", 0) > 0:
-		parts.append("+%d VENENO" % p["poison"])
+		parts.append("+%d VENENO" % int(p["poison"]))
 	if p.get("draw", 0) > 0:
-		parts.append("+%d ROBO" % p["draw"])
+		parts.append("+%d ROBO" % int(p["draw"]))
 	if p.get("freeze", 0) > 0:
-		parts.append("+%d CONGELAMIENTO" % p["freeze"])
+		parts.append("+%d CONGELAMIENTO" % int(p["freeze"]))
 	if p.get("shock", 0) > 0:
-		parts.append("+%d SHOCK" % p["shock"])
+		parts.append("+%d SHOCK" % int(p["shock"]))
 	if p.get("hemorrhage", 0) > 0:
-		parts.append("+%d HEMORRAGIA" % p["hemorrhage"])
+		parts.append("+%d HEMORRAGIA" % int(p["hemorrhage"]))
+	
+	# 3. Multiplicadores aplicados (solo informativo, ej: x2.0)
+	var multipliers: Array = p.get("multipliers", [])
+	for mult in multipliers:
+		var formatted: String
+		if float(mult) == int(mult):
+			formatted = "x%d" % int(mult)
+		else:
+			formatted = "x%.1f" % float(mult)
+		parts.append(formatted)
+	
+	# 4. Si no hay nada, mostrar hint
 	if parts.is_empty():
 		return "Selecciona o arrastra cartas a la Zona de Combo"
+	
 	return "COMBO ACTIVO:    " + "   |   ".join(parts)

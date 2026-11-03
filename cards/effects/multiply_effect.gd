@@ -5,6 +5,11 @@ class_name MultiplyEffect
 
 func apply(combo_state: Dictionary) -> void:
 	combo_state["dmg"] *= factor
+	
+	# Trackear el multiplicador para mostrarlo en el banner del HUD
+	if not combo_state.has("multipliers"):
+		combo_state["multipliers"] = []
+	combo_state["multipliers"].append(factor)
 
 func get_description() -> String:
 	return "x%.1f Daño" % factor
