@@ -156,8 +156,10 @@ card-prototype/
 ├── scenes/                     # Escenas raíz (.tscn + controlador .gd)
 │   ├── battle/                 # battle_table.tscn, battle_table.gd, hand_controller.gd
 │   ├── map/                    # map_view.tscn + .gd
-│   ├── event/                  # event_view.tscn + .gd
-│   └── reward/                 # reward_view.gd (UI EN CODIGO)
+│   ├── event/                  # event_view.tscn + .gd   FALTA
+│   ├── reward/                 # reward_view.gd (UI EN CODIGO)
+│   ├── shop/                   # TIENDA
+│   └── menus/                  # Menús principales 
 │
 ├── ui/                         # Componentes UI atómicos reutilizables
 │   ├── cards/                  # card_ui.tscn + .gd (separado de cards/data)

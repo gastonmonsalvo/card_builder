@@ -149,14 +149,20 @@ card-prototype/
 │   │   ├── battle_table.gd
 │   │   └── hand_controller.gd
 │   ├── map/
-│   │   ├── map_view.tscn
 │   │   └── map_view.gd
 │   ├── event/
-│   │   ├── event_view.tscn
+│   │   ├── event_view.tscn   FALTA
 │   │   └── event_view.gd
-│   └── reward/
-│       └── reward_view.gd
-│
+│   │
+│   ├── reward/
+│   │  └── reward_view.gd
+│   │
+│   ├── shop/                    
+│   │   └── shop_view.gd
+│   └── menus/                    
+│       ├── main_menu_view.gd
+│       ├── slot_select_view.gd
+│       └── hero_select_view.gd
 ├── ui/
 │   ├── cards/
 │   │   ├── card_ui.tscn
@@ -167,23 +173,20 @@ card-prototype/
 │   │   ├── energy_counter.tscn
 │   │   └── block_indicator.tscn
 │   ├── inventory/
-│   │   ├── inventory_modal.tscn
 │   │   └── inventory_modal.gd
 │   ├── map/
-│   │   ├── map_node.tscn
-│   │   ├── sanctuary_view.tscn
-│   │   └── room_inspector.tscn
+│   │   ├── map_node.gd
+│   │   ├── sanctuary_view.gd
+│   │   └── room_inspector.gd
 │   ├── menus/
-│   │   ├── main_menu.tscn
-│   │   ├── slot_select.tscn
-│   │   └── hero_select.tscn
+│   │   ├── slot_select.gd
+│   │   └── hero_select.gd
 │   ├── run/
-│   │   ├── hud_battle.tscn
-│   │   ├── map_overlay.tscn
-│   │   └── shop_view.tscn
+│   │   ├── hud_battle.gd
+│   │   ├── map_overlay.gd
 │   └── system/
-│       ├── pause_menu.tscn
-│       └── debug_overlay.tscn
+│       ├── pause_menu.gd
+│       └── debug_overlay.gd
 │
 ├── assets/
 │   ├── art/
