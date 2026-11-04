@@ -37,7 +37,7 @@ class_name HeroData
 
 ## Arma inicial que porta el héroe al arrancar la run.
 @export var starting_weapon: WeaponData
-
+@export_group("Ability")
 ## Habilidad activable del héroe. Asignar desde el Inspector.
 @export var ability: HeroAbility
 

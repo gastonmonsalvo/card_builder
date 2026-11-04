@@ -23,3 +23,6 @@ func activate(context: Dictionary) -> void:
 	if table and table.has_method("draw_cards"):
 		table.draw_cards(3)
 		print("[HeroAbility] Flujo Arcano activado: +3 cartas robadas.")
+
+func get_activation_message() -> String:
+	return "¡Flujo Arcano! Robas 3 cartas del mazo."

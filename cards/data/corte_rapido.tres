@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dw1ppdvb7x0wj"]
+
+[ext_resource type="Script" uid="uid://en8f4ju7d6kp" path="res://cards/effects/card_effect.gd" id="1_a6c3e"]
+[ext_resource type="Script" uid="uid://emqwpgk51qrk" path="res://cards/effects/hemorrhage_effect.gd" id="2_ae5sq"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_p8o06"]
+
+[sub_resource type="Resource" id="Resource_ae5sq"]
+script = ExtResource("2_ae5sq")
+amount = 6
+metadata/_custom_type_script = "uid://emqwpgk51qrk"
+
+[resource]
+script = ExtResource("2_p8o06")
+title = "Corte Rapido"
+effects = Array[ExtResource("1_a6c3e")]([SubResource("Resource_ae5sq"), null])
+description = "Un corte veloz"
+required_weapon_class = Array[int]([4])
+metadata/_custom_type_script = "uid://cob1g5x6igww8"

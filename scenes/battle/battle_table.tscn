@@ -52,11 +52,11 @@ text = "DESCARTAR (2)"
 
 [node name="AbilityButton" type="Button" parent="." unique_id=608449883]
 layout_mode = 0
-offset_left = 978.0
+offset_left = 945.0
 offset_top = 395.0
-offset_right = 1086.0
-offset_bottom = 426.0
-text = "\"HABILIDAD\""
+offset_right = 1130.0
+offset_bottom = 450.0
+text = "HABILIDAD"
 
 [node name="HUD" type="Control" parent="." unique_id=9001001]
 layout_mode = 1

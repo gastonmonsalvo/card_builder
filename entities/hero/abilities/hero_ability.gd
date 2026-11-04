@@ -35,3 +35,7 @@ func reset_for_combat() -> void:
 ## Genera el texto formateado para la visualización del estado en el HUD.
 func get_hud_text() -> String:
 	return "%s (%d/%d)" % [ability_name, uses_remaining, uses_per_combat]
+
+## Devuelve un mensaje descriptivo de lo que hace la habilidad al activarse.
+func get_activation_message() -> String:
+	return "%s activada." % ability_name

@@ -58,6 +58,11 @@ var inventory_weapons: Array[WeaponData] = []
 var weapon_catalog: Array[WeaponData] = []
 ## Habilidad del personaje
 var current_ability: HeroAbility = null
+## Instancia del gestor de modificadores temporales de estadísticas para el combate actual.
+var temp_stats: TempStatManager = TempStatManager.new()
+
+##RNG Del combate
+var combat_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 var player_str: int = 1
 var player_int: int = 1
@@ -108,7 +113,9 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 		player_str = CombatConstants.BASE_STR
 		player_int = CombatConstants.BASE_INT
 		player_dex = CombatConstants.BASE_DEX
-	
+		
+	# Resetear modificaciones temporales
+	temp_stats.clear() 
 	# Duplicar la habilidad para que esta run tenga su instancia propia
 	if hero and hero.ability:
 		current_ability = hero.ability.duplicate()
@@ -701,3 +708,25 @@ func apply_combat_rewards(
 	# 3. Equipar relic si la hubo
 	if relic:
 		equip_specific_relic(relic)
+
+## Devuelve la fuerza efectiva (base + mods temporales).
+func get_effective_str() -> int:
+	return player_str + temp_stats.get_total_mod("str")
+
+## Devuelve la inteligencia efectiva (base + mods temporales).
+func get_effective_int() -> int:
+	return player_int + temp_stats.get_total_mod("int")
+
+## Devuelve la destreza efectiva (base + mods temporales).
+func get_effective_dex() -> int:
+	return player_dex + temp_stats.get_total_mod("dex")
+
+
+## Resetea el RNG de combate para un nuevo encuentro.
+func reset_combat_rng() -> void:
+	var pos_x := int(player_grid_pos.x) if player_grid_pos else 0
+	var pos_y := int(player_grid_pos.y) if player_grid_pos else 0
+	var seed_value: int = abs(hash("%d_COMBAT_F%d_X%d_Y%d" % [
+		master_seed, current_floor, pos_x, pos_y
+	]))
+	combat_rng.seed = seed_value

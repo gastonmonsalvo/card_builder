@@ -26,9 +26,13 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		"poison": 0,
 		"shock": 0,
 		"hemorrhage": 0,
-		"multipliers": [] 
+		"multipliers": [],
+		"heal": 0,
+		"run_state": run 
 	}
-
+	#  Guardar el estado actual del RNG antes de simular
+	var rng_state = run.combat_rng.state
+	
 	for card_node in combo_cards:
 		var card_data: CardData = card_node.card_data
 		if not card_data:
@@ -37,13 +41,16 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		var calc: Dictionary = calculate_final_card_damage(
 			card_data,
 			run.current_weapon,
-			run.player_str,
-			run.player_int,
-			run.player_dex
+			run.get_effective_str(),
+			run.get_effective_int(),
+			run.get_effective_dex()
 		)
 		_apply_card_effects_to_combo(card_data, calc, combo_state)
 
+		
 	run.apply_relics_to_combo(combo_state, combo_cards.size())
+	#Restaurar el estado del RNG para que la ejecución real empiece desde acá
+	run.combat_rng.state = rng_state
 	return {
 		"dmg": int(round(combo_state["dmg"])),
 		"block": int(round(combo_state["block"])),
@@ -53,8 +60,11 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		"freeze": int(combo_state["freeze"]),
 		"shock": int(combo_state["shock"]),
 		"hemorrhage": int(combo_state["hemorrhage"]),
-		"multipliers": combo_state.get("multipliers", [])
+		"multipliers": combo_state.get("multipliers", []),
+		"heal": int(combo_state.get("heal", 0))
 	}
+
+	
 
 ## Calcula el daño base de la carta y aplica las bonificaciones/penalizaciones del arma.
 ## Los demás efectos de CardData se procesan por separado en `_apply_card_effects_to_combo`.
@@ -183,14 +193,18 @@ static func process_card_in_combo(
 		"shock": combo_state["shock"],
 		"hemorrhage": combo_state["hemorrhage"],
 		"draw": combo_state["draw"],
+		"run_state": run    #RNG fresco, no muta estado
 	}
 	
 	var calc := calculate_final_card_damage(
 		card_data, run.current_weapon, 
-		run.player_str, run.player_int, run.player_dex
+		run.get_effective_str(),
+		run.get_effective_int(),
+		run.get_effective_dex()
 	)
 	_apply_card_effects_to_combo(card_data, calc, combo_state)
-	
+
+
 	return {
 		"calc": calc,
 		"burn_delta": combo_state["burn"] - prev["burn"],
@@ -295,11 +309,20 @@ static func resolve_enemy_turn(
 	}
 
 ## Calcula el resultado de consumir una carta instantánea, sin tocar UI.
-static func calculate_instant_card(card_data: CardData) -> Dictionary:
+static func calculate_instant_card(card_data: CardData, run: RunState) -> Dictionary:
 	var temp_state: Dictionary = {
 		"dmg": 0.0, "block": 0.0, "draw": 0,
 		"burn": 0, "poison": 0, "freeze": 0, "shock": 0, "hemorrhage": 0,
-		"multipliers": []
+		"multipliers": [],
+		"heal": 0,
+		"run_state": run  
 	}
 	card_data.apply_effects(temp_state)
 	return temp_state
+	
+## Genera un RNG determinista basado en la semilla maestra y el piso actual.
+static func _get_combat_rng(run: RunState) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	var s_rng : int = abs(hash("%d_COMBAT_F%d" % [run.master_seed, run.current_floor]))
+	rng.seed = s_rng
+	return rng

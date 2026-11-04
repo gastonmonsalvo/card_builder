@@ -1,13 +1,22 @@
 [gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://b267713xqeuml"]
 
 [ext_resource type="Script" uid="uid://crbebhweegtm" path="res://entities/hero/hero_data.gd" id="1_6aufi"]
+[ext_resource type="Script" uid="uid://bh1utxweaea03" path="res://entities/hero/abilities/war_cry_ability.gd" id="1_wyn1b"]
 [ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_v2pg8"]
 [ext_resource type="Resource" uid="uid://bq4qm6sqy4ddy" path="res://cards/data/estocada.tres" id="3_i2a0p"]
 [ext_resource type="Resource" uid="uid://dm8c806rdq7l0" path="res://cards/data/escudo_basico.tres" id="4_iq5ng"]
 [ext_resource type="Resource" uid="uid://7xu5vm4i401r" path="res://cards/data/robo_basico.tres" id="5_4qd2d"]
+[ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="6_e2qgp"]
+[ext_resource type="Resource" uid="uid://g8bvmxwoph8w" path="res://weapons/data/espadon.tres" id="8_qquss"]
+
+[sub_resource type="Resource" id="Resource_xypuk"]
+script = ExtResource("1_wyn1b")
+metadata/_custom_type_script = "uid://bh1utxweaea03"
 
 [resource]
 script = ExtResource("1_6aufi")
 energy_base = 4
 starting_deck = Array[ExtResource("2_v2pg8")]([ExtResource("3_i2a0p"), ExtResource("3_i2a0p"), ExtResource("3_i2a0p"), ExtResource("4_iq5ng"), ExtResource("4_iq5ng"), ExtResource("4_iq5ng"), ExtResource("5_4qd2d")])
+starting_weapon = ExtResource("8_qquss")
+ability = SubResource("Resource_xypuk")
 metadata/_custom_type_script = "uid://crbebhweegtm"

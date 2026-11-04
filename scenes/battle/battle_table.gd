@@ -34,6 +34,10 @@ var is_resolving: bool = false:
 ## Cantidad de puntos de energía disponibles para gastar en el turno actual. 
 ## Se reinicia al máximo (`max_energy`) al comienzo de cada ronda.
 var current_energy: int = CombatConstants.BASE_MAX_ENERGY
+
+##Cantidad de energia libre en este turno (modificadores)
+var energy_free_this_turn: bool = false
+
 ## Cantidad de descartes tácticos restantes permitidos para el encuentro actual.
 ## Se restablece al inicio del combate.
 var discards_remaining: int = CombatConstants.BASE_DISCARDS_PER_COMBAT
@@ -81,7 +85,10 @@ func start_combat_encounter(is_boss: bool) -> void:
 	attack_button.disabled = false
 	discard_button.disabled = true
 	discards_remaining = 99 if run.god_mode else run.discards_per_combat
-	
+	#limpiar mods del combate anterior
+	run.temp_stats.clear()
+	#Resetea el rng
+	run.reset_combat_rng()
 	var remaining_board_cards: Array[CardData] = board.clear_all_and_extract_data()
 	deck.reset_for_new_combat(remaining_board_cards)
 	
@@ -137,8 +144,9 @@ func draw_cards(amount: int) -> void:
 func _try_consume_instant_card(card: CardUI) -> bool:
 	if card == null or not is_instance_valid(card) or card.card_data == null or not card.card_data.is_instant_card():
 		return false
+		
+	var card_cost: int = 0 if energy_free_this_turn else card.card_data.cost
 
-	var card_cost: int = card.card_data.cost
 	if current_energy < card_cost:
 		board.layout_cards()
 		refresh_ui()
@@ -146,7 +154,10 @@ func _try_consume_instant_card(card: CardUI) -> bool:
 		return true
 
 	is_resolving = true
-	current_energy -= card_cost
+	# Solo descontar si no está en modo free
+	if not energy_free_this_turn:  
+		current_energy -= card_cost
+		
 	refresh_ui() # Deshabilita atacar/descartar durante la animación de la carta instantánea.
 
 	var title: String = card.card_data.title
@@ -170,9 +181,10 @@ func _on_board_card_clicked(card: CardUI) -> void:
 	if board.is_in_hand(card):
 		if await _try_consume_instant_card(card):
 			return
-		var cost: int = card.card_data.cost if card.card_data else 1
-		if current_energy >= cost:
-			current_energy -= cost
+		var cost: int = 0 if energy_free_this_turn else card.card_data.cost 
+		if current_energy >= cost or energy_free_this_turn:
+			if not energy_free_this_turn:
+				current_energy -= cost
 			board.move_to_combo(card, false)
 			refresh_ui()
 		else:
@@ -200,7 +212,7 @@ func _on_board_card_dropped(card: CardUI, dropped_in_combo: bool) -> void:
 		if await _try_consume_instant_card(card):
 			return
 		if not board.is_in_combo(card):
-			if current_energy >= cost:
+			if not energy_free_this_turn:
 				current_energy -= cost
 				board.move_to_combo(card, true)
 			else:
@@ -351,7 +363,9 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 		"poison": 0,
 		"shock": 0,
 		"hemorrhage": 0,
-		"multipliers" : []
+		"multipliers" : [],
+		"heal" : 0,
+		"run_state": run
 	}
 	var current_block: int = p_initial_block
 
@@ -427,7 +441,19 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 		else:
 			hud.set_banner_message("¡HEMORRAGIA! El enemigo se desangra por %d de daño." % ticks["hemorrhage"])
 		await get_tree().create_timer(1).timeout
-
+		
+	# CARTA DE HEAL :
+	var heal_amount: int = int(combo_state.get("heal", 0))
+	if heal_amount > 0:
+		var actual_heal = min(heal_amount, run.max_player_hp - run.player_hp)
+		run.player_hp += actual_heal
+		hud.set_banner_message("TE CURASTE %d HP!" % actual_heal)
+		await get_tree().create_timer(0.5).timeout
+		
+	# Se apaga al terminar el turno
+	energy_free_this_turn = false  
+	# Avanzar los mods temporales al fin del turno del jugador
+	run.temp_stats.tick_turn()
 	return current_block
 
 
@@ -490,7 +516,7 @@ func consume_instant_card(card: CardUI) -> int:
 	await card.play_consume_animation()
 	
 	# 6. Lógica: calcular efectos usando la referencia guardada
-	var temp_state: Dictionary = CombatResolver.calculate_instant_card(card_data)
+	var temp_state: Dictionary = CombatResolver.calculate_instant_card(card_data, run)
 	
 	# 7. Ruteo al cementerio / descarte y liberación de memoria
 	deck.route_played_card(card_data)
@@ -507,7 +533,10 @@ func _on_ability_pressed() -> void:
 		hud.set_banner_message("¡HABILIDAD NO DISPONIBLE!")
 		return
 	
-	# Activar la habilidad pasando el contexto
+	# 1. Mostrar mensaje descriptivo de qué hace la habilidad
+	hud.set_banner_message(run.current_ability.get_activation_message())
+	
+	# 2. Activar la habilidad pasando el contexto
 	var context := {
 		"table": self,
 		"run": run,
@@ -515,6 +544,8 @@ func _on_ability_pressed() -> void:
 	}
 	run.current_ability.activate(context)
 	
-	# Feedback visual
-	hud.set_banner_message("¡%s ACTIVADA!" % run.current_ability.ability_name.to_upper())
+	# 3. Pequeña pausa para que el jugador lea el mensaje
+	await get_tree().create_timer(0.7).timeout
+	
+	# 4. Refrescar la UI para actualizar el contador de usos del botón
 	refresh_ui()

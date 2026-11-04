@@ -134,7 +134,7 @@ card-prototype/
 │   └── events/                 # Eventos de mapa (data + choice + resolver)
 │
 ├── entities/                   # Definición de actores (solo data)
-│   ├── hero/                   # hero_data.gd + data/*.tres
+│   ├── hero/                   # hero_data.gd + data/*.tres + abilities/*.tres
 │   └── enemies/                # enemy_data.gd + data/*.tres
 │
 ├── cards/                      # SOLO DATA de cartas

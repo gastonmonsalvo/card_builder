@@ -45,5 +45,8 @@ func _format_combo_preview(p: Dictionary) -> String:
 	# 4. Si no hay nada, mostrar hint
 	if parts.is_empty():
 		return "Selecciona o arrastra cartas a la Zona de Combo"
+		
+	if p.get("heal", 0) > 0:
+		parts.append("+%d HP" % int(p["heal"]))
 	
 	return "COMBO ACTIVO:    " + "   |   ".join(parts)

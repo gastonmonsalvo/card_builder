@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://d1wtsxmuiq3hq"]
+
+[ext_resource type="Script" uid="uid://c14du47j52fyq" path="res://entities/hero/abilities/shadow_ability.gd" id="1_05ts0"]
+[ext_resource type="Script" uid="uid://crbebhweegtm" path="res://entities/hero/hero_data.gd" id="2_0esi7"]
+[ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="3_6cm5a"]
+[ext_resource type="Resource" uid="uid://cmunbbbok70c" path="res://cards/data/sobre_carga.tres" id="4_swiu6"]
+[ext_resource type="Resource" uid="uid://cdy6u54mbxfuy" path="res://cards/data/tajo.tres" id="5_ocqtn"]
+[ext_resource type="Resource" uid="uid://dw1ppdvb7x0wj" path="res://cards/data/corte_rapido.tres" id="6_0esi7"]
+[ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="6_2x156"]
+[ext_resource type="Resource" uid="uid://dkoioaycwpa06" path="res://relics/data/cenizas_fenix.tres" id="7_7cbmg"]
+[ext_resource type="Resource" uid="uid://bct7xduy7vfpw" path="res://relics/data/trebol_abismo.tres" id="8_7rpkg"]
+[ext_resource type="Resource" uid="uid://xlqxnrht80dl" path="res://weapons/data/dagger.tres" id="10_6cm5a"]
+
+[sub_resource type="Resource" id="Resource_qquss"]
+script = ExtResource("1_05ts0")
+metadata/_custom_type_script = "uid://c14du47j52fyq"
+
+[resource]
+script = ExtResource("2_0esi7")
+hero_name = "Asesino"
+description = ""
+accent_color = Color(0.5497018, 0.5073421, 0.68457997, 1)
+gold = 678
+discards_base = 4
+starting_deck = Array[ExtResource("3_6cm5a")]([ExtResource("4_swiu6"), ExtResource("5_ocqtn"), ExtResource("6_0esi7")])
+starting_relic = Array[ExtResource("6_2x156")]([ExtResource("7_7cbmg"), ExtResource("8_7rpkg")])
+base_str = 4
+base_int = 2
+base_dex = 4
+starting_weapon = ExtResource("10_6cm5a")
+ability = SubResource("Resource_qquss")
+metadata/_custom_type_script = "uid://crbebhweegtm"

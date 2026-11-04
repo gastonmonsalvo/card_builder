@@ -44,6 +44,7 @@ card-prototype/
 ├── core/
 │   ├── combat/
 │   │   ├── combat_resolver.gd
+│   │   ├── temp_stat_manager.gd
 │   │   ├── combat_action.gd        # FALTA
 │   │   └── actions/                 # FALTA
 │   │       ├── play_card_action.gd	 # FALTA
@@ -93,11 +94,14 @@ card-prototype/
 ├── entities/
 │   ├── hero/
 │   │   ├── hero_data.gd
-│   │   ├──hero_ability.gd 	
-│   │   └── data/
-│   │       ├── guerrero.tres
-│   │       ├── mago.tres
-│   │       └── picaro.tres
+│   │   │── data/
+│   │   │    ├── guerrero.tres
+│   │   │    ├── mago.tres
+│   │   │    └── picaro.tres
+│   │   └── abilities/
+│   │       ├── hero_ability.tres
+│   │       ├── arcane_flow.tres
+│   │       └── 
 │   └── enemies/
 │       ├── enemy_data.gd
 │       └── data/

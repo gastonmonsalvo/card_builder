@@ -107,3 +107,19 @@ static func get_scaled_value_smooth(player_luck: int, base_min: float, base_max:
 	
 	# Interpola de forma lineal entre 5 y 25
 	return lerp(base_min, base_max, luck_factor)
+	
+## Sortea un elemento de una lista usando pesos ponderados.
+## Recibe un diccionario de {elemento: peso} y un RNG.
+## Retorna el elemento elegido.
+static func roll_weighted(elements: Dictionary, rng: RandomNumberGenerator) -> Variant:
+	var total_weight: float = 0.0
+	for w in elements.values():
+		total_weight += float(w)
+	
+	var roll: float = rng.randf_range(0.0, total_weight)
+	var cumulative: float = 0.0
+	for el in elements.keys():
+		cumulative += float(elements[el])
+		if roll <= cumulative:
+			return el
+	return elements.keys()[0]  # fallback

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3 uid="uid://xlqxnrht80dl"]
+
+[ext_resource type="Script" uid="uid://db3042vswtitv" path="res://weapons/weapon_data.gd" id="1_o1qoh"]
+
+[resource]
+script = ExtResource("1_o1qoh")
+weapon_id = "2134"
+weapon_name = "Daga"
+weapon_class = 4
+base_damage = 2
+inflict_hemorrhage = 2
+req_str = 1
+req_dex = 3
+scale_dex = 0.4
+metadata/_custom_type_script = "uid://db3042vswtitv"
