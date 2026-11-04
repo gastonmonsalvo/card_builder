@@ -231,12 +231,26 @@ static func finalize_combo(
 	enemy.take_damage(int(round(combo_state["dmg"])))
 	return current_block
 
+
 ## Aplica los ticks de fin de turno. Retorna un dict con los daños por status.
-static func tick_enemy_statuses(enemy: Enemy, run: RunState) -> Dictionary:
+## `skip` es una lista de IDs de statuses que no deben tickear (ej: los que se consumieron en una reacción).
+static func tick_enemy_statuses(enemy: Enemy, run: RunState, skip: Array[String] = []) -> Dictionary:
+	var burn_dmg := 0
+	if not skip.has("burn"):
+		burn_dmg = enemy.apply_burn_tick()
+		
+	var poison_dmg := 0
+	if not skip.has("poison"):
+		poison_dmg = enemy.apply_poison_tick()
+		
+	var hemorrhage_dmg := 0
+	if not skip.has("hemorrhage"):
+		hemorrhage_dmg = enemy.apply_hemorrhage_tick(run.player_luck)
+		
 	return {
-		"burn": enemy.apply_burn_tick(),
-		"poison": enemy.apply_poison_tick(),
-		"hemorrhage": enemy.apply_hemorrhage_tick(run.player_luck),
+		"burn": burn_dmg,
+		"poison": poison_dmg,
+		"hemorrhage": hemorrhage_dmg,
 		"hemorrhage_proc_count": enemy.hemorrhage_proc_count,
 	}
 

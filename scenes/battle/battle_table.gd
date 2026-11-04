@@ -423,13 +423,31 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 
 		
 	# 4. APLICAR STATUSES AL ENEMIGO (¡ACÁ SE DISPARAN LAS REACCIONES!)
-	enemy.apply_statuses({"burn": int(combo_state["burn"]),
+	var reaction := enemy.apply_statuses({
+		"burn": int(combo_state["burn"]),
 		"poison": int(combo_state["poison"]),
 		"freeze": int(combo_state["freeze"]),
 		"shock": int(combo_state["shock"]),
-		"hemorrhage": int(combo_state["hemorrhage"])})
+		"hemorrhage": int(combo_state["hemorrhage"])
+	})
+
+	var skip_statuses: Array[String] = []
+	
+	if not reaction.is_empty():
+		var reaction_name: String = str(reaction.get("name", "¡REACCIÓN!"))
+		var reaction_dmg: int = int(reaction.get("value", 0))
+		
+		hud.set_banner_message("%s -%d HP!" % [reaction_name, reaction_dmg])
+		await get_tree().create_timer(1.2).timeout
+		
+		var consumes: Dictionary = reaction.get("consumes", {})
+		for key in consumes.keys():
+			skip_statuses.append(str(key))
+
 	# 5. Ticks de statuses (lógica + UI)
-	var ticks: Dictionary = CombatResolver.tick_enemy_statuses(enemy, run)
+	var ticks: Dictionary = CombatResolver.tick_enemy_statuses(enemy, run, skip_statuses)
+	
+	print("Ticks ejecutados: ", ticks)
 
 	if ticks["burn"] > 0:
 		refresh_ui()

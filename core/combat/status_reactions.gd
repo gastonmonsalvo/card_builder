@@ -16,7 +16,7 @@ const REACTIONS: Array[Dictionary] = [
 		"id": "superconductor",
 		"name": "¡SUPERCONDUCTOR!",
 		"requires": {"freeze": 1, "shock": 1},
-		"consumes": {"freeze": 2, "shock": 2},
+		"consumes": {"freeze": 99, "shock": 99},
 		"effect": "DAMAGE_FLAT",
 		"value": 20
 	},
@@ -25,7 +25,7 @@ const REACTIONS: Array[Dictionary] = [
 		"name": "¡COMBUSTIÓN TÓXICA!",
 		"requires": {"burn": 1, "poison": 1},
 		"consumes": {"poison": 99},
-		"effect": "DAMAGE_PER_STACK",
+		"effect": "DAMAGE_FLAT",
 		"value": 10
 	}
 ]
