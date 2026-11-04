@@ -18,6 +18,8 @@ var freeze: int = 0
 var shock: int = 0
 var hemorrhage: int = 0
 
+signal status_reaction_triggered(reaction: Dictionary)
+
 ## Registra cuántas veces el enemigo ha sufrido una explosión de hemorragia durante este combate.
 ## Utilizado para escalar la dificultad del próximo estallido.
 var hemorrhage_proc_count: int = 0
@@ -71,14 +73,33 @@ func take_damage(amount: int) -> void:
 	if remaining_dmg > 0:
 		current_hp = max(0, current_hp - remaining_dmg)
 
-## Inyecta y acumula nuevas cargas de estados alterados al enemigo simultáneamente.
-## Ignora valores negativos.
-func add_statuses(added_burn: int, added_poison: int, added_freeze:int, added_shock:int, added_hemorrhage:int) -> void:
-	burn += max(0, added_burn)
-	poison += max(0, added_poison)
-	freeze += max(0,added_freeze)
-	shock += max(0,added_shock)
-	hemorrhage +=max(0,added_hemorrhage)
+## Aplica statuses al enemigo. Verifica reacciones elementales antes de acumular.
+## Retorna el Dictionary de la reacción que se detonó (o vacío si no hubo).
+func apply_statuses(incoming: Dictionary) -> Dictionary:
+	# 1. Verificar si hay reacción elemental
+	var reaction := StatusReactions.check(self, incoming)
+	
+	if not reaction.is_empty():
+		# 2. Si hubo reacción: consumir statuses y aplicar efecto
+		StatusReactions.apply(self, reaction)
+		
+		# 3. Avisar a la UI para mostrar el banner/partículas
+		status_reaction_triggered.emit(reaction)
+	else:
+		# 4. Si no hubo reacción: acumulación normal
+		burn += max(0, int(incoming.get("burn", 0)))
+		poison += max(0, int(incoming.get("poison", 0)))
+		freeze += max(0, int(incoming.get("freeze", 0)))
+		shock += max(0, int(incoming.get("shock", 0)))
+		hemorrhage += max(0, int(incoming.get("hemorrhage", 0)))
+	
+	return reaction
+# Wrapper de compatibilidad (deprecated: usar apply_statuses con Dictionary)
+func add_statuses(added_burn: int, added_poison: int, added_freeze: int, added_shock: int, added_hemorrhage: int) -> void:
+	apply_statuses({
+		"burn": added_burn, "poison": added_poison, "freeze": added_freeze,
+		"shock": added_shock, "hemorrhage": added_hemorrhage
+	})
 	
 ## Calcula el daño real que el enemigo infligirá en su turno.
 ## Si está bajo congelamiento absoluto (`freeze >= umbral`), retorna 0. En caso contrario, mitiga el daño en base a las cargas de `freeze`.

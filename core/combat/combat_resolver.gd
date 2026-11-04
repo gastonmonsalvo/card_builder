@@ -184,7 +184,7 @@ static func _is_status_effect(effect: CardEffect) -> bool:
 static func process_card_in_combo(
 	card_data: CardData, 
 	run: RunState, 
-	combo_state: Dictionary
+	combo_state: Dictionary,
 ) -> Dictionary:
 	var prev := {
 		"burn": combo_state["burn"],
@@ -204,15 +204,16 @@ static func process_card_in_combo(
 	)
 	_apply_card_effects_to_combo(card_data, calc, combo_state)
 
+	
 
 	return {
 		"calc": calc,
-		"burn_delta": combo_state["burn"] - prev["burn"],
-		"poison_delta": combo_state["poison"] - prev["poison"],
-		"freeze_delta": combo_state["freeze"] - prev["freeze"],
-		"shock_delta": combo_state["shock"] - prev["shock"],
-		"hemorrhage_delta": combo_state["hemorrhage"] - prev["hemorrhage"],
-		"draw_delta": combo_state["draw"] - prev["draw"],
+		"burn_delta": int(combo_state["burn"]) - prev["burn"],
+		"poison_delta": int(combo_state["poison"]) - prev["poison"],
+		"freeze_delta": int(combo_state["freeze"]) - prev["freeze"],
+		"shock_delta": int(combo_state["shock"]) - prev["shock"],
+		"hemorrhage_delta": int(combo_state["hemorrhage"]) - prev["hemorrhage"],
+		"draw_delta": int(combo_state["draw"]) - prev["draw"],
 		"block": int(round(combo_state["block"])),
 		"title": card_data.title,
 		"msg": calc.msg,

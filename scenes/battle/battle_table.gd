@@ -101,6 +101,9 @@ func start_combat_encounter(is_boss: bool) -> void:
 		push_error("[BattleTable] No se pudo crear el enemigo para este encuentro.")
 		refresh_ui()
 		return
+	#Escuchar reacciones elementales del enemigo
+	enemy.status_reaction_triggered.connect(_on_enemy_reaction)
+	
 	enemy.update_intent(run)   # calcular primer intent
 	if enemy == null:
 		push_error("[BattleTable] No se pudo crear el enemigo para este encuentro.")
@@ -384,16 +387,7 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 		card.pulse()  # UI
 		
 		# LÓGICA: delegar al resolver
-		var delta: Dictionary = CombatResolver.process_card_in_combo(cdata, p_run, combo_state)
-		
-		# Aplicar statuses al enemigo
-		p_enemy.add_statuses(
-			delta["burn_delta"],
-			delta["poison_delta"],
-			delta["freeze_delta"],
-			delta["shock_delta"],
-			delta["hemorrhage_delta"]
-		)
+		var delta: Dictionary = CombatResolver.process_card_in_combo(cdata, run, combo_state)
 		
 		# UI: robar cartas nuevas
 		if delta["draw_delta"] > 0:
@@ -418,7 +412,7 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 	refresh_ui()
 
 	if not board.combo_cards.is_empty():
-		await get_tree().create_timer(1.2).timeout
+		await get_tree().create_timer(0.35).timeout
 
 	# 3. Ruteo al descarte (UI + deck state)
 	for card in board.combo_cards:
@@ -427,7 +421,14 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 	board.combo_cards.clear()
 	refresh_ui()
 
-	# 4. Ticks de statuses (lógica pura + UI)
+		
+	# 4. APLICAR STATUSES AL ENEMIGO (¡ACÁ SE DISPARAN LAS REACCIONES!)
+	enemy.apply_statuses({"burn": int(combo_state["burn"]),
+		"poison": int(combo_state["poison"]),
+		"freeze": int(combo_state["freeze"]),
+		"shock": int(combo_state["shock"]),
+		"hemorrhage": int(combo_state["hemorrhage"])})
+	# 5. Ticks de statuses (lógica + UI)
 	var ticks: Dictionary = CombatResolver.tick_enemy_statuses(enemy, run)
 
 	if ticks["burn"] > 0:
@@ -555,3 +556,8 @@ func _on_ability_pressed() -> void:
 	
 	# 4. Refrescar la UI para actualizar el contador de usos del botón
 	refresh_ui()
+	
+	## Handler para cuando el enemigo sufre una reacción elemental.
+func _on_enemy_reaction(reaction: Dictionary) -> void:
+	hud.set_banner_message("%s -%d HP!" % [reaction["name"], int(reaction["value"])])
+	await get_tree().create_timer(1.2).timeout

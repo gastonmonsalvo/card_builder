@@ -45,6 +45,7 @@ card-prototype/
 │   ├── combat/
 │   │   ├── combat_resolver.gd
 │   │   ├── temp_stat_manager.gd
+│   │   ├── status_reactions.gd
 │   │   ├── combat_action.gd        # FALTA
 │   │   └── actions/                 # FALTA
 │   │       ├── play_card_action.gd	 # FALTA
