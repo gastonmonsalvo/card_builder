@@ -132,3 +132,64 @@ func _on_mouse_exited() -> void:
 		return
 	current_state = State.IDLE
 	z_index = base_z_index
+
+## Animación de consumo estilo cartas de tarot d
+## No destruye el nodo; el orquestador (BattleTable) se encarga.
+func play_consume_animation() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	pivot_offset = size * 0.5
+	var original_pos := position
+	var original_rot := rotation
+	
+	# 1. FASE DE ELEVACIÓN Y ENFOQUE
+	var lift_tween := create_tween().set_parallel(true)
+	lift_tween.tween_property(self, "position:y", original_pos.y -50.0, 0.35)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	lift_tween.tween_property(self, "scale", Vector2(1.2, 1.2), 0.35)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
+	await lift_tween.finished
+	
+	# 2. FASE DE VIBRACIÓN Y QUEMADO
+	var mat: ShaderMaterial = panel.material as ShaderMaterial
+	var burn_tween := create_tween().set_parallel(true)
+	
+	if mat:
+		burn_tween.tween_property(mat, "shader_parameter/dissolve_amount", 1.0, 0.75)\
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	else:
+		burn_tween.tween_property(self, "modulate:a", 0.0, 0.75)
+	
+	# Flash de brillo antes de desvanecerse
+	burn_tween.tween_property(self, "modulate", Color(1.8, 1.3, 0.8, 1.0), 0.4)\
+		.set_trans(Tween.TRANS_QUAD)
+	
+	# Micro-sacudidas aleatorias
+	var shake_duration := 0.75
+	var elapsed := 0.0
+	var shake_intensity := 6.0
+	
+	while elapsed < shake_duration:
+		var delta_shake := 0.05
+		var offset := Vector2(
+			randf_range(-shake_intensity, shake_intensity),
+			randf_range(-shake_intensity, shake_intensity)
+		)
+		var rot_offset := deg_to_rad(randf_range(-3.0, 3.0))
+		
+		var mini_tween := create_tween().set_parallel(true)
+		mini_tween.tween_property(self, "position", Vector2(original_pos.x, original_pos.y - 60.0) + offset, delta_shake)
+		mini_tween.tween_property(self, "rotation", original_rot + rot_offset, delta_shake)
+		
+		await mini_tween.finished
+		elapsed += delta_shake
+		shake_intensity += 0.8
+	
+	# 3. COLAPSO FINAL (Puff de ceniza)
+	var end_tween := create_tween().set_parallel(true)
+	end_tween.tween_property(self, "scale", Vector2(0.05, 0.05), 0.15)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	end_tween.tween_property(self, "modulate:a", 0.0, 0.15)
+	
+	await end_tween.finished

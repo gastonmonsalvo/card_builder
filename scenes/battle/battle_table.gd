@@ -461,15 +461,28 @@ func execute_enemy_turn(p_run: RunState, p_enemy: Enemy, p_player_block: int) ->
 ## Ejecuta y descarta una carta instantánea (`single_use`).
 ## Delegar cálculo a `CombatResolver`, manejar UI + animación.
 func consume_instant_card(card: CardUI) -> int:
+	# 1. Guardar referencia a los datos de la carta ANTES de cualquier await/animación
+	var card_data = card.card_data
+	
+	# 2. Desvincularla lógicamente del tablero
 	board.remove_card(card)
-	card.home_position = board.combo_zone.global_position + (board.combo_zone.size * 0.5) - (card.size * 0.5)
-	card.pulse()
 	
-	# LÓGICA: calcular efectos sin tocar UI
-	var temp_state: Dictionary = CombatResolver.calculate_instant_card(card.card_data)
+	# 3. Traer la carta al frente visual
+	card.z_index = 100
 	
-	await get_tree().create_timer(0.55).timeout
+	# 4. Posicionar explícitamente en el centro de la combo zone
+	var target_pos: Vector2 = board.combo_zone.global_position + (board.combo_zone.size * 0.5) - (card.size * 0.5)
+	card.global_position = target_pos
+	card.home_position = target_pos
 	
-	deck.route_played_card(card.card_data)
+	# 5. Esperar la animación completa de consumo (Phasmophobia style)
+	await card.play_consume_animation()
+	
+	# 6. Lógica: calcular efectos usando la referencia guardada
+	var temp_state: Dictionary = CombatResolver.calculate_instant_card(card_data)
+	
+	# 7. Ruteo al cementerio / descarte y liberación de memoria
+	deck.route_played_card(card_data)
 	card.queue_free()
-	return int(temp_state["draw"])
+	
+	return int(temp_state.get("draw", 0))
