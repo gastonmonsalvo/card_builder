@@ -56,6 +56,8 @@ var current_weapon: WeaponData
 var inventory_weapons: Array[WeaponData] = []
 ## Catálogo general con todas las armas disponibles en el juego
 var weapon_catalog: Array[WeaponData] = []
+## Habilidad del personaje
+var current_ability: HeroAbility = null
 
 var player_str: int = 1
 var player_int: int = 1
@@ -106,7 +108,13 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 		player_str = CombatConstants.BASE_STR
 		player_int = CombatConstants.BASE_INT
 		player_dex = CombatConstants.BASE_DEX
-
+	
+	# Duplicar la habilidad para que esta run tenga su instancia propia
+	if hero and hero.ability:
+		current_ability = hero.ability.duplicate()
+		current_ability.reset_for_combat()
+	else:
+		current_ability = null
 	
 	# Nos aseguramos de tener los catálogos llenos por si se vaciaron
 	if relic_catalog.is_empty(): relic_catalog = GameDatabase.load_all_relics()

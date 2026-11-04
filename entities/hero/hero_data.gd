@@ -38,6 +38,9 @@ class_name HeroData
 ## Arma inicial que porta el héroe al arrancar la run.
 @export var starting_weapon: WeaponData
 
+## Habilidad activable del héroe. Asignar desde el Inspector.
+@export var ability: HeroAbility
+
 ## Retorna el nombre del arma inicial de forma segura, o un texto por defecto si está desarmado.
 func get_starting_weapon_name() -> String:
 	if starting_weapon and "weapon_name" in starting_weapon:

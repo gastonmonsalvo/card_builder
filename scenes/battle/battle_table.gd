@@ -15,6 +15,7 @@ signal combat_lost()
 @onready var attack_button: Button = $AttackButton
 @onready var discard_button: Button = $DiscardButton
 @onready var hud: BattleHUD = $HUD
+@onready var ability_button: Button = $AbilityButton
 
 var run: RunState = RunState.new()
 var deck: DeckManager = DeckManager.new()
@@ -62,7 +63,8 @@ func _ready() -> void:
 		var debug_overlay := DebugOverlay.new()
 		add_child(debug_overlay)
 		debug_overlay.bind_context(self, run, director)
-
+	if ability_button:
+		ability_button.pressed.connect(_on_ability_pressed)
 	# El juego arranca sin enemigo; los botones de combate deben iniciar desactivados.
 	refresh_ui()
 
@@ -74,7 +76,7 @@ func start_combat_encounter(is_boss: bool) -> void:
 	if board == null or deck == null or run == null:
 		push_error("[BattleTable] No se puede iniciar el combate: faltan dependencias.")
 		return
-
+		
 	is_resolving = false
 	attack_button.disabled = false
 	discard_button.disabled = true
@@ -82,6 +84,10 @@ func start_combat_encounter(is_boss: bool) -> void:
 	
 	var remaining_board_cards: Array[CardData] = board.clear_all_and_extract_data()
 	deck.reset_for_new_combat(remaining_board_cards)
+	
+		# Resetear usos de la habilidad del héroe
+	if run.current_ability:
+		run.current_ability.reset_for_combat()
 	
 	enemy = run.create_enemy_for_room(is_boss)
 	if enemy == null:
@@ -304,7 +310,11 @@ func clear_board_visuals() -> void:
 func refresh_ui() -> void:
 	if board == null or run == null or hud == null:
 		return
-
+		
+	if ability_button and run.current_ability:
+		ability_button.text = run.current_ability.get_hud_text()
+		ability_button.disabled = not run.current_ability.can_activate() or is_resolving
+		
 	var preview: Dictionary = CombatResolver.calculate_sequential_preview(board.combo_cards, run)
 	hud.refresh_all(run.player_hp, player_block, current_energy, run.max_energy, enemy, preview, run.max_player_hp, run.player_luck)
 	discard_button.text = "DESCARTAR (%d)" % discards_remaining
@@ -313,6 +323,7 @@ func refresh_ui() -> void:
 	attack_button.text = "EJECUTAR COMBO" if not board.combo_cards.is_empty() else "PASAR TURNO"
 	attack_button.disabled = not encounter_active or is_resolving
 	discard_button.disabled = not encounter_active or is_resolving or discards_remaining <= 0 or board.combo_cards.is_empty()
+
 
 ## Atrapa eventos de teclado/controlador globales no consumidos por los botones físicos de la UI 
 ## (ej. presionar la tecla ESC). Delega esta señal al `RunDirector` para gestionar el menú de pausa sin acoplar lógicas en la mesa de combate.
@@ -486,3 +497,24 @@ func consume_instant_card(card: CardUI) -> int:
 	card.queue_free()
 	
 	return int(temp_state.get("draw", 0))
+	
+## Maneja la pulsación del botón de habilidad del héroe en la interfaz.
+## Valida las condiciones del combate, ejecuta la habilidad con su contexto y actualiza la UI.
+func _on_ability_pressed() -> void:
+	if is_resolving or enemy == null or enemy.is_dead() or run.is_player_dead():
+		return
+	if not run.current_ability or not run.current_ability.can_activate():
+		hud.set_banner_message("¡HABILIDAD NO DISPONIBLE!")
+		return
+	
+	# Activar la habilidad pasando el contexto
+	var context := {
+		"table": self,
+		"run": run,
+		"deck": deck
+	}
+	run.current_ability.activate(context)
+	
+	# Feedback visual
+	hud.set_banner_message("¡%s ACTIVADA!" % run.current_ability.ability_name.to_upper())
+	refresh_ui()

@@ -93,7 +93,7 @@ card-prototype/
 ├── entities/
 │   ├── hero/
 │   │   ├── hero_data.gd
-│   │   ├──hero_ability.gd 	FALTA
+│   │   ├──hero_ability.gd 	
 │   │   └── data/
 │   │       ├── guerrero.tres
 │   │       ├── mago.tres

@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://b82kywloehva2"]
 
+[ext_resource type="Script" uid="uid://bidyvxi3t52dg" path="res://entities/hero/abilities/arcane_flow.gd" id="1_4dogp"]
 [ext_resource type="Script" uid="uid://crbebhweegtm" path="res://entities/hero/hero_data.gd" id="1_hfmn6"]
 [ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="2_3s0qq"]
 [ext_resource type="Resource" uid="uid://i1pytn6coan6" path="res://cards/data/golpe_congelante.tres" id="3_3s0qq"]
@@ -9,6 +10,10 @@
 [ext_resource type="Resource" uid="uid://cmunbbbok70c" path="res://cards/data/sobre_carga.tres" id="7_4gk60"]
 [ext_resource type="Script" uid="uid://cvqw6vg6qvtwr" path="res://relics/relic_data.gd" id="8_wuqwb"]
 [ext_resource type="Resource" uid="uid://b3gccp5tyg7jh" path="res://weapons/data/baculo.tres" id="9_vevfc"]
+
+[sub_resource type="Resource" id="Resource_tsrad"]
+script = ExtResource("1_4dogp")
+metadata/_custom_type_script = "uid://bidyvxi3t52dg"
 
 [resource]
 script = ExtResource("1_hfmn6")
@@ -25,4 +30,5 @@ base_str = 3
 base_int = 6
 base_dex = 2
 starting_weapon = ExtResource("9_vevfc")
+ability = SubResource("Resource_tsrad")
 metadata/_custom_type_script = "uid://crbebhweegtm"
