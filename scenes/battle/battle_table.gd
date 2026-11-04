@@ -316,26 +316,32 @@ func clear_board_visuals() -> void:
 	attack_button.disabled = true
 	discard_button.disabled = true
 	
-## Solicita un cálculo matemático predictivo (Previsualización) de toda la cadena de cartas en la zona de combo.
-## Con ese diccionario resultante, ordena al `BattleHUD` que actualice todas sus etiquetas visuales de salud, 
-## escudo y daño. Ajusta también los textos y estados de los botones principales.
+## Actualiza el estado visual completo de la interfaz de usuario en la mesa de combate.
+## Refresca botones, etiquetas, contadores y las estadísticas del jugador y enemigo en el HUD.
+## Omite el cálculo del preview si hay una resolución de combo en curso para preservar los mensajes del banner.
 func refresh_ui() -> void:
 	if board == null or run == null or hud == null:
 		return
-		
+
+	# Estado y texto del botón de habilidad activa del héroe
 	if ability_button and run.current_ability:
 		ability_button.text = run.current_ability.get_hud_text()
 		ability_button.disabled = not run.current_ability.can_activate() or is_resolving
-		
-	var preview: Dictionary = CombatResolver.calculate_sequential_preview(board.combo_cards, run)
-	hud.refresh_all(run.player_hp, player_block, current_energy, run.max_energy, enemy, preview, run.max_player_hp, run.player_luck)
+
+	# Si estamos resolviendo el combo, no recalculamos el preview para mantener el banner actual
+	if not is_resolving:
+		var preview: Dictionary = CombatResolver.calculate_sequential_preview(board.combo_cards, run)
+		hud.refresh_all(run.player_hp, player_block, current_energy, run.max_energy, enemy, preview, run.max_player_hp, run.player_luck)
+	else:
+		# Durante la resolución se envían los stats actualizados pero con preview vacío
+		hud.refresh_all(run.player_hp, player_block, current_energy, run.max_energy, enemy, {}, run.max_player_hp, run.player_luck)
+
 	discard_button.text = "DESCARTAR (%d)" % discards_remaining
 
 	var encounter_active: bool = enemy != null and not enemy.is_dead() and not run.is_player_dead()
 	attack_button.text = "EJECUTAR COMBO" if not board.combo_cards.is_empty() else "PASAR TURNO"
 	attack_button.disabled = not encounter_active or is_resolving
 	discard_button.disabled = not encounter_active or is_resolving or discards_remaining <= 0 or board.combo_cards.is_empty()
-
 
 ## Atrapa eventos de teclado/controlador globales no consumidos por los botones físicos de la UI 
 ## (ej. presionar la tecla ESC). Delega esta señal al `RunDirector` para gestionar el menú de pausa sin acoplar lógicas en la mesa de combate.

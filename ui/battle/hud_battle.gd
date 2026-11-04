@@ -62,7 +62,9 @@ func _on_inventory_weapon_selected(weapon: WeaponData) -> void:
 		inventory_modal.open_inventory(_run_ref)
 		equipment_changed.emit()
 
-## Función principal de renderizado. Delega a los sub-componentes.
+## Actualiza y sincroniza todos los subcomponentes del HUD con el estado actual del combate.
+## Refresca la información del jugador, enemigo, pilas de cartas y el banner de previsualización.
+## Preserva el contenido actual del banner si el diccionario de preview recibido está vacío.
 func refresh_all(
 	player_hp: int,
 	player_block: int,
@@ -88,8 +90,9 @@ func refresh_all(
 	var enemy_data: Dictionary = enemy.get_hud_data(player_luck) if enemy != null else {}
 	enemy_hud.update_data(enemy_data)
 	
-	# 3. Combo Banner
-	combo_banner.update_data(preview)
+	# 3. Combo Banner (solo actualiza si hay datos nuevos de preview)
+	if not preview.is_empty():
+		combo_banner.update_data(preview)
 	
 	# 4. Piles
 	if _draw_pile:
@@ -98,7 +101,6 @@ func refresh_all(
 		discard_pile_btn.text = "Descarte (%d)" % _discard_pile.size()
 	if _graveyard_pile:
 		graveyard_pile_btn.text = "Cementerio (%d)" % _graveyard_pile.size()
-
 ## Sobrescribe el banner con un mensaje efímero
 func set_banner_message(msg: String) -> void:
 	combo_banner.show_message(msg)
