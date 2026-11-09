@@ -15,4 +15,5 @@ title = "Pata De Conejo"
 rarity = 1
 effects = Array[ExtResource("1_qlh8v")]([SubResource("Resource_2f7r6")])
 description = "Buena fortuna."
+lore = "Un amuleto gastado por generaciones de tahúres y saqueadores de tumbas. Dicen que la suerte que otorga fue robada a su antiguo dueño."
 metadata/_custom_type_script = "uid://cvqw6vg6qvtwr"

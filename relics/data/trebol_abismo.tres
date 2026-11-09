@@ -14,3 +14,4 @@ title = "Trebol del Abismo"
 rarity = 1
 effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
 description = "Un trebol de 4 hojas."
+lore = "Brotó en la oscuridad absoluta donde jamás llega el sol. Sus cuatro hojas negras inclinan los dados del destino a favor de quien no teme mirarlo."

@@ -13,3 +13,4 @@ script = ExtResource("1_data")
 title = "Anillo de Brasas"
 effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
 description = "Un anillo candente."
+lore = "Forjado en el corazón de una fragua enana hoy sepultada bajo cenizas. Su metal jamás se enfría y murmura chispas al desenfundar."

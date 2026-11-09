@@ -14,3 +14,4 @@ title = "Colmillo de Vibora"
 rarity = 1
 effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
 description = "Parece peligroso."
+lore = "Arrancado de una sierpe albina de las criptas profundas. Aunque lleva décadas seco, su canal interno sigue destilando una gota letal al primer roce."

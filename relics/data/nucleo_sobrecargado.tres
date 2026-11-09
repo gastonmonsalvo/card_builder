@@ -14,3 +14,4 @@ title = "Nucleo Sobrecargado"
 rarity = 1
 effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
 description = "¿Explotara?"
+lore = "Una esfera de cuarzo agrietada que contiene una tormenta en miniatura. Los alquimistas que intentaron sellarla desaparecieron sin dejar sombra."

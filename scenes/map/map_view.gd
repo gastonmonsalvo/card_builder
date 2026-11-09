@@ -91,7 +91,10 @@ func _init() -> void:
 	relics_btn.text = "RELIQUIAS (0)"
 	relics_btn.position = Vector2(610, 20)
 	relics_btn.size = Vector2(145, 36)
-	relics_btn.pressed.connect(func(): inspector_modal.open_inspector("RELIQUIAS EQUIPADAS", _cached_relics_detail))
+	relics_btn.pressed.connect(func():
+		var relics_arr: Array[RelicData] = _current_run_ref.active_relics if _current_run_ref else []
+		inspector_modal.open_relic_cards("RELIQUIAS EQUIPADAS (%d)" % relics_arr.size(), relics_arr)
+	)
 	add_child(relics_btn)
 
 	deck_btn = Button.new()

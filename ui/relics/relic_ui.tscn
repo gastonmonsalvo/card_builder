@@ -1,0 +1,175 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/relics/relic_ui.gd" id="1_relic"]
+
+[node name="RelicUI" type="Control"]
+custom_minimum_size = Vector2(240, 270)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 240.0
+offset_bottom = 270.0
+mouse_filter = 1
+script = ExtResource("1_relic")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.65
+offset_left = 10.0
+offset_top = 6.0
+offset_right = -2.0
+offset_bottom = 28.0
+theme_override_font_sizes/font_size = 12
+text = "Nombre de la Reliquia"
+vertical_alignment = 1
+clip_text = true
+
+[node name="RarityLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.65
+anchor_right = 1.0
+offset_left = 2.0
+offset_top = 6.0
+offset_right = -10.0
+offset_bottom = 28.0
+theme_override_font_sizes/font_size = 11
+text = "[Comun]"
+horizontal_alignment = 2
+vertical_alignment = 1
+clip_text = true
+
+[node name="Divider1" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 31.0
+offset_right = -8.0
+offset_bottom = 32.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0.14)
+
+[node name="PedestalPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.16
+anchor_top = 0.14
+anchor_right = 0.84
+anchor_bottom = 0.42
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ArtTexture" type="TextureRect" parent="PedestalPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ArtPlaceholderLabel" type="Label" parent="PedestalPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 30
+text = "💍"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Divider2" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.445
+anchor_right = 1.0
+anchor_bottom = 0.445
+offset_left = 8.0
+offset_right = -8.0
+offset_bottom = 1.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0.14)
+
+[node name="EffectHeaderLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.46
+anchor_right = 1.0
+anchor_bottom = 0.525
+offset_left = 10.0
+offset_right = -10.0
+theme_override_font_sizes/font_size = 10
+text = "EFECTO"
+vertical_alignment = 1
+
+[node name="EffectBodyLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.525
+anchor_right = 1.0
+anchor_bottom = 0.68
+offset_left = 10.0
+offset_right = -10.0
+theme_override_font_sizes/font_size = 11
+text = "\"+3 Quemadura inicial\""
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="Divider3" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.695
+anchor_right = 1.0
+anchor_bottom = 0.695
+offset_left = 8.0
+offset_right = -8.0
+offset_bottom = 1.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0.14)
+
+[node name="LoreHeaderLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.71
+anchor_right = 1.0
+anchor_bottom = 0.77
+offset_left = 10.0
+offset_right = -10.0
+theme_override_font_sizes/font_size = 9
+text = "LORE / HISTORIA"
+vertical_alignment = 1
+
+[node name="LoreBodyLabel" type="RichTextLabel" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.77
+anchor_right = 1.0
+anchor_bottom = 0.975
+offset_left = 10.0
+offset_right = -10.0
+mouse_filter = 2
+theme_override_font_sizes/normal_font_size = 10
+theme_override_font_sizes/italics_font_size = 10
+bbcode_enabled = true
+text = "[i]\"Un talismán tallado con el conocimiento...\"[/i]"
+fit_content = false
+scroll_active = false

@@ -12,3 +12,4 @@ script = ExtResource("1_data")
 title = "Catalizador de Combo"
 effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
 description = "Potencia tus ataques."
+lore = "Un engranaje rúnico que acelera el pulso de su portador. Cuanto más frenética es la cadena de estocadas, más violento resuena su núcleo."

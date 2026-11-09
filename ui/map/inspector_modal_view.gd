@@ -4,6 +4,7 @@ extends Panel
 class_name InspectorModalView
 
 const CARD_SCENE: PackedScene = preload("res://ui/cards/card_ui.tscn")
+const RELIC_SCENE: PackedScene = preload("res://ui/relics/relic_ui.tscn")
 
 ## Referencia a la etiqueta visual que renderiza el título principal superior del modal.
 var inspector_title_label: Label
@@ -102,6 +103,7 @@ func open_deck_cards(title_txt: String, cards: Array[CardData]) -> void:
 
 	inspector_body_label.visible = false
 	cards_grid.visible = true
+	cards_grid.columns = 5
 	scroll_container.scroll_vertical = 0
 
 	var counts: Dictionary = {}
@@ -121,6 +123,45 @@ func open_deck_cards(title_txt: String, cards: Array[CardData]) -> void:
 		var count: int = counts[title_key]
 		var sample: CardData = sample_cards[title_key]
 		cards_grid.add_child(_create_card_slot(sample, count))
+
+	visible = true
+
+## Abre el modal en modo visual renderizando cada reliquia equipada de `relics` mediante `RelicUI`
+## con su insignia superior `"x1"` o `"xN"` indicando la cantidad de copias.
+func open_relic_cards(title_txt: String, relics: Array[RelicData]) -> void:
+	inspector_title_label.text = title_txt
+	for child in cards_grid.get_children():
+		child.queue_free()
+
+	if relics.is_empty():
+		inspector_body_label.text = "No tienes reliquias equipadas."
+		inspector_body_label.visible = true
+		cards_grid.visible = false
+		visible = true
+		return
+
+	inspector_body_label.visible = false
+	cards_grid.visible = true
+	cards_grid.columns = 3
+	scroll_container.scroll_vertical = 0
+
+	var counts: Dictionary = {}
+	var sample_relics: Dictionary = {}
+	var ordered_titles: Array[String] = []
+
+	for relic in relics:
+		if relic == null:
+			continue
+		if not counts.has(relic.title):
+			counts[relic.title] = 0
+			sample_relics[relic.title] = relic
+			ordered_titles.append(relic.title)
+		counts[relic.title] += 1
+
+	for title_key in ordered_titles:
+		var count: int = counts[title_key]
+		var sample: RelicData = sample_relics[title_key]
+		cards_grid.add_child(_create_relic_slot(sample, count))
 
 	visible = true
 
@@ -180,5 +221,63 @@ func _create_card_slot(card_data: CardData, count: int) -> Control:
 	card_ui.set_static_display_mode(true)
 	card_holder.add_child(card_ui)
 	card_ui.setup_card(card_data)
+
+	return slot
+
+## Construye una celda vertical que agrupa la insignia superior de cantidad (`"x1"` / `"xN"`)
+## y la instancia visual de `RelicUI`.
+func _create_relic_slot(relic_data: RelicData, count: int) -> Control:
+	var slot := VBoxContainer.new()
+	slot.custom_minimum_size = Vector2(248, 304)
+	slot.alignment = BoxContainer.ALIGNMENT_CENTER
+	slot.add_theme_constant_override("separation", 6)
+
+	var badge_row := HBoxContainer.new()
+	badge_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	slot.add_child(badge_row)
+
+	var badge_panel := PanelContainer.new()
+	badge_panel.custom_minimum_size = Vector2(46, 22)
+	var badge_style := StyleBoxFlat.new()
+	if count > 1:
+		badge_style.bg_color = Color(0.22, 0.17, 0.05, 0.96)
+		badge_style.border_color = Color(1.0, 0.82, 0.25, 0.95)
+	else:
+		badge_style.bg_color = Color(0.10, 0.14, 0.22, 0.94)
+		badge_style.border_color = Color(0.50, 0.68, 0.90, 0.65)
+	badge_style.border_width_left = 1
+	badge_style.border_width_top = 1
+	badge_style.border_width_right = 1
+	badge_style.border_width_bottom = 1
+	badge_style.corner_radius_top_left = 6
+	badge_style.corner_radius_top_right = 6
+	badge_style.corner_radius_bottom_left = 6
+	badge_style.corner_radius_bottom_right = 6
+	badge_style.content_margin_left = 8
+	badge_style.content_margin_right = 8
+	badge_style.content_margin_top = 2
+	badge_style.content_margin_bottom = 2
+	badge_panel.add_theme_stylebox_override("panel", badge_style)
+	badge_row.add_child(badge_panel)
+
+	var count_label := Label.new()
+	count_label.text = "x%d" % count
+	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	count_label.add_theme_font_size_override("font_size", 13)
+	if count > 1:
+		count_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.32))
+	else:
+		count_label.add_theme_color_override("font_color", Color(0.88, 0.94, 1.0))
+	badge_panel.add_child(count_label)
+
+	var relic_holder := Control.new()
+	relic_holder.custom_minimum_size = Vector2(240, 270)
+	relic_holder.mouse_filter = Control.MOUSE_FILTER_PASS
+	slot.add_child(relic_holder)
+
+	var relic_ui := RELIC_SCENE.instantiate() as RelicUI
+	relic_holder.add_child(relic_ui)
+	relic_ui.setup_relic(relic_data)
 
 	return slot

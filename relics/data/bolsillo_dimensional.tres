@@ -14,3 +14,4 @@ title = "Bolsillo Dimensional"
 rarity = 1
 effects = Array[ExtResource("2_base")]([SubResource("Resource_1")])
 description = "¿Un bolsillo?"
+lore = "Cosido con hebras de vacío por un sastre exiliado de la Torre Arcana. Por dentro siempre cabe un truco más del que permite la tela."

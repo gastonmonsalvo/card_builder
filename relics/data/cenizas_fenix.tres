@@ -14,4 +14,5 @@ title = "Cenizas de Fenix"
 rarity = 3
 effects = Array[ExtResource("1_nqqi0")]([SubResource("Resource_exk17")])
 description = "Huele a quemado."
+lore = "El clan, que perdió todo en el gran incendio, recogió este puñado de pavesas doradas como objeto sagrado. Aún laten esperando una última agonía."
 metadata/_custom_type_script = "uid://cvqw6vg6qvtwr"
