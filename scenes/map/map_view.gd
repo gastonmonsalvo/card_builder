@@ -27,7 +27,6 @@ var stats_label: Label
 var seed_label: Label
 
 var legend_label: Label
-var relics_btn: Button
 var deck_btn: Button
 var grid_container: Control
 var room_buttons: Dictionary = {}
@@ -87,16 +86,6 @@ func _init() -> void:
 	legend_label.text = "Selecciona una sala conectada (borde brillante) para avanzar por la planta."
 	add_child(legend_label)
 
-	relics_btn = Button.new()
-	relics_btn.text = "RELIQUIAS (0)"
-	relics_btn.position = Vector2(610, 20)
-	relics_btn.size = Vector2(145, 36)
-	relics_btn.pressed.connect(func():
-		var relics_arr: Array[RelicData] = _current_run_ref.active_relics if _current_run_ref else []
-		inspector_modal.open_relic_cards("RELIQUIAS EQUIPADAS (%d)" % relics_arr.size(), relics_arr)
-	)
-	add_child(relics_btn)
-
 	deck_btn = Button.new()
 	deck_btn.text = "MI MAZO (0)"
 	deck_btn.position = Vector2(765, 20)
@@ -131,13 +120,10 @@ func _init() -> void:
 	add_child(inspector_modal)
 	
 	inventory_btn = Button.new()
-	inventory_btn.text = "Inventario"
-	
-	inventory_btn.position = Vector2(455, 20)
+	inventory_btn.text = "🎒 INVENTARIO"
+	inventory_btn.position = Vector2(610, 20)
 	inventory_btn.size = Vector2(145, 36)
 	inventory_btn.pressed.connect(func():
-		# Necesitamos una referencia al run para abrirlo. 
-		# Como MapView recibe los datos por setup_floor, guardemos una referencia local al RunState o pasémosla.
 		if _current_run_ref:
 			inventory_modal.open_inventory(_current_run_ref)
 	)
@@ -191,7 +177,7 @@ func setup_floor(
 	]
 	legend_label.text = "Selecciona una sala conectada (borde brillante) para avanzar por la planta."
 
-	relics_btn.text = "RELIQUIAS (%d)" % p_relics_count
+	inventory_btn.text = "🎒 INVENTARIO (%d)" % p_relics_count
 	deck_btn.text = "MI MAZO (%d)" % p_deck_count
 
 	_rebuild_grid_buttons()

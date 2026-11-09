@@ -262,7 +262,7 @@ Las reliquias persisten durante toda la run y disparan sus efectos en cuatro mom
 
 ### Anatomía Visual de las Reliquias (`RelicUI` + `RelicData`)
 
-Al inspeccionar las reliquias desde el botón **`RELIQUIAS (N)`** en el Mapa (`InspectorModalView.open_relic_cards()`), cada reliquia se presenta como una tarjeta visual (`ui/relics/relic_ui.tscn` + `ui/relics/relic_ui.gd`) con su insignia superior de copias (`x1` / `xN`) y una estructura de 4 bloques:
+Dentro del **Inventario General** (`InventoryModalView`, accesible desde el botón **`🎒 INVENTARIO`** tanto en el Mapa como en la Mesa de Combate), las reliquias se presentan en el panel derecho como tarjetas visuales (`ui/relics/relic_ui.tscn` + `ui/relics/relic_ui.gd`) con su insignia superior de copias (`x1` / `xN`) y una estructura de 4 bloques:
 
 ```text
 ┌──────────────────────────────────────────────┐
@@ -314,7 +314,10 @@ Al inspeccionar las reliquias desde el botón **`RELIQUIAS (N)`** en el Mapa (`I
 3. **Escalado (`scale_str`, `scale_int`, `scale_dex`) y Estados On-Hit**: Si la carta tiene `uses_weapon_damage = true` y se cumplen los requisitos, suma al daño de la carta:
    $$\text{Daño Arma} = \text{base\_damage} + \lfloor \text{STR}\cdot\text{scale\_str} + \text{INT}\cdot\text{scale\_int} + \text{DEX}\cdot\text{scale\_dex} \rfloor$$
    Además, inyecta automáticamente las cargas `inflict_poison`, `inflict_burn`, `inflict_hemorrhage` e `inflict_shock` del arma al combo.
-4. **Mochila de Armas (`inventory_weapons`)**: El jugador puede guardar hasta **4 armas en su mochila** (`MAX_INVENTORY_SIZE = 4`) y cambiar su arma equipada desde `InventoryModalView` tanto en el mapa como en combate.
+4. **Inventario General Unificado (`InventoryModalView`)**:
+   - Tanto en el Mapa como en la columna izquierda del HUD de Combate existe un único botón **`🎒 INVENTARIO`** que despliega el modal de **Inventario General** (con botón de cierre `✕` arriba a la derecha y soporte de tecla `ESC` para cerrar el modal y volver atrás sin disparar el menú de pausa).
+   - **Panel Izquierdo (`[ ⚔️ ARMAS Y EQUIPO ]`)**: Muestra arriba la tarjeta `WeaponUI` del **Arma Equipada** y debajo la **Bolsa de Armas** (hasta 4 armas en grilla de 2 columnas), permitiendo intercambiar el arma activa en cualquier momento con un clic.
+   - **Panel Derecho (`[ 🔮 RELIQUIAS Y ATRIBUTOS ]`)**: Muestra arriba el cuadro completo de **Atributos del Jugador** (`Héroe`, `Planta`, `HP`, `Bono Arma base + escalado`, `Energía / Mano`, `STR`, `INT`, `DEX`, `LUCK`, `Oro`) y debajo la **Bolsa de Reliquias** en grilla de 2 columnas con tarjetas `RelicUI` y su contador `x1` / `xN`.
 
 ### Anatomía Visual de las Armas (`WeaponUI` + `WeaponData`)
 

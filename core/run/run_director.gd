@@ -387,15 +387,40 @@ func _on_change_slot_requested() -> void:
 	slot_view.refresh_slots()
 	slot_view.visible = true
 
-## Captura la pulsación de ESC: si está en `HeroSelectView` regresa a `MainMenuView`; si hay una run activa abre el menú de pausa.
+## Captura la pulsación de ESC con prioridad jerárquica:
+## 1. Si hay un modal abierto (Inventario General, Inspector de Mazo o Inspector de Pila), lo cierra (vuelve atrás) sin abrir el menú de pausa.
+## 2. Si está en `HeroSelectView`, regresa a `MainMenuView`.
+## 3. Si no hay modales superpuestos ni menús de inicio activos, abre el menú de pausa.
 func handle_unhandled_key(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
+			# 1. Si el Inventario General está abierto (en el Mapa o en Combate), ESC lo cierra y vuelve atrás
+			if map_view and map_view.inventory_modal and map_view.inventory_modal.visible:
+				map_view.inventory_modal.visible = false
+				table.get_viewport().set_input_as_handled()
+				return
+			if table and table.hud and table.hud.inventory_modal and table.hud.inventory_modal.visible:
+				table.hud.inventory_modal.visible = false
+				table.get_viewport().set_input_as_handled()
+				return
+
+			# 2. Si el Inspector de Mazo o de Pilas está abierto, ESC también lo cierra y vuelve atrás
+			if map_view and map_view.inspector_modal and map_view.inspector_modal.visible:
+				map_view.inspector_modal.visible = false
+				table.get_viewport().set_input_as_handled()
+				return
+			if table and table.hud and table.hud.pile_inspector and table.hud.pile_inspector.visible:
+				table.hud.pile_inspector.visible = false
+				table.get_viewport().set_input_as_handled()
+				return
+
+			# 3. Si está en Selección de Héroe, regresa al Menú Principal
 			if hero_select_view and hero_select_view.visible:
 				_on_hero_select_cancelled()
 				table.get_viewport().set_input_as_handled()
 				return
-			# Solo permitimos pausar si no estamos en los menús de inicio
+
+			# 4. Solo permitimos abrir Pausa si no estamos en menús de inicio ni con otros modales abiertos
 			if not slot_view.visible and not main_menu.visible and not pause_menu.visible:
 				pause_menu.open_pause()
 				table.get_viewport().set_input_as_handled()
