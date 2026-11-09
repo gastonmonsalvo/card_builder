@@ -46,6 +46,8 @@ var _current_run_ref: RunState = null
 var _cached_relics_detail: String = ""
 ## Memoria caché en formato texto (BBCode) con el listado del mazo actual para inyectar en el Inspector.
 var _cached_deck_detail: String = ""
+## Memoria caché con las instancias `CardData` de todas las cartas que posee el jugador para la vista visual del mazo.
+var _cached_deck_cards: Array[CardData] = []
 
 const CELL_SIZE := Vector2(96, 46)
 const CELL_GAP := Vector2(20, 14)
@@ -96,7 +98,7 @@ func _init() -> void:
 	deck_btn.text = "MI MAZO (0)"
 	deck_btn.position = Vector2(765, 20)
 	deck_btn.size = Vector2(145, 36)
-	deck_btn.pressed.connect(func(): inspector_modal.open_inspector("CARTAS EN TU MAZO", _cached_deck_detail))
+	deck_btn.pressed.connect(func(): inspector_modal.open_deck_cards("CARTAS EN TU MAZO (%d)" % _cached_deck_cards.size(), _cached_deck_cards))
 	add_child(deck_btn)
 	
 	#CONFIGURACION DE LUGAR LABEL DE SEED
@@ -162,7 +164,8 @@ func setup_floor(
 	p_deck_count: int,
 	p_deck_detail: String,
 	p_player_gold:int,
-	p_run_ref: RunState = null
+	p_run_ref: RunState = null,
+	p_deck_cards: Array[CardData] = []
 ) -> void:
 	visible = true
 	floor_number = p_floor
@@ -172,6 +175,7 @@ func setup_floor(
 	current_pos = p_current_pos
 	_cached_relics_detail = p_relics_detail
 	_cached_deck_detail = p_deck_detail
+	_cached_deck_cards = p_deck_cards
 	_current_run_ref = p_run_ref
 	var odds_txt: String = RaritySystem.get_probabilities_summary(floor_number, p_player_luck)
 	

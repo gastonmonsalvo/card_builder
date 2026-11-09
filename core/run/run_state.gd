@@ -404,7 +404,9 @@ func generate_shop_cards(room_pos: Vector2i, count: int = 3, bonus_fortune: floa
 		var target_tier: RaritySystem.Tier = RaritySystem.roll_tier(rng, current_floor, player_luck, bonus_fortune)
 		var picked: CardData = _pick_from_pool_by_tier_cards(pool_card, target_tier, rng)
 		if picked:
-			result.append(picked.duplicate())
+			var copy: CardData = picked.duplicate() as CardData
+			copy.resource_name = picked.resource_path if picked.resource_path != "" else picked.resource_name
+			result.append(copy)
 			pool_card.erase(picked) # Evita que la misma carta salga 2 veces en la misma tienda
 
 	return result
@@ -667,7 +669,9 @@ func generate_combat_rewards(combat_index: int = 0) -> Dictionary:
 		var tier := RaritySystem.roll_tier(rng, current_floor, player_luck)
 		var card := _pick_from_pool_by_tier_cards(pool, tier, rng)
 		if card:
-			cards.append(card.duplicate())
+			var copy: CardData = card.duplicate() as CardData
+			copy.resource_name = card.resource_path if card.resource_path != "" else card.resource_name
+			cards.append(copy)
 			pool.erase(card)
 	
 	# 30% chance de relic (determinista)

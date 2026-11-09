@@ -34,6 +34,9 @@ var drag_offset: Vector2
 var press_start_pos: Vector2
 var is_pointer_down: bool = false
 var base_z_index: int = 0
+## Cuando es `true`, desactiva el arrastre y el reposicionamiento global (`home_position`)
+## para que la carta pueda alojarse dentro de contenedores (`GridContainer`/`ScrollContainer`) manteniendo su animación de hover.
+var static_display_mode: bool = false
 
 ## Configura el pivote central, guarda su posición inicial y conecta las señales de input del ratón.
 ## Si ya tiene `card_data` asignada al instanciarse, dispara su configuración visual.
@@ -152,9 +155,25 @@ func setup_card(data: CardData) -> void:
 		status_icon_label.text = status_icons
 		status_icon_label.visible = status_icons != ""
 
+## Configura la carta en modo de exhibición estática (para inspectores de mazo o pilas con scroll),
+## desactivando el drag & drop y permitiendo que la rueda del ratón desplace el contenedor padre.
+func set_static_display_mode(enabled: bool = true) -> void:
+	static_display_mode = enabled
+	if enabled:
+		mouse_filter = Control.MOUSE_FILTER_PASS
+
 ## Ejecuta un resorte exponencial continuo para interpolar suavemente la posición, rotación y escala.
 ## Durante el arrastre (`DRAGGING`), aplica una inclinación dinámica (tilt) basada en la velocidad horizontal.
 func _process(delta: float) -> void:
+	if static_display_mode:
+		pivot_offset = size / 2.0
+		var static_weight: float = 1.0 - exp(-18.0 * delta)
+		var static_rot: float = -2.5 if current_state == State.HOVERED else 0.0
+		var static_scale: Vector2 = Vector2(1.07, 1.07) if current_state == State.HOVERED else Vector2.ONE
+		rotation_degrees = lerp(rotation_degrees, static_rot, static_weight)
+		scale = scale.lerp(static_scale, static_weight)
+		return
+
 	if is_pointer_down and current_state != State.DRAGGING:
 		if get_global_mouse_position().distance_to(press_start_pos) > DRAG_THRESHOLD:
 			_start_dragging()
@@ -195,6 +214,8 @@ func update_z_index() -> void:
 ## Evalúa el clic izquierdo para distinguir entre un toque rápido (emite `card_clicked` al soltar)
 ## y un arrastre continuo (superado el umbral `DRAG_THRESHOLD`, delega a `_start_dragging`).
 func _on_gui_input(event: InputEvent) -> void:
+	if static_display_mode:
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			is_pointer_down = true

@@ -153,10 +153,13 @@ Estado: Prototipo jugable (Core Loop, Combate por Combos, Reacciones Elementales
   - Las cartas van a `discard_pile` (incluso si eran `single_use`, ya que no se ejecutaron).
   - Se consume 1 ficha de descarte y **se roba inmediatamente la misma cantidad de cartas**.
 
-### 5.Las 3 Pilas del Mazo (`DeckManager`)
+### 5. Las 3 Pilas del Mazo (`DeckManager`) y Vista Visual de Colección
 1. **`draw_pile` (Mazo)**: Cartas listas para robar. Cuando se vacía, recicla y baraja automáticamente `discard_pile`.
 2. **`discard_pile` (Descarte)**: Cartas normales jugadas o descartadas tácticamente.
-3. **`graveyard_pile` (Cementerio)**: Las cartas con `single_use = true` (ej. **Curación**) van al Cementerio tras ejecutarse en un combo y **no vuelven a reciclarse durante ese combate**. Al iniciar el siguiente combate, todas las pilas se unifican de nuevo en el Mazo.
+3. **`graveyard_pile` (Cementerio)**: Las cartas con `single_use = true` (ej. **Curación**) van al Cementerio tras ejecutarse en un combo y **no vuelven a reciclarse durante ese combate**. Al finalizar un combate (`RunDirector._clear_room_after_combat()`) o iniciar el siguiente, todas las pilas y cartas de la mesa se consolidan de nuevo en el Mazo.
+4. **Inspección Visual del Mazo y Pilas (`InspectorModalView.open_deck_cards()` y `PileInspector.show_pile()`)**:
+   - Tanto al tocar **`MI MAZO`** en el Mapa como al tocar **`Mazo`**, **`Descarte`** o **`Cementerio`** durante el combate, el juego despliega una grilla visual de 5 columnas con scroll vertical que renderiza las cartas reales mediante `CardUI` en modo estático (`set_static_display_mode(true)`).
+   - Las cartas idénticas se agrupan en una única ranura visual coronada arriba por una insignia de cantidad: **`x1`** (en tono plata/celeste) cuando se posee una sola copia, o **`xN`** (destacada en dorado) cuando se poseen múltiples copias. Al ganar una carta en `RewardView` o comprarla en `ShopView`, el contador se incrementa automáticamente.
 
 ### 6. Escudo (`block`) Jugador vs Enemigo
 - **Escudo del Jugador (`player_block`)**: Se suma durante la ejecución del combo, absorbe el ataque enemigo de ese turno y se resetea a `0` al inicio del siguiente turno del jugador.
@@ -217,11 +220,11 @@ Cada carta renderizada por `ui/cards/card_ui.tscn` y `ui/cards/card_ui.gd` utili
    - El fondo del cuerpo de la carta y su reborde uniforme de **2px** reflejan la jerarquía de rareza (**Gris** Común, **Verde** Poco Común, **Azul** Rara, **Violeta** Épica, **Dorado** Legendaria).
 2. **Color del Título según Función y Naturaleza Mágica (`CardData.get_color`):**
    - El nombre de la carta (`TitleLabel`, con contorno negro de `2px` para garantizar contraste sobre cualquier rareza) indica qué hace la carta:
-     - **Azul** (`Color(0.32, 0.72, 1.0)`): **Escudo** (`DefenseEffect`).
-     - **Verde** (`Color(0.28, 0.92, 0.48)`): **Sanación** (`HealEffect`).
-     - **Rojo** (`Color(1.0, 0.32, 0.34)`): **Daño Físico / Alquímico** (`not is_magic_card()`).
-     - **Violeta Mágico** (`Color(0.82, 0.36, 1.0)` / `Color(0.86, 0.36, 1.0)`): **Daño Mágico** (`is_magic_card()`) y **Sobrecarga / Multiplicador** (`MultiplyEffect`).
-     - **Violeta Índigo** (`Color(0.58, 0.50, 1.0)`): **Robo de cartas** (`StealEffect`).
+	 - **Azul** (`Color(0.32, 0.72, 1.0)`): **Escudo** (`DefenseEffect`).
+	 - **Verde** (`Color(0.28, 0.92, 0.48)`): **Sanación** (`HealEffect`).
+	 - **Rojo** (`Color(1.0, 0.32, 0.34)`): **Daño Físico / Alquímico** (`not is_magic_card()`).
+	 - **Violeta Mágico** (`Color(0.82, 0.36, 1.0)` / `Color(0.86, 0.36, 1.0)`): **Daño Mágico** (`is_magic_card()`) y **Sobrecarga / Multiplicador** (`MultiplyEffect`).
+	 - **Violeta Índigo** (`Color(0.58, 0.50, 1.0)`): **Robo de cartas** (`StealEffect`).
 3. **Flag Mágico (`is_magical` en `CardData` y `CardEffect`):**
    - Tanto `CardData` como `CardEffect` exportan `@export var is_magical: bool`. El helper `CardData.is_magic_card()` evalúa `true` si la carta tiene `is_magical = true`, si requiere `WeaponData.Class.STAFF`, o si cualquiera de sus efectos tiene `is_magical = true` (activo por defecto en `BurnEffect`, `FreezeEffect`, `ShockEffect`, `ApplyStatusEffect` y `MultiplyEffect`).
 4. **Indicador Inferior Izquierdo de Estado al Enemigo (`CardData.get_enemy_status_icons`):**

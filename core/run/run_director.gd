@@ -192,7 +192,8 @@ func open_map(custom_info: String = "") -> void:
 		table.deck.get_total_cards_count(board_cards.size()),
 		table.deck.get_full_deck_detailed_text(board_cards),
 		run.player_gold,
-		run
+		run,
+		table.deck.get_all_owned_cards(board_cards)
 	)
 	if custom_info != "":
 		map_view.legend_label.text = custom_info
@@ -331,6 +332,8 @@ func _on_shop_card_bought(card: CardData, cost: int) -> void:
 	if copy:
 		if card.resource_path != "":
 			copy.resource_name = card.resource_path
+		elif card.resource_name != "":
+			copy.resource_name = card.resource_name
 		table.deck.draw_pile.add_card(copy)
 	else:
 		push_warning("No se pudo duplicar la carta '%s', pero el oro ya se debitó." % card.title)
@@ -506,8 +509,13 @@ func _on_reward_skipped() -> void:
 
 	# Limpiar cache
 	current_rewards = {}
-## Lógica común para limpiar la sala y volver al mapa (extraída del viejo _on_reward_completed).
+## Lógica común para limpiar la sala, consolidar las cartas de la mesa de vuelta al mazo y volver al mapa.
 func _clear_room_after_combat() -> void:
+	if table and table.deck:
+		table.deck.reset_for_new_combat(_get_active_board_cards())
+		table.clear_board_visuals()
+		table.refresh_ui()
+
 	if run.current_room:
 		run.clear_and_discover_room(run.current_room)
 

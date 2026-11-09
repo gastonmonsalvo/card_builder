@@ -92,14 +92,20 @@ func reset_for_new_combat(board_cards_data: Array[CardData]) -> void:
 	graveyard_pile.move_all_to(draw_pile)
 	draw_pile.shuffle()
 	
-## Recopila y cuenta todas las copias de cartas que posee el jugador actualmente en todas las pilas.
-## Genera un informe en texto plano con rarezas, cantidades, costos y efectos detallados para la interfaz del mapa.
-func get_full_deck_detailed_text(board_cards: Array[CardData] = []) -> String:
+## Recopila y devuelve un arreglo plano con todas las instancias `CardData` que posee el jugador
+## sumando mazo de robo, descarte, cementerio y las cartas activas en la mesa.
+func get_all_owned_cards(board_cards: Array[CardData] = []) -> Array[CardData]:
 	var all_cards: Array[CardData] = []
 	all_cards.append_array(draw_pile.cards)
 	all_cards.append_array(discard_pile.cards)
 	all_cards.append_array(graveyard_pile.cards)
 	all_cards.append_array(board_cards)
+	return all_cards
+
+## Recopila y cuenta todas las copias de cartas que posee el jugador actualmente en todas las pilas.
+## Genera un informe en texto plano con rarezas, cantidades, costos y efectos detallados para la interfaz del mapa.
+func get_full_deck_detailed_text(board_cards: Array[CardData] = []) -> String:
+	var all_cards: Array[CardData] = get_all_owned_cards(board_cards)
 
 	if all_cards.is_empty():
 		return "El mazo esta vacio."
