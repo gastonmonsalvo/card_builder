@@ -97,6 +97,7 @@ func _ready() -> void:
 	_layout_for_viewport()
 	get_viewport().size_changed.connect(_layout_for_viewport)
 
+## Recalcula la posición del panel de ranuras y del modal de nombre para centrarlos en el viewport actual.
 func _layout_for_viewport() -> void:
 	var viewport_size: Vector2 = get_viewport_rect().size
 	if is_instance_valid(main_panel):
@@ -316,6 +317,7 @@ func _on_confirm_create_slot() -> void:
 	pending_slot_for_creation = -1
 	slot_chosen.emit()
 
+## Callback del botón "CANCELAR" en el modal de creación de perfil. Oculta el diálogo y limpia el estado temporal.
 func _on_cancel_create_slot() -> void:
 	name_modal.visible = false
 	pending_slot_for_creation = -1

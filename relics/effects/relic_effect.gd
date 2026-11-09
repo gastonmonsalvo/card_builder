@@ -9,21 +9,22 @@ class_name RelicEffect
 func on_equipped(_run) -> void:
 	pass
 
-# Se dispara al inicio de cada encuentro de combate contra un enemigo o jefe
+## Método "abstracto". Se dispara en el turno 0 de cada encuentro (tanto enemigos normales como jefes).
+## Útil para inyectar estados alterados iniciales al enemigo.
 func on_combat_start(_enemy: Enemy) -> void:
 	pass
 
-## Método "abstracto". Se dispara en el turno 0 de cada encuentro (tanto enemigos normales como jefes).
-## Útil para inyectar estados alterados iniciales al enemigo.
+## Método "abstracto". Se dispara al cerrar la evaluación de la fila de combo en la mesa.
+## Recibe el diccionario `combo_state` y la cantidad de cartas jugadas (`_card_count`) para inyectar bonificaciones reactivas.
 func on_combo_evaluated(_combo_state: Dictionary, _card_count: int) -> void:
 	pass
-	
-## Método "abstracto" Devuelve el texto descriptivo del efecto para renderizarse en los tooltips
+
+## Método "abstracto". Devuelve el texto descriptivo del efecto para renderizarse en los tooltips
 ## o paneles de inspección de la interfaz.
 func get_description() -> String:
 	return ""
-	
-## Método "abstracto" Intercepta el momento exacto en que el HP del jugador llega a 0.
+
+## Método "abstracto". Intercepta el momento exacto en que el HP del jugador llega a 0.
 ## Debe retornar `true` si el efecto evita la muerte (lo que consumirá la reliquia), o `false` en caso contrario.
 func on_player_lethal_damage(_run) -> bool:
-		return false 
+	return false

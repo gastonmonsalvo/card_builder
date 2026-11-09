@@ -194,7 +194,8 @@ func _on_board_card_clicked(card: CardUI) -> void:
 			hud.set_banner_message("SIN ENERGIA! Necesitas %d y tienes %d/%d" % [cost, current_energy, run.max_energy])
 	elif board.is_in_combo(card):
 		var cost: int = card.card_data.cost if card.card_data else 1
-		current_energy += cost
+		if not energy_free_this_turn:
+			current_energy += cost
 		board.move_to_hand(card, false)
 		refresh_ui()
 		
@@ -215,8 +216,10 @@ func _on_board_card_dropped(card: CardUI, dropped_in_combo: bool) -> void:
 		if await _try_consume_instant_card(card):
 			return
 		if not board.is_in_combo(card):
-			if not energy_free_this_turn:
-				current_energy -= cost
+			var effective_cost: int = 0 if energy_free_this_turn else cost
+			if current_energy >= effective_cost or energy_free_this_turn:
+				if not energy_free_this_turn:
+					current_energy -= effective_cost
 				board.move_to_combo(card, true)
 			else:
 				rejected_by_energy = true
@@ -225,7 +228,8 @@ func _on_board_card_dropped(card: CardUI, dropped_in_combo: bool) -> void:
 			board.layout_cards()
 	else:
 		if board.is_in_combo(card):
-			current_energy += cost
+			if not energy_free_this_turn:
+				current_energy += cost
 			board.move_to_hand(card, true)
 		else:
 			board.layout_cards()
@@ -520,8 +524,8 @@ func execute_enemy_turn(p_run: RunState, p_enemy: Enemy, p_player_block: int) ->
 	return true
 
 
-## Ejecuta y descarta una carta instantánea (`single_use`).
-## Delegar cálculo a `CombatResolver`, manejar UI + animación.
+## Ejecuta la animación de consumo de una carta instantánea (`is_instant_card()`),
+## delega el cálculo de su efecto a `CombatResolver` y la rutea al descarte o cementerio según `single_use`.
 func consume_instant_card(card: CardUI) -> int:
 	# 1. Guardar referencia a los datos de la carta ANTES de cualquier await/animación
 	var card_data = card.card_data

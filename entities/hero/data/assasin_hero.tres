@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://d1wtsxmuiq3hq"]
 
-[ext_resource type="Script" uid="uid://c14du47j52fyq" path="res://entities/hero/abilities/shadow_ability.gd" id="1_05ts0"]
+[ext_resource type="Script" uid="uid://c14du47j52fyq" path="res://entities/hero/abilities/bloody_slash_ability.gd" id="1_05ts0"]
 [ext_resource type="Script" uid="uid://crbebhweegtm" path="res://entities/hero/hero_data.gd" id="2_0esi7"]
 [ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="3_6cm5a"]
 [ext_resource type="Resource" uid="uid://cmunbbbok70c" path="res://cards/data/sobre_carga.tres" id="4_swiu6"]

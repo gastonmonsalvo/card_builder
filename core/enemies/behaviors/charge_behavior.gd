@@ -1,10 +1,12 @@
+## Comportamiento de carga para la IA enemiga.
+## Prepara el golpe durante un turno (`CHARGE`) y en el turno siguiente ejecuta un ataque potenciado por `bonus_multiplier`.
 extends EnemyBehavior
 class_name ChargeBehavior
 
-## Carga un turno (no ataca) y marca al siguiente turno para hacer daño bonus.
 @export var bonus_multiplier: float = 1.5
 @export var every_n_turns: int = 3  # cada 3 turnos: carga, golpea, ataca normal
 
+## Determina la fase del ciclo de carga según `turn_count % every_n_turns`, devolviendo `CHARGE`, el `ATTACK` potenciado o `null`.
 func decide(context: EnemyContext) -> EnemyIntent:
 	var phase: int = context.turn_count % every_n_turns
 	if phase == 0:

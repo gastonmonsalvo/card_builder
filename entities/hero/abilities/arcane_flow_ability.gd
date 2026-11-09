@@ -24,5 +24,6 @@ func activate(context: Dictionary) -> void:
 		table.draw_cards(3)
 		print("[HeroAbility] Flujo Arcano activado: +3 cartas robadas.")
 
+## Devuelve el texto descriptivo para el banner de la mesa al activar el robo arcano.
 func get_activation_message() -> String:
 	return "¡Flujo Arcano! Robas 3 cartas del mazo."

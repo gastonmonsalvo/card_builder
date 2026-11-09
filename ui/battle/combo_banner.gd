@@ -9,6 +9,7 @@ func update_data(p: Dictionary) -> void:
 func show_message(msg: String) -> void:
 	text = msg
 
+## Formatea el diccionario de previsualización del combo en una cadena legible con daño, estados, curación y multiplicadores.
 func _format_combo_preview(p: Dictionary) -> String:
 	var parts: Array[String] = []
 	

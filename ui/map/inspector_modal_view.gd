@@ -4,8 +4,6 @@
 extends Panel
 class_name InspectorModalView
 
-# Señal que emite la vista cuando el usuario elige un arma para equipar
-signal weapon_selected_to_equip(weapon: WeaponData)
 ## Referencia a la etiqueta visual que renderiza el título principal superior del modal.
 var inspector_title_label: Label
 ## Referencia a la etiqueta de texto multilínea con ajuste automático (Word Wrap).
@@ -66,7 +64,3 @@ func open_inspector(title_txt: String, body_txt: String) -> void:
 	inspector_title_label.text = title_txt
 	inspector_body_label.text = body_txt
 	visible = true
-
-func _on_weapon_button_pressed(weapon: WeaponData) -> void:
-	# La vista NO toca la run. Solo avisa: "¡El usuario quiere equipar esta arma!"
-	weapon_selected_to_equip.emit(weapon)

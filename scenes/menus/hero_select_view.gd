@@ -1,6 +1,5 @@
-## Vista de pantalla completa (UI) para el menú de selección de personaje al iniciar una nueva partida.
-## Construye proceduralmente su interfaz (fondo, contenedores, título) e instancia dinámicamente
-##  un botón descriptivo por cada héroe disponible en la base de datos.
+## [OBSOLETO / LEGACY] Vista de pantalla completa (UI) original para la selección de personaje.
+## Reemplazada en producción por la grilla de tarjetas `HeroCardView` integrada directamente dentro de `MainMenuView`.
 extends Control
 class_name HeroSelectView
 

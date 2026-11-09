@@ -9,6 +9,7 @@ signal pile_changed(new_count: int)
 var pile_name: String = "Pila"
 var cards: Array[CardData] = []
 
+## Inicializa la pila asignándole su nombre identificatorio para los resúmenes de interfaz.
 func _init(p_name: String = "Pila") -> void:
 	pile_name = p_name
 	

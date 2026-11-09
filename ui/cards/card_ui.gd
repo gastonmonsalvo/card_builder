@@ -133,8 +133,8 @@ func _on_mouse_exited() -> void:
 	current_state = State.IDLE
 	z_index = base_z_index
 
-## Animación de consumo estilo cartas de tarot d
-## No destruye el nodo; el orquestador (BattleTable) se encarga.
+## Ejecuta la animación de consumo estilo cartas de tarot (elevación, sacudida, quema y desintegración).
+## No destruye el nodo; el orquestador (`BattleTable`) se encarga de liberarlo al finalizar.
 func play_consume_animation() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	

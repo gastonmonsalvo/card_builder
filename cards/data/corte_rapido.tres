@@ -12,7 +12,7 @@ metadata/_custom_type_script = "uid://emqwpgk51qrk"
 [resource]
 script = ExtResource("2_p8o06")
 title = "Corte Rapido"
-effects = Array[ExtResource("1_a6c3e")]([SubResource("Resource_ae5sq"), null])
+effects = Array[ExtResource("1_a6c3e")]([SubResource("Resource_ae5sq")])
 description = "Un corte veloz"
 required_weapon_class = Array[int]([4])
 metadata/_custom_type_script = "uid://cob1g5x6igww8"

@@ -30,8 +30,8 @@ func activate(context: Dictionary) -> void:
 		# 1. Daño directo
 		table.enemy.take_damage(base_damage)
 		
-		# 2. Aplicar hemorragia (add_statuses: burn, poison, freeze, shock, hemorrhage)
-		table.enemy.add_statuses(0, 0, 0, 0, hemorrhage_stacks)
+		# 2. Aplicar hemorragia mediante el sistema unificado de estados
+		table.enemy.apply_statuses({"hemorrhage": hemorrhage_stacks})
 		
 		print("[HeroAbility] Corte Sangrante: %d daño + %d hemorragia." % [base_damage, hemorrhage_stacks])
 

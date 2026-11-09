@@ -53,7 +53,7 @@ const CELL_GAP := Vector2(20, 14)
 ## Constructor de la interfaz gráfica del mapa.
 ## Ensambla proceduralmente las etiquetas de cabecera, paneles laterales (Reliquias y Mazo), 
 ## leyenda inferior, el botón de copiar semilla al portapapeles y los paneles 
-## modales ocultos (`SanctuaryModalView`, `InspectorModalView`, ).
+## modales ocultos (`SanctuaryModalView`, `InspectorModalView`, `InventoryModalView`).
 func _init() -> void:
 	name = "MapView"
 	set_anchors_preset(Control.PRESET_FULL_RECT)

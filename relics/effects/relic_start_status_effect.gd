@@ -14,7 +14,13 @@ class_name RelicStartStatusEffect
 ## Inyecta los estados alterados configurados directamente al enemigo en el turno 0.
 func on_combat_start(enemy: Enemy) -> void:
 	if start_burn > 0 or start_poison > 0 or start_freeze > 0 or start_shock > 0 or start_hemorrhage > 0:
-		enemy.add_statuses(start_burn, start_poison, start_freeze, start_shock, start_hemorrhage)
+		enemy.apply_statuses({
+			"burn": start_burn,
+			"poison": start_poison,
+			"freeze": start_freeze,
+			"shock": start_shock,
+			"hemorrhage": start_hemorrhage
+		})
 		
 ## Construye un texto dinámico para la interfaz uniendo solo los estados que tengan valores mayores a 0.
 func get_description() -> String:

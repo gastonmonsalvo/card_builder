@@ -14,11 +14,11 @@ signal state_changed(new_state: State)
 func _is_valid_transition(from: State, to: State) -> bool:
 	match from:
 		State.MENU: return to in [State.MAP]
-		State.MAP: return to in [State.BATTLE, State.EVENT, State.SHOP, State.DEAD, State.VICTORY]
-		State.BATTLE: return to in [State.REWARD, State.DEAD]
-		State.REWARD: return to in [State.MAP, State.SHOP]
-		State.EVENT: return to in [State.MAP, State.BATTLE, State.DEAD]
-		State.SHOP: return to in [State.MAP]
+		State.MAP: return to in [State.BATTLE, State.EVENT, State.SHOP, State.DEAD, State.VICTORY, State.MENU]
+		State.BATTLE: return to in [State.REWARD, State.DEAD, State.MENU]
+		State.REWARD: return to in [State.MAP, State.SHOP, State.MENU]
+		State.EVENT: return to in [State.MAP, State.BATTLE, State.DEAD, State.MENU]
+		State.SHOP: return to in [State.MAP, State.MENU]
 		State.DEAD: return to in [State.MENU]
 		State.VICTORY: return to in [State.MENU]
 	return false

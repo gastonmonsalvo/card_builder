@@ -25,6 +25,7 @@ var _graveyard_pile: CardPile
 var inventory_modal: InventoryModalView
 var _run_ref: RunState
 
+## Conecta los botones de inspección de pilas e instancia el botón y modal de inventario en el HUD de combate.
 func _ready() -> void:
 	draw_pile_btn.pressed.connect(func(): pile_inspector.show_pile(_draw_pile))
 	discard_pile_btn.pressed.connect(func(): pile_inspector.show_pile(_discard_pile))
@@ -47,14 +48,17 @@ func _ready() -> void:
 	)
 	add_child(inventory_btn)
 
+## Enlaza las referencias de las tres pilas del `DeckManager` (mazo, descarte y cementerio) con el HUD.
 func bind_piles(draw_p: CardPile, discard_p: CardPile, graveyard_p: CardPile) -> void:
 	_draw_pile = draw_p
 	_discard_pile = discard_p
 	_graveyard_pile = graveyard_p
 
+## Inyecta la referencia al `RunState` activo para consultar el héroe, el arma equipada y abrir el inventario.
 func bind_run_reference(run: RunState) -> void:
 	_run_ref = run
 
+## Equipa el arma seleccionada desde el modal de inventario durante el combate y notifica el cambio mediante `equipment_changed`.
 func _on_inventory_weapon_selected(weapon: WeaponData) -> void:
 	if not _run_ref:
 		return

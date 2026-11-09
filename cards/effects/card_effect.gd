@@ -13,8 +13,8 @@ func apply(_combo_state: Dictionary) -> void:
 func get_description() -> String:
 	return ""
 	
-## Método v"abstracto" (a sobrescribir). Devuelve el color representativo del efecto
-##  (ej. rojo para daño, azul para escudo) para colorear la tipografía o el fondo en la UI.
+## Método "abstracto" (a sobrescribir). Devuelve el color representativo del efecto
+## (ej. rojo para daño, azul para escudo) para colorear la tipografía o el fondo en la UI.
 func get_color() -> Color:
 	return Color.WHITE
 	

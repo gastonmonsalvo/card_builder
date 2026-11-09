@@ -1,9 +1,13 @@
 # Game Design Document (GDD)
 
-**Card Prototype** — Roguelike deckbuilder en Godot 4.
+**Card Prototype** — Roguelike deckbuilder táctico por combos en Godot 4.
 
-Última actualización: 2026-11-01
-Estado: prototipo
+Última actualización: 2026-11-09
+Estado: Prototipo jugable (Core Loop, Combate por Combos, Reacciones Elementales, Armas RPG y Mapa 8x8 implementados).
+
+> **Convención de estado en este documento:**
+> - Todo elemento sin etiqueta corresponde a mecánicas y recursos **implementados y activos en el código actual**.
+> - Todo elemento marcado con **`🚧 [FUTURO / PENDIENTE]`** corresponde a diseño planificado para próximas iteraciones.
 
 ---
 
@@ -14,47 +18,46 @@ Estado: prototipo
 3. [Inspiraciones](#inspiraciones)
 4. [Core loop](#core-loop)
 5. [Mecánicas principales](#mecánicas-principales)
-6. [Héroes](#héroes)
+6. [Héroes y Habilidades Activas](#héroes-y-habilidades-activas)
 7. [Cartas](#cartas)
 8. [Reliquias](#reliquias)
-9. [Armas](#armas)
-10. [Statuses](#statuses)
-11. [Enemigos](#enemigos)
-12. [Mapa procedural](#mapa-procedural)
-13. [Eventos](#eventos)
-14. [Sistema de rarezas](#sistema-de-rarezas)
-15. [Economía](#economía)
-16. [Progresión meta](#progresión-meta)
+9. [Armas y Estadísticas RPG](#armas-y-estadísticas-rpg)
+10. [Estados Alterados y Reacciones Elementales](#estados-alterados-y-reacciones-elementales)
+11. [Enemigos e IA](#enemigos-e-ia)
+12. [Mapa procedural (Matriz 8x8)](#mapa-procedural-matriz-8x8)
+13. [Salas Especiales y Eventos](#salas-especiales-y-eventos)
+14. [Sistema de rarezas y Suerte](#sistema-de-rarezas-y-suerte)
+15. [Economía y Tienda](#economía-y-tienda)
+16. [Progresión meta y Guardado](#progresión-meta-y-guardado)
 17. [Balance numérico](#balance-numérico)
 18. [UI/UX](#uiux)
 19. [Arte y audio](#arte-y-audio)
 20. [Roadmap](#roadmap)
-21. [Transiciones](#Matriz de transiciones legales)
+21. [Matriz de transiciones legales (FSM)](#matriz-de-transiciones-legales-fsm)
+22. [Open questions](#open-questions)
 
 ---
 
 ## Visión general
 
-**Card Prototype** es un roguelike deckbuilder de un solo jugador donde cada partida es una run procedural distinta. El jugador construye su mazo en partida, combina reliquias y armas para sinergias únicas, y asciende por un mapa procedural hasta derrotar al boss final.
-
-**Premisa narrativa**: tres aventureros (guerrero, mago, pícaro) descienden a una mazmorra antigua buscando un artefacto legendario. Cada piso es más profundo y peligroso. La muerte es permanente dentro de la run; el meta-progreso desbloquea nuevas cartas, reliquias y héroes.
+**Card Prototype** es un roguelike deckbuilder de un solo jugador donde cada partida es una expedición procedural determinista por semillas. A diferencia de los deckbuilders clásicos de cartas sueltas, el jugador **arma y ordena secuencias en una Zona de Combo**, cruza los requisitos y escalados de su **Arma equipada** con sus atributos RPG (`STR`, `INT`, `DEX`, `LUCK`), y detona **Reacciones Elementales** sobre los enemigos mientras explora una **matriz ortogonal de 8x8** cubierta por niebla de guerra.
 
 ### Pilares de diseño
 
-1. **Cada run se siente distinta**: combinaciones de mazo + reliquias + mapa generan runs memorables.
-2. **Decisiones significativas**: cada carta jugada, cada nodo del mapa elegido, cada compra importa.
-3. **Profundidad sobre complejidad**: pocas mecánicas que se combinan en formas ricas (no 30 sistemas superficiales).
-4. **Legible**: el jugador siempre entiende qué va a pasar antes de jugar una carta. Intents del enemigo claros, interacciones predecibles.
-5. **Ajustable**: balance centralizado en `.tres` y constantes para iterar rápido.
+1. **Secuenciación sobre spam (Zona de Combo)**: El orden en que colocás y arrastrás las cartas dentro del combo altera radicalmente el resultado (ej. sumar daño base y estados antes de un multiplicador `Sobrecarga`).
+2. **Identidad por Arma y Stats RPG**: Las cartas exigen clases de armas específicas (`SWORD`, `HEAVY`, `STAFF`, `DAGGER`, `KATANA`) y las armas exigen `STR`, `INT` o `DEX`. Usar un arma sin los stats necesarios aplica penalizaciones severas ("Golpe torpe" o déficit de stats).
+3. **Alquimia Elemental**: Los 5 estados alterados interactúan entre sí mediante `StatusReactions` (*Vaporización*, *Superconductor*, *Combustión Tóxica*).
+4. **Legibilidad Predictiva Absoluta**: Antes de apretar "EJECUTAR COMBO", el `ComboBanner` simula exactamente cuánto daño, escudo, robo, curación y estados va a producir la cadena actual.
+5. **Exploración Espacial en Grilla**: Cada piso es un laberinto ortogonal 8x8 donde los callejones sin salida esconden al Jefe, Tesoros, Hogueras, Tiendas y Santuarios.
 
 ---
 
 ## Público objetivo
 
-- Fans de *Slay the Spire*, *Monster Train*, *Inscryption*, *Balatro*.
-- Jugadores que disfrutan optimización y sinergias.
-- Sesiones de 30-60 minutos por run.
-- Plataforma inicial: PC (Windows/Linux/Mac).
+- Fans de *Slay the Spire*, *Balatro*, *Monster Train*, *Inscryption*.
+- Jugadores que disfrutan armar cadenas de sinergias, optimizar el orden de ejecución y gestionar equipamiento RPG.
+- Sesiones de 20-45 minutos por run.
+- Plataforma inicial: PC (Windows/Linux/Mac) y soporte de renderizado `mobile`.
 
 ---
 
@@ -62,716 +65,468 @@ Estado: prototipo
 
 | Juego | Qué tomamos | Qué NO tomamos |
 |---|---|---|
-| Slay the Spire | Mapa de nodos, statuses (vulnerable/weak), intents enemigos, rarezas | — |
-| Inscryption | Cartas con efectos narrativos | No horror/ARG |
-| Balatro | Sinergias explosivas | No poker scoring |
+| **Slay the Spire** | Intenciones enemigas visibles, economía de energía, reliquias pasivas/reactivas | Mapa lineal de columnas hacia arriba (usamos grilla 8x8) |
+| **Balatro** | Importancia del orden de izquierda a derecha en la fila jugada (sumas antes de multiplicadores), descartes tácticos limitados y feedback visual magnético en recompensas | Reglas de póker |
+| **Genshin Impact / Divinity** | Reacciones elementales al combinar estados alterados (`Quemadura` + `Congelamiento` = *Vaporización*, etc.) | Combate en tiempo real |
+| **Dark Souls / RPGs clásicos** | Requisitos de `STR`/`INT`/`DEX` para empuñar armas sin penalización y escalado de daño por atributo | — |
 
 ---
 
 ## Core loop
 
+```text
+┌──────────────────────────────────────────────────────────┐
+│  SELECTOR DE PERFIL (SlotSelectView - 3 Ranuras)         │
+│  → Auto-login a la última ranura jugada (last_slot.cfg)  │
+│  → Si hay run viva en run.json, reanuda directamente     │
+└──────────────────────────────────────────────────────────┘
+							│
+							▼
+┌──────────────────────────────────────────────────────────┐
+│  MENÚ PRINCIPAL (MainMenuView)                           │
+│  → Elegir Héroe (Guerrero, Mago, Samurai, Asesino, DEMO) │
+│  → Iniciar Partida Aleatoria o ingresar Semilla (Seed)   │
+└──────────────────────────────────────────────────────────┘
+							│
+							▼
+┌──────────────────────────────────────────────────────────┐
+│  MAPA DE EXPLORACIÓN (MapView - Grilla Ortogonal 8x8)    │
+│  → Gestionar Mochila de Armas e Inventario               │
+│  → Avanzar a salas adyacentes descubiertas:              │
+│    COMBAT / TREASURE / REST / SANCTUARY / SHOP / BOSS    │
+└──────────────────────────────────────────────────────────┘
+							│
+							▼
+┌──────────────────────────────────────────────────────────┐
+│  COMBATE POR COMBOS (BattleTable)                        │
+│  → Rellenar mano hasta target_hand_size (5 base)         │
+│  → Usar Cartas Instantáneas o Habilidad Activa del Héroe │
+│  → Arrastrar y ordenar cartas en la Zona de Combo        │
+│  → Usar Descartes Tácticos o Ejecutar el Combo           │
+│  → Detonar Reacciones Elementales y Ticks de Estado      │
+│  → Turno Enemigo (con chequeo de Freeze/Shock Stun)      │
+└──────────────────────────────────────────────────────────┘
+							│
+							▼
+┌──────────────────────────────────────────────────────────┐
+│  RECOMPENSA POST-COMBATE (RewardView - Estilo Balatro)   │
+│  → Oro: 10 + (piso * 2) + random(0..4)                   │
+│  → Elegir 1 de 3 cartas (sorteadas por RaritySystem)     │
+│  → 30% de probabilidad de Reliquia adicional             │
+└──────────────────────────────────────────────────────────┘
+							│
+							▼
+	   (Si la sala era BOSS → Avanza a Planta N+1)
 ```
-┌─────────────────────────────────────────────────────┐
-│  MENU PRINCIPAL                                     │
-│  → Seleccionar slot (3 disponibles)                 │
-│  → Seleccionar héroe                                │
-└─────────────────────────────────────────────────────┘
-						│
-						▼
-┌─────────────────────────────────────────────────────┐
-│  MAPA (procedural por piso)                         │
-│  Elegir próximo nodo: BATTLE / ELITE / EVENT /     │
-│  SHOP / REST / TREASURE                             │
-└─────────────────────────────────────────────────────┘
-						│
-						▼
-┌─────────────────────────────────────────────────────┐
-│  BATALLA (1v1 a 1v3)                               │
-│  Robar 5, 3 energía/turno                           │
-│  Jugar cartas, terminar turno                       │
-│  Enemigo muestra intent antes de actuar             │
-└─────────────────────────────────────────────────────┘
-						│
-						▼
-┌─────────────────────────────────────────────────────┐
-│  RECOMPENSA (RewardView)                            │
-│  Al ganar un combate, el jugador recibe:            │
-│  - Oro: escalado por piso                           │
-│    (10 + floor * 2 + random 0-5).                   │
-│  - 3 cartas: roll de rareza según                   │
-│    RaritySystem.roll_tier() con RNG determinista.   │
-│    El jugador elige 1 o saltea.                     │
-│  - Reliquia opcional: 30% de chance, rollada del    │
-│    relic_catalog sin repetir las que ya tiene.      │
-└─────────────────────────────────────────────────────┘
-						│
-						▼
-				  (volver a MAPA)
-						│
-						▼ al llegar al final del piso
-┌─────────────────────────────────────────────────────┐
-│  BOSS del piso                                       │
-│  Recompensa: relic garantizada + carta rare          │
-└─────────────────────────────────────────────────────┘
-						│
-						▼
-				  (siguiente piso, más difícil)
-						│
-						▼ al piso 3
-┌─────────────────────────────────────────────────────┐
-│  BOSS FINAL                                          │
-│  → VICTORIA                                          │
-└─────────────────────────────────────────────────────┘
-```
-
-### Duración estimada
-
-| Hito | Tiempo |
-|---|---|
-| 1 piso | 8-12 min |
-| 5 pisos (run completa) | 30-45 min |
-| Run + muerte temprana | 10-20 min |
 
 ---
-## Flujo técnico:
-
-1. BattleTable emite combat_won.
-2. RunDirector transiciona FSM a REWARD y crea RewardView (UI en código, sin .tscn).
-3. RewardView muestra las recompensas y anima las cartas (idle float + hover magnético estilo Balatro).
-4. Jugador elige carta o skippea → RewardView emite card_chosen o skipped.
-5. RunDirector aplica recompensas vía RunState.apply_combat_rewards() y transiciona FSM a MAP.
-
-##Animaciones estilo Balatro: las cartas en RewardView tienen:
-
-- Pop-in escalonado: aparecen de a una, con escala elástica (TRANS_BACK).
-- Idle float: flotación suave con ondas senoidales desfasadas por índice.
-- Hover magnético: al pasar el mouse, la carta se inclina y escala como si fuera atraída.
-- Selección coreográfica: al elegir, la carta elegida sube y se desvanece, las otras caen.
 
 ## Mecánicas principales
 
-### Energía
+### 1. Energía y Mano
+- **Energía por turno**: Definida por el héroe (`3` base en `CombatConstants.BASE_MAX_ENERGY`, `4` en Guerrero, `5` en Mago). Se restaura al máximo al inicio de cada turno.
+- **Reserva en Zona de Combo**: Subir una carta de la mano a la Zona de Combo reserva su costo de energía. Si el jugador devuelve la carta a la mano antes de ejecutar el turno, **la energía se reembolsa íntegramente**.
+- **Robo de mano (`target_hand_size`)**: Al inicio de cada turno, el jugador NO descarta las cartas que conservó en la mano; roba únicamente las cartas necesarias (`max(0, target_hand_size - hand_cards.size())`) para volver a completar su tamaño de mano objetivo (`5` base, ampliable con reliquias como *Bolsillo Dimensional*).
 
-- **3 energía por turno** (`combat_constants.STARTING_ENERGY`).
-- Las cartas cuestan 0, 1, 2 o 3 energía.
-- La energía **no** se acumula entre turnos. Al terminar turno, se resetea.
-- Modificadores: reliquias/efectos pueden dar energía extra temporaria.
+### 2. Zona de Combo y Orden de Ejecución
+- Las cartas colocadas en la `ComboZone` se evalúan **secuencialmente de izquierda a derecha** cuando se presiona `EJECUTAR COMBO`.
+- El jugador puede arrastrar cualquier carta dentro de la `ComboZone` para cambiar su posición en la fila en tiempo real.
+- **Importancia del orden**: Efectos como `MultiplyEffect` (`Sobrecarga`) multiplican el daño acumulado *hasta ese instante* en `combo_state["dmg"]`. Colocar `Sobrecarga` al principio multiplica `0`; colocarla al final multiplica la suma de todos los ataques previos.
+- Si la `ComboZone` está vacía, el botón cambia a `PASAR TURNO`.
 
-### Mano
+### 3. Cartas Instantáneas (`is_instant_card()`)
+- Cartas cuyos efectos tienen `is_instant() == true` (actualmente `StealEffect` en la carta **Robo**).
+- Al hacerles clic o soltarlas en la mesa, **no entran a la fila de combo**: descuentan su energía, ejecutan una animación de levitación y disolución tipo tarot (`play_consume_animation()`), aplican su efecto en el acto (ej. robar cartas nuevas) y permiten seguir armando el turno.
 
-- **5 cartas por robo** al inicio de turno.
-- Sin límite máximo de mano (puede subir por efectos).
-- Al terminar turno, **descarta toda la mano** al pile de descarte.
+### 4. Descartes Tácticos (`discards_remaining`)
+- Cada héroe cuenta con un número limitado de **Descartes por combate** (`2` base, `3` en Mago, `4` en Asesino, ampliable por reliquias).
+- Para descartar, el jugador sube a la `ComboZone` las cartas que no quiere y presiona `DESCARTAR (X)`:
+  - Se reembolsa toda la energía de esas cartas.
+  - Las cartas van a `discard_pile` (incluso si eran `single_use`, ya que no se ejecutaron).
+  - Se consume 1 ficha de descarte y **se roba inmediatamente la misma cantidad de cartas**.
 
-### Mazo
+### 5.Las 3 Pilas del Mazo (`DeckManager`)
+1. **`draw_pile` (Mazo)**: Cartas listas para robar. Cuando se vacía, recicla y baraja automáticamente `discard_pile`.
+2. **`discard_pile` (Descarte)**: Cartas normales jugadas o descartadas tácticamente.
+3. **`graveyard_pile` (Cementerio)**: Las cartas con `single_use = true` (ej. **Curación**) van al Cementerio tras ejecutarse en un combo y **no vuelven a reciclarse durante ese combate**. Al iniciar el siguiente combate, todas las pilas se unifican de nuevo en el Mazo.
 
-- Mazo inicial depende del héroe (10 cartas base).
-- Al ganar batalla, **elegís 1 carta de 3** para agregar al mazo.
-- **No hay forma de sacar cartas del mazo** excepto eventos especiales (descanso, relic específica).
-- Capacidad de mazo: ilimitada, pero mazo muy grande diluye consistencia (constituye balance natural).
-
-### Robo y pilas
-
-3 pilas gestionadas por `deck_manager.gd`:
-- `draw_pile`: cartas no robadas todavía.
-- `hand`: cartas en mano del jugador.
-- `discard_pile`: cartas ya jugadas.
-
-Cuando `draw_pile` está vacío y se pide robar, **se mezcla el `discard_pile` y se convierte en el nuevo `draw_pile`**.
-
-### Block (escudo)
-
-- Cartas de skill dan `block`.
-- Block absorbe daño antes de tocar HP.
-- **Block se resetea al inicio del turno del jugador** (no persiste entre turnos).
-- Block enemigo persiste hasta que recibe daño que lo elimina.
-
-### Intent enemigo
-
-Antes de actuar, cada enemigo muestra un **intent** visible:
-- Icono de espada + número = va a hacer X daño.
-- Icono de escudo + número = va a ganar X block.
-- Icono de status = va a aplicar un status.
-
-Esto permite al jugador planificar su turno: si el enemigo va a hacer 10 daño, ¿me conviene bloquear o atacar para matarlo antes?
-
-### Tipos de carta
-
-| Tipo | Tag | Descripción |
-|---|---|---|
-| Attack | `"attack"` | Causa daño al enemigo. Afectada por `Strength` (+1 daño/stack) y `Weak` (-25% daño). |
-| Skill | `"skill"` | Utilidad: block, draw, heal, statuses. No afectada por Strength. |
-| Power | `"power"` | Efecto permanente por el resto del combate. Se descarta del mazo tras jugarla. |
-
-### Objetivos
-
-- HP del héroe llega a 0 → **muerte, run termina**.
-- Derrotar al boss final del piso 3 → **victoria**.
+### 6. Escudo (`block`) Jugador vs Enemigo
+- **Escudo del Jugador (`player_block`)**: Se suma durante la ejecución del combo, absorbe el ataque enemigo de ese turno y se resetea a `0` al inicio del siguiente turno del jugador.
+- **Escudo del Enemigo (`enemy.block`)**: Cuando el enemigo usa `DefendBehavior`, gana escudo en su turno. Ese escudo **persiste durante todo el siguiente turno del jugador** (absorbiendo el daño del combo) y recién se resetea al inicio del próximo turno del enemigo (`reset_block_for_new_turn()`).
 
 ---
 
-## Héroes
+## Héroes y Habilidades Activas
 
-Tres clases jugables, cada una con un estilo distinto.
+Cada héroe tiene estadísticas base, atributos RPG (`STR`, `INT`, `DEX`, `LUCK`), un arma inicial, un mazo inicial, reliquias de partida y una **Habilidad Activa (`HeroAbility`)** utilizable desde el botón de habilidad en combate (`1 uso por combate` por defecto).
 
-### Guerrero
+### Catálogo de Héroes implementados (`entities/hero/data/`)
 
-- **Max HP**: 80
-- **Mazo inicial** (10 cartas):
-  - 5x Tajo (Attack, 1 cost, 6 daño)
-  - 3x Bloqueo (Skill, 1 cost, 5 block)
-  - 2x Golpe Fuerte (Attack, 2 cost, 14 daño)
-- **Reliquia inicial**: `anillo_brasas` (cartas de ataque +2 daño).
-- **Habilidad**: `Grito de Guerra` — 1 uso por combate, gana 3 Strength por 2 turnos.
-- **Estilo**: tanky, lentamente domina con Strength acumulada.
+| Héroe (`archivo.tres`) | HP Máx | Energía | Descartes | Oro | Suerte | STR / INT / DEX | Arma Inicial | Habilidad Activa | Reliquias Iniciales | Mazo Inicial |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Guerrero** (`warrior_hero.tres`) | 50 | 4 | 2 | 100 | 1 | 1 / 1 / 1 | `Espadon` | **Grito de Guerra** (`+3 STR` por 2 turnos) | Ninguna | 3x *Estocada*, 3x *Escudo*, 1x *Robo* (7 cartas) |
+| **Mago** (`magic_hero.tres`) | 45 | 5 | 3 | 120 | 1 | 3 / 6 / 2 | `Baculo Basico` | **Flujo Arcano** (Roba 3 cartas sin gastar energía) | Ninguna | 1x *Golpe Congelante*, 1x *Lanza Rayo*, 2x *Golpe Ígneo*, 1x *Escudo*, 1x *Sobrecarga* (6 cartas) |
+| **Samurai** (`samurai_hero.tres`) | 60 | 3 | 2 | 200 | 4 | 5 / 1 / 1 | `Katana Basica` | **Corte Sangrante** (`7` daño directo + `10` Hemorragia) | Ninguna | 3x *Tajo*, 2x *Escudo*, 1x *Robo* (6 cartas) |
+| **Asesino** (`assasin_hero.tres`) | 50 | 3 | 4 | 678 | 1 | 4 / 2 / 4 | `Daga` | **Corte Sangrante** (`7` daño directo + `10` Hemorragia) | *Cenizas de Fénix*, *Trébol del Abismo* | 1x *Sobrecarga*, 1x *Tajo*, 1x *Corte Rápido* (3 cartas) |
+| **DEMO** (`demo_hero.tres`) | 200 | 8 | 4 | 100 | 1 | 1 / 5 / 1 | `Baculo Basico` | Sin habilidad | *Cenizas de Fénix*, *Núcleo Sobrecargado*, *Catalizador de Combo* | 1x *Escudo*, 1x *Lanza Rayo*, 1x *Curación*, 1x *Efecto Caótico* (4 cartas) |
 
-### Mago
+### Habilidades Activas (`entities/hero/abilities/`)
 
-- **Max HP**: 60
-- **Mazo inicial** (10 cartas):
-  - 4x Estocada (Attack, 1 cost, 4 daño + robar 1)
-  - 3x Meditar (Skill, 0 cost, robar 2)
-  - 2x Llama (Attack, 1 cost, aplicar Veneno 2)
-  - 1x Bola de Fuego (Attack, 2 cost, 10 daño + 2 Veneno a todos)
-- **Reliquia inicial**: `baculo` (+0 daño, +1 Strength al inicio de combate).
-- **Habilidad**: `Flujo Arcano` — 1 uso por combate, robar 3 cartas gratis.
-- **Estilo**: cycle de mazo, sinergias con Veneno y daño en area.
-
-### Pícaro
-
-- **Max HP**: 50
-- **Mazo inicial** (10 cartas):
-  - 4x Puñalada (Attack, 0 cost, 3 daño)
-  - 3x Sigilo (Skill, 1 cost, +5 block + robar 1)
-  - 2x Emboscada (Attack, 1 cost, 8 daño si enemigo tiene 50% HP o menos)
-  - 1x Asesinato (Attack, 2 cost, 20 daño)
-- **Reliquia inicial**: `ojo_auditivo` (+1 energía en el primer turno de cada combate).
-- **Habilidad**: `Sombra` — 1 uso por combate, este turno las cartas cuestan 0 energía.
-- **Estilo**: burst, combos de cartas baratas, ejecución.
+| Clase (`script`) | Nombre en UI | Usos / Combate | Efecto exacto |
+|---|---|---|---|
+| `WarCryAbility` (`war_cry_ability.gd`) | **Grito de Guerra** | 1 | Registra en `TempStatManager` un modificador temporal de **`+3 STR` durante 2 turnos**. |
+| `ArcaneFlowAbility` (`arcane_flow_ability.gd`) | **Flujo Arcano** | 1 | Invoca `table.draw_cards(3)` robando **3 cartas gratis** en el acto. |
+| `BloodySlashAbility` (`bloody_slash_ability.gd`) | **Corte Sangrante** | 1 | Inflige **7 de daño directo** al enemigo y le aplica **+10 de Hemorragia** (disparando reacciones o estallido si corresponde). |
+| `DemonThrustAbility` (`demon_thrust_ability.gd`) | **Estocada Demoníaca** | 1 | Inflige **`20 + int(player_luck * 0.5)` de daño directo** al enemigo ignorando armas *(disponible en código, pendiente de asignar a un `.tres` de héroe)*. |
 
 ---
 
 ## Cartas
 
-Catálogo inicial (extensible). Formato: **Nombre** (tipo, cost, efecto).
+### Catálogo de Cartas implementadas (`cards/data/`)
 
-### Comunes
+| Carta (`archivo.tres`) | Rareza (`Tier`) | Costo | Arma Requerida (`Class`) | Usa Daño de Arma | Único Uso (`single_use`) | Efectos (`CardEffect`) |
+|---|---|---|---|---|---|---|
+| **Corte Rápido** (`corte_rapido.tres`) | Común (`0`) | 1 | `DAGGER` (`4`) | Sí (Fallback: 2) | No | `HemorrhageEffect(6)` (+ daño del arma equipada) |
+| **Estocada** (`estocada.tres`) | Común (`0`) | 1 | `SWORD` (`1`), `KATANA` (`5`) | Sí (Fallback: 2) | No | `DamageEffect(10)` (+ daño base y escalado del arma equipada) |
+| **Frasco De Veneno** (`frasco_veneno_basico.tres`) | Común (`0`) | 2 | `ANY` (`0`) | Sí (Fallback: 2) | No | `PoisonEffect(2)` |
+| **Golpe Ígneo** (`golpe_fuego.tres`) | Común (`0`) | 1 | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(4)` + `BurnEffect(2)` |
+| **Escudo** (`escudo_basico.tres`) | Poco Común (`1`) | 1 | `ANY` (`0`) | Sí (Fallback: 2) | No | `DefenseEffect(8)` (+8 Escudo) |
+| **Golpe Congelante** (`golpe_congelante.tres`) | Poco Común (`1`) | 1 | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(4)` + `FreezeEffect(2)` |
+| **Robo** (`robo_basico.tres`) | Poco Común (`1`) | 1 | `ANY` (`0`) | Sí | No | `StealEffect(1)` (**Instantánea**: roba +1 carta al clickearla) |
+| **Sobrecarga** (`sobre_carga.tres`) | Poco Común (`1`) | 2 | `ANY` (`0`) | Sí | No | `MultiplyEffect(2.5)` (Multiplica `x2.5` el daño acumulado en el combo) |
+| **Tajo** (`tajo.tres`) | Poco Común (`1`) | 2 | `KATANA` (`5`) | Sí (Fallback: 2) | No | `DamageEffect(6)` + `HemorrhageEffect(5)` |
+| **Curación** (`curacion_basica.tres`) | Rara (`2`) | 1 | `ANY` (`0`) | No (Fallback: 0) | **Sí** (Cementerio) | `HealEffect(5)` (Restaura +5 HP al resolver el combo) |
+| **Lanza Rayo** (`lanza_rayo.tres`) | Rara (`2`) | 1 | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(5)` + `ShockEffect(3)` |
+| **Efecto Caótico** (`efecto_caotico.tres`) | Épica (`3`) | 1 | `ANY` (`0`) | No (Fallback: 2) | No | `ApplyStatusEffect(RANDOM, 5)` (+5 de un estado sorteado con pesos: 30% Burn, 30% Poison, 20% Freeze, 15% Shock, 5% Hemorrhage) |
 
-| Carta | Cost | Tipo | Efecto |
-|---|---|---|---|
-| Tajo | 1 | Attack | 6 daño |
-| Estocada | 1 | Attack | 4 daño + robar 1 |
-| Bloqueo | 1 | Skill | 5 block |
-| Meditar | 0 | Skill | Robar 2 |
-| Puñalada | 0 | Attack | 3 daño |
-| Golpe Fuerte | 2 | Attack | 14 daño |
-| Llama | 1 | Attack | 4 daño + Veneno 2 |
-| Sigilo | 1 | Skill | 5 block + robar 1 |
+### Cartas adicionales en diseño (`🚧 [FUTURO / PENDIENTE]`)
 
-### Infrecuentes
-
-| Carta | Cost | Tipo | Efecto |
-|---|---|---|---|
-| Emboscada | 1 | Attack | 8 daño (12 si HP enemigo ≤ 50%) |
-| Bola de Fuego | 2 | Attack | 10 daño + Veneno 2 a todos los enemigos |
-| Curación | 1 | Skill | Curar 8 HP |
-| Ira | 1 | Power | +2 Strength permanente |
-| Reflejo | 1 | Skill | 6 block + 3 daño al atacante siguiente |
-
-### Raras
-
-| Carta | Cost | Tipo | Efecto |
-|---|---|---|---|
-| Asesinato | 2 | Attack | 20 daño |
-| Tormenta | 3 | Attack | 6 daño a todos los enemigos x3 |
-| Fortaleza | 2 | Power | +3 Dexterity permanente |
-| Renacer | 3 | Skill | Curar a full HP. Exhaust. |
-
-### Criterios de diseño
-
-- **Ataques comunes**: damage/cost ≈ 6. Variaciones con sub-efectos reducen damage.
-- **Skills**: valor ≈ 5 block o 2 draw por 1 cost.
-- **Powers**: deben ser impactantes para justificar no reciclarse.
-- **Raras**: pueden romper reglas de eficiencia.
+- **Puñalada** (`🚧 [FUTURO / PENDIENTE]`): Costo 0, daño rápido para arquetipo Asesino/Daga.
+- **Emboscada** (`🚧 [FUTURO / PENDIENTE]`): Daño condicional aumentado si el enemigo tiene $\le 50\%$ HP.
+- **Ira / Fortaleza** (`🚧 [FUTURO / PENDIENTE]`): Cartas de tipo *Power* (`single_use = true`) que otorguen `STR` o `DEX` por todo el combate vía `TempStatManager`.
+- **Renacer** (`🚧 [FUTURO / PENDIENTE]`): Rareza Legendaria, curación completa (`single_use = true`).
 
 ---
 
 ## Reliquias
 
-Las reliquias son **pasivas o reactivas**, persisten toda la run.
+Las reliquias persisten durante toda la run y disparan sus efectos en cuatro momentos posibles: al equiparse (`on_equipped`), al inicio de cada combate (`on_combat_start`), al evaluar el cierre de un combo (`on_combo_evaluated`) o al recibir daño letal (`on_player_lethal_damage`).
 
-### Comunes
+### Catálogo de Reliquias implementadas (`relics/data/`)
 
-| Reliquia | Efecto |
-|---|---|
-| Anillo de Brasas | Cartas de ataque hacen +2 daño |
-| Piedra de Vida | +10 HP máximo |
-| Bolsa del Aventurero | +25 oro al inicio de cada piso |
+| Reliquia (`archivo.tres`) | Rareza (`Tier`) | Hook / Efecto (`RelicEffect`) | Impacto en partida |
+|---|---|---|---|
+| **Anillo de Brasas** (`anillo_brasas.tres`) | Común (`0`) | `RelicStartStatusEffect` | Aplica **+3 Quemadura inicial** al enemigo al comenzar cada combate. |
+| **Catalizador de Combo** (`catalizador_combo.tres`) | Común (`0`) | `RelicComboSynergyEffect` | Si el combo ejecutado tiene **3 o más cartas**, añade **+6 Daño y +5 Escudo**. |
+| **Bolsillo Dimensional** (`bolsillo_dimensional.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+1 Tamaño de Mano base** permanente (`target_hand_size`). |
+| **Colmillo de Víbora** (`colmillo_vibora.tres`) | Poco Común (`1`) | `RelicStartStatusEffect` | Aplica **+3 Veneno inicial** al enemigo al comenzar cada combate. |
+| **Núcleo Sobrecargado** (`nucleo_sobrecargado.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+1 Energía Máxima** permanente (`max_energy`). |
+| **Pata De Conejo** (`pata_conejo.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+10 Suerte** permanente (`player_luck`). |
+| **Trébol del Abismo** (`trebol_abismo.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+3 Suerte** permanente (`player_luck`). |
+| **Cenizas de Fénix** (`cenizas_fenix.tres`) | Épica (`3`) | `RelicReviveEffect` | Al recibir daño letal (`HP <= 0`), **revive al jugador con el 50% de su HP máximo** y la reliquia se consume (destruye). |
 
-### Infrecuentes
+### Reliquias adicionales en diseño (`🚧 [FUTURO / PENDIENTE]`)
 
-| Reliquia | Efecto |
-|---|---|
-| Ojo Auditivo | +1 energía en el primer turno de cada combate |
-| Daga Envenenada | Al jugar carta de ataque, 1 Veneno al enemigo |
-| Capa Etérea | El primer golpe recibido cada combate hace 0 daño |
-
-### Raras
-
-| Reliquia | Efecto |
-|---|---|
-| Cenizas de Fénix | Al morir, resucitar con 50% HP (1 carga) |
-| Corazón del Dragón | +3 Strength permanente (cada combate) |
-| Espejo del Tiempo | Una vez por piso, rehacer la última acción |
-
-### Boss (garantizadas al matar boss)
-
-| Reliquia | Efecto |
-|---|---|
-| Alma del Vencedor | +1 energía máxima permanente |
-| Garra del Demonio | Cartas cuestan -1 (mín 0), pero pierdes 1 HP al jugarlas |
-| Corona del Rey | Al inicio de combate, todos los enemigos empiezan con 1 Vulnerable |
-
-### Reglas de diseño de reliquias
-
-1. **Sinergia > stacked stats**: preferimos reliquias que cambian cómo jugás sobre las que suman +X.
-2. **Counterplay**: las reliquias con downside (`Garra del Demonio`) permiten construir alrededor.
-3. **Triggerable**: cada reliquia debe disparar efectos visibles (no "+0.5% crit" invisible).
+- **Bolsa del Aventurero** (`🚧 [FUTURO / PENDIENTE]`): Oro adicional al iniciar cada nueva planta (`SignalBus.floor_started`).
+- **Garra del Demonio** (`🚧 [FUTURO / PENDIENTE]`): Reliquia de Jefe con downside (reducción de costo a cambio de HP).
 
 ---
 
-## Armas
+## Armas y Estadísticas RPG
 
-Sistema de equipamiento. 1 arma activa por héroe, ocupa 1 o 2 slots de manos.
+### Atributos RPG del Héroe
+- **Fuerza (`STR`)**, **Inteligencia (`INT`)** y **Destreza (`DEX`)**: Determinan qué armas puede dominar el héroe y cuánto daño adicional ganan sus ataques. Pueden aumentarse temporalmente en combate mediante `TempStatManager` (ej. *Grito de Guerra*).
+- **Suerte (`LUCK`)**: Afecta la probabilidad de obtener rarezas altas en `RaritySystem`, la probabilidad de aturdimiento por **Electrocutado (Shock)**, el porcentaje de daño del estallido de **Hemorragia**, la curación en **Hogueras / Santuarios** y la aparición de salas especiales en el `FloorGenerator`.
 
-| Arma | Bonus | Slots | Especial |
-|---|---|---|---|
-| Arma Básica | +1 daño | 1 | — |
-| Báculo | +0 daño | 1 | +1 Strength al inicio de combate |
-| Espadón | +4 daño | 2 | Solo equipable por Guerrero |
-| Katana Básica | +3 daño | 1 | Al atacar, aplicar Sangrado 2 |
+### Reglas de Armas y Penalizaciones (`CombatResolver.calculate_final_card_damage`)
+1. **Compatibilidad de Clase (`required_weapon_class`)**: Si una carta exige un tipo de arma específico (ej. `STAFF` para *Lanza Rayo* o `KATANA` para *Tajo*) y el jugador tiene equipada un arma de otra clase, la carta ejecuta un **"Golpe torpe"**: solo inflige `fallback_damage` (2 de daño) y **anula todos sus efectos de estado**.
+2. **Requisitos de Atributos (`req_str`, `req_int`, `req_dex`)**: Si el arma es de la clase correcta pero los atributos efectivos del héroe son menores a los requeridos por el arma, se calcula el `stat_deficit` (suma de puntos faltantes). Cada punto de déficit **reduce el daño final un 25%** (`min(1.0, deficit * 0.25)`) y **anula por completo los estados alterados** de la carta y del arma.
+3. **Escalado (`scale_str`, `scale_int`, `scale_dex`) y Estados On-Hit**: Si la carta tiene `uses_weapon_damage = true` y se cumplen los requisitos, suma al daño de la carta:
+   $$\text{Daño Arma} = \text{base\_damage} + \lfloor \text{STR}\cdot\text{scale\_str} + \text{INT}\cdot\text{scale\_int} + \text{DEX}\cdot\text{scale\_dex} \rfloor$$
+   Además, inyecta automáticamente las cargas `inflict_poison`, `inflict_burn`, `inflict_hemorrhage` e `inflict_shock` del arma al combo.
+4. **Mochila de Armas (`inventory_weapons`)**: El jugador puede guardar hasta **4 armas en su mochila** (`MAX_INVENTORY_SIZE = 4`) y cambiar su arma equipada desde `InventoryModalView` tanto en el mapa como en combate.
 
-### Diseño
+### Catálogo de Armas implementadas (`weapons/data/`)
 
-- Las armas modifican el daño base de las cartas de ataque.
-- El "daño base" de una carta = su valor en `.tres`. El arma aplica como modifier aditivo.
-- `special_effect` puede aplicar un status, activar una vez por combate, etc.
-
----
-
-## Statuses
-
-###_statuses del jugador (positivos)
-
-| Status | Efecto | Duración | Stack |
-|---|---|---|---|
-| Strength | +1 daño a cada carta de ataque | Permanente (combate) | ADD |
-| Dexterity | +1 block a cada carta de skill | Permanente (combate) | ADD |
-| Energía Arcana | +1 energía por turno | X turnos | REPLACE |
-
-### Statuses del jugador (negativos)
-
-| Status | Efecto | Duración | Stack |
-|---|---|---|---|
-| Vulnerable | +50% daño recibido | 3 turnos | REPLACE |
-| Frágil | Block reduce en 25% | 3 turnos | REPLACE |
-
-### Statuses del enemigo (aplicables)
-
-| Status | Efecto | Duración | Stack |
-|---|---|---|---|
-| Veneno | Daño = stacks al final del turno del enemigo | Hasta curarse | ADD |
-| Sangrado | Daño = stacks al atacar | 3 turnos | ADD |
-| Vulnerable | +50% daño recibido | 3 turnos | REPLACE |
-| Weak | -25% daño hecho | 3 turnos | REPLACE |
-| Aturdir | No actúa este turno | 1 turno | REPLACE |
-
-### Reglas de stack
-
-- **REPLACE**: aplicar de nuevo resetea duration, no suma stacks.
-- **ADD**: aplica stacks adicionales, duration se resetea al máximo.
-- **MAX_CAP**: stacks hasta un máximo definido (Veneno: 99, Sangrado: 5).
+| Arma (`archivo.tres`) | ID (`weapon_id`) | Clase (`WeaponData.Class`) | Daño Base | Requisitos (`STR / INT / DEX`) | Escalado (`STR / INT / DEX`) | Efecto On-Hit por carta |
+|---|---|---|---|---|---|---|
+| **Palito** (`arma_basica.tres`) | `"weapon_base"` | `ANY` (`0`) | 3 | 0 / 0 / 0 | 0 / 0 / 0 | — |
+| **Báculo Básico** (`baculo.tres`) | `"weapon_base"` | `STAFF` (`3`) | 3 | **3** / 0 / 0 | 0 / **1.0** / 0 | — |
+| **Daga** (`dagger.tres`) | `"2134"` | `DAGGER` (`4`) | 2 | **1** / 0 / **3** | 0 / 0 / **0.4** | **+2 Hemorragia** |
+| **Espadón** (`espadon.tres`) | `"2"` | `HEAVY` (`2`) | 5 | 0 / 0 / 0 | 0 / 0 / 0 | **+2 Hemorragia** |
+| **Katana Básica** (`katana_basica.tres`) | `"234"` | `KATANA` (`5`) | 5 | **4** / 0 / 0 | 0 / 0 / 0 | — |
 
 ---
 
-## Enemigos
+## Estados Alterados y Reacciones Elementales
 
-Sistema de IA
-Los enemigos usan un sistema de behaviors componibles. Cada EnemyData declara un intent_pattern: Array[EnemyBehavior] que el EnemyAI itera para decidir el intent de cada turno. Si el array está vacío, el enemigo solo ataca (compatibilidad con el sistema viejo).
+### Los 5 Estados Alterados (`Enemy`)
 
-Behaviors disponibles:
-
-AttackBehavior(damage, every_n_turns) — ataca cada N turnos.
-DefendBehavior(block, every_n_turns) — gana escudo cada N turnos.
-ChargeBehavior(bonus_multiplier, every_n_turns) — carga un turno, golpea fuerte el siguiente.
-Ciclo de block: el escudo ganado en el turno del enemigo persiste durante tu próximo combo y se resetea al inicio del siguiente turno del enemigo (no entre medias).
-
-### Comunes (Acto 1)
-
-| Enemigo | HP | Patrón de IA | Loot |
+| Estado | ID | Mecánica de Resolución / Tick | Decaimiento por Turno |
 |---|---|---|---|
-| Esqueleto | 20-25 | Atacar (8 daño) | 8-12 oro |
-| Goblin | 15-20 | Atacar (5 daño) + huir si HP<30% | 10-15 oro |
-| Limo | 25-30 | Defensa (5 block) → Atacar (10 daño) | 6-10 oro |
-| Murciélago | 12-18 | Atacar (4 daño) x2 | 5-8 oro |
+| **Quemadura** | `"burn"` | Al final del turno del jugador, inflige daño fijo igual a las cargas actuales (`burn`). | Se reduce a la mitad (`int(burn * 0.5)`). |
+| **Veneno** | `"poison"` | Al final del turno del jugador, inflige daño fijo igual a las cargas actuales (`poison`). | Reduce 1 carga por turno (`STATUS_DECAY_PER_TURN = 1`). |
+| **Congelamiento** | `"freeze"` | Reduce el daño de ataque enemigo en `freeze` puntos. Si llega a **5 cargas (`FREEZE_STUN_THRESHOLD`)**, **congela por completo al enemigo** (pierde su turno). | Si congeló por completo ($\ge 5$), se rompe y pasa a `0`. Si era $< 5$, reduce 1 carga al final del turno enemigo. |
+| **Electrocutado** | `"shock"` | Al inicio del turno enemigo, tira probabilidad de **Parálisis**: `12% por carga + 3% por punto de Suerte` (mín. 5%, máx. **80%**). Si acierta, el enemigo pierde su turno. | Si paraliza al enemigo, se descarga a `0`. Si falla, reduce 1 carga. |
+| **Hemorragia** | `"hemorrhage"` | Posee un **umbral de estallido dinámico**: empieza en **10 cargas** (`HEMORRHAGE_BURST_THRESHOLD`) y sube **+5 por cada estallido previo** en ese combate. Si supera el umbral, detona un **Estallido de Sangre** que inflige entre **10% y 25% del HP actual del enemigo** (interpolado por Suerte hasta 12 LUCK) y se resetea a `0`. Si no alcanza el umbral, inflige daño igual a las cargas. | Tras hacer daño sin estallar, reduce **4 cargas** por turno. |
 
-### Élites (Acto 1)
+### Reacciones Elementales (`StatusReactions`)
 
-| Enemigo | HP | Patrón | Loot |
-|---|---|---|---|
-| Caballero Caído | 45-50 | Atacar (12 daño) → Bloquear (10) → Atacar (15) | 25-35 oro + 1 relic garantizada |
+Cuando un combo aplica estados sobre un enemigo (`enemy.apply_statuses()`), antes de sumarlos normalmente se verifica si el estado futuro (`actual + entrante`) activa alguna reacción elemental. Si se detona una reacción, se consumen las cargas indicadas, se inflige daño instantáneo y los estados consumidos no vuelven a hacer tick en ese mismo fin de turno:
 
-### Bosses (Acto 1)
+| Reacción | ID | Condición (`requires`) | Cargas Consumidas (`consumes`) | Efecto Instantáneo |
+|---|---|---|---|---|
+| **¡VAPORIZACIÓN!** | `"vaporize"` | `burn >= 1` y `freeze >= 1` | Hasta `3 Burn` y `3 Freeze` | **15 de daño fijo** al enemigo |
+| **¡SUPERCONDUCTOR!** | `"superconductor"` | `freeze >= 1` y `shock >= 1` | Todas (`99 Freeze`, `99 Shock`) | **20 de daño fijo** al enemigo |
+| **¡COMBUSTIÓN TÓXICA!** | `"combustion"` | `burn >= 1` y `poison >= 1` | Todo el veneno (`99 Poison`) | **10 de daño fijo** al enemigo |
 
-| Boss | HP | Mecánica |
+### Estados adicionales en diseño (`🚧 [FUTURO / PENDIENTE]`)
+- **Vulnerable / Weak / Frágil** sobre el jugador o el enemigo mediante un sistema desacoplado en `systems/statuses/` (`🚧 [FUTURO / PENDIENTE]`).
+
+---
+
+## Enemigos e IA
+
+### Escalado Matemático por Planta (`Enemy._init`)
+Cuando `RunState.create_enemy_for_room()` instancia un enemigo en la planta `current_floor`, sus estadísticas escalan automáticamente:
+- **Enemigo Normal (`is_boss == false`)**:
+  - $\text{Max HP} = \text{base\_hp} + (\text{current\_floor} - 1) \times 25$
+  - $\text{Intent Damage} = \text{base\_damage} + (\text{current\_floor} - 1) \times 3$
+- **Jefe de Planta (`is_boss == true`)**:
+  - $\text{Max HP} = \text{base\_hp} + (\text{current\_floor} - 1) \times 45$
+  - $\text{Intent Damage} = \text{base\_damage} + (\text{current\_floor} - 1) \times 4$
+
+### Composición de IA (`EnemyAI` + `EnemyBehavior`)
+Cada `EnemyData` contiene un array `intent_pattern: Array[EnemyBehavior]`. En cada turno (`turn_count`), `EnemyAI.decide_intent()` consulta en orden los behaviors y ejecuta el primero que no retorne `null`. Si ninguno aplica (o si el array está vacío), ejecuta un ataque básico por `get_effective_intent_damage()`.
+
+### Catálogo de Enemigos implementados (`entities/enemies/data/`)
+
+| Enemigo (`archivo.tres`) | Tipo | HP Base (Planta 1) | Daño Base (Planta 1) | Patrón de IA (`intent_pattern`) |
+|---|---|---|---|---|
+| **Esqueleto** (`esqueleto.tres`) | Común | 50 | 10 | `[DefendBehavior(block=5, every_n_turns=2)]` → Gana +5 Escudo en turnos pares (`0, 2, 4...`) y ataca por 10 DMG (escalado) en turnos impares. |
+| **JEFE** (`jefe_basico.tres`) | Boss (`is_boss = true`) | 76 | 14 | `[]` (Fallback: ataca todos los turnos por 14 DMG base + escalado de jefe). |
+
+### Enemigos adicionales en diseño (`🚧 [FUTURO / PENDIENTE]`)
+- **Goblin, Limo, Murciélago, Caballero Caído (Élite), Ogro del Bosque** (`🚧 [FUTURO / PENDIENTE]`).
+
+---
+
+## Mapa procedural (Matriz 8x8)
+
+### Algoritmo de Generación (`FloorGenerator.generate_floor`)
+En lugar de columnas lineales, cada planta se construye sobre una **grilla ortogonal de `8x8` celdas** usando una sub-semilla determinista (`get_floor_subseed(master_seed, floor_number)`):
+
+1. **Escalado de tamaño por planta (`get_target_rooms_for_floor`)**:
+   - Planta 1: **7 salas**
+   - Planta 2: **9 salas** (+2)
+   - Planta 3: **12 salas** (+3)
+   - Planta 4: **16 salas** (+4)
+   - Planta 5: **21 salas** (+5)
+   - Planta 6: **27 salas** (+6)
+   - Planta 7+: **28 salas** (`MAX_ROOMS_CAP`)
+2. **Expansión de Frontera Anti-Apelotonamiento (`_expand_frontier`)**:
+   - Coloca `START` en una de las 4 celdas centrales `(3,3), (4,3), (3,4), (4,4)`.
+   - Expande ortogonalmente rechazando celdas que ya tengan 2 o más vecinos ocupados (evita bloques cuadrados 2x2 y fuerza corredores tipo laberinto).
+3. **Asignación de Salas Especiales en Callejones sin Salida (`_assign_special_rooms`)**:
+   - Identifica todas las hojas del grafo (`is_dead_end() == true`, salas con 1 sola conexión) y las ordena de **mayor a menor distancia Manhattan** respecto a `START`:
+	 - **1.º más lejano:** `BOSS` (Jefe de la planta).
+	 - **2.º más lejano:** `TREASURE` (Reliquia gratuita).
+	 - **3.º más lejano:** `REST` (Hoguera).
+	 - **4.º más lejano (o fallback en sala de combate a distancia > 1):** `SHOP` (1 Tienda garantizada por planta).
+	 - **Planta $\ge 3$:** Callejón extra de `REST`.
+	 - **Planta $\ge 4$:** Probabilidad dinámica (`45% base + 8%/piso + 7%/suerte`) de generar un **`SANCTUARY`** o un `TREASURE` adicional.
+	 - **Planta 2-3 con `player_luck > 0`:** Probabilidad (`8% por punto de suerte`, máx. 65%) de un `TREASURE` extra.
+4. **Niebla de Guerra (`discovered`)**:
+   - Al iniciar la planta, solo `START` y sus vecinos ortogonales inmediatos están descubiertos. Despejar una sala revela a sus vecinos.
+   - El jugador puede desplazarse a cualquier sala descubierta que sea vecina de su posición actual o de **cualquier sala ya despejada (`cleared`)**, permitiendo recorrer libremente los ramales del laberinto sin quedar atrapado en un callejón.
+
+---
+
+## Salas Especiales y Eventos
+
+### Eventos implementados en el Mapa
+
+| Tipo de Sala (`RoomData.Type`) | Nombre en Mapa | Mecánica implementada |
 |---|---|---|
-| Ogro del Bosque | 80 | Carga 2 turnos → golpe 25 daño. Vulnerable al frente. |
+| **`START`** | `INICIO` | Punto de partida de la planta (aparece despejado). |
+| **`COMBAT`** | `COMBATE` / `LIMPIA` | Encuentro contra enemigo común escalado al piso actual; al ganar abre `RewardView`. |
+| **`BOSS`** | `JEFE` / `DERROTADO` | Encuentro contra Jefe escalado; al ganar abre `RewardView` y luego avanza a la siguiente planta (`current_floor + 1`). |
+| **`TREASURE`** | `RELIQUIA` / `SAQUEADO` | Otorga inmediatamente 1 reliquia aleatoria ponderada por `RaritySystem` (evitando duplicadas). |
+| **`REST`** | `HOGUERA` / `USADO` | Cura instantáneamente entre **25 y 50 HP**, interpolado suavemente según `player_luck` (alcanza 50 HP con 12 de Suerte). |
+| **`SANCTUARY`** | `SANTUARIO` / `BENDECIDO` | Abre `SanctuaryModalView` con 2 opciones:<br>1. **Don del Artefacto**: Otorga +1 Reliquia (con bonus de fortuna $+1.0$ por piso hasta $+4.0$) y cura entre **25% y 50% del HP máximo** según Suerte.<br>2. **Vitalidad Inmortal**: Aumenta el **HP Máximo permanente entre +5 y +25** según Suerte y cura esa misma cantidad. |
+| **`SHOP`** | `TIENDA` | Abre `ShopView` (permite salir y volver a entrar todas las veces que se quiera dentro de la misma planta conservando el stock). |
 
-### Acto 2 y 3 (placeholder)
-
-A definir en iteración. Estructura similar con escalado de HP, nuevos patrones, mecánicas únicas (multi-fase, summons).
+### Eventos narrativos adicionales (`🚧 [FUTURO / PENDIENTE]`)
+- Sistema genérico `EventData` / `EventChoice` (`El Mercader Errante`, `El Espejo Roto`) en `systems/events/` y `scenes/event/` (`🚧 [FUTURO / PENDIENTE]`).
 
 ---
 
-## Mapa procedural
+## Sistema de rarezas y Suerte
 
-### Estructura por piso
+Implementado en `core/run/rarity_system.gd` con **5 Tiers** y escalado dinámico por **Fortuna**:
 
-```
-Piso = columnas conectadas
-Cada columna: 2-4 nodos
-Última columna: BOSS (1 nodo)
+$$\text{Fortuna} = \max\left(0.0,\; (\text{floor\_number} - 1) \times 1.5 + \text{player\_luck} \times 2.5 + \text{bonus\_fortune}\right)$$
 
-   [BATTLE] ─┬─ [EVENT] ── [BATTLE] ── [SHOP] ── [BOSS]
-			 │
-   [BATTLE] ─┴─ [ELITE] ── [REST] ──── [TREASURE] ─┘
-```
+| Tier (`RaritySystem.Tier`) | Nombre UI | Color UI | Fórmula de Peso (`get_tier_weights`) | Peso Base (Piso 1, Luck 0) |
+|---|---|---|---|---|
+| `COMMON` (`0`) | `"Comun"` | Gris `(0.72, 0.76, 0.82)` | $\max(10.0,\; 52.0 - \text{fortuna} \times 3.8)$ | `52.0` (~52%) |
+| `UNCOMMON` (`1`) | `"Poco Comun"` | Verde `(0.18, 0.80, 0.44)` | $28.0 + \text{fortuna} \times 1.0$ | `28.0` (~28%) |
+| `RARE` (`2`) | `"Rara"` | Azul `(0.25, 0.62, 1.0)` | $15.0 + \text{fortuna} \times 1.8$ | `15.0` (~15%) |
+| `EPIC` (`3`) | `"Epica"` | Violeta `(0.72, 0.30, 1.0)` | $4.5 + \text{fortuna} \times 1.2$ | `4.5` (~4.5%) |
+| `LEGENDARY` (`4`) | `"Legendaria"` | Dorado `(1.0, 0.75, 0.15)` | $\max(0.5,\; 0.5 + \text{fortuna} \times 0.8)$ | `0.5` (~0.5%) |
 
-### Tipos de nodo
+---
 
-| Nodo | Frecuencia | Descripción |
+## Economía y Tienda
+
+### Obtención de Oro
+- **Oro inicial**: Depende del héroe (`100` Guerrero/DEMO, `120` Mago, `200` Samurai, `678` Asesino).
+- **Recompensa por combate (`generate_combat_rewards`)**: `10 + (current_floor * 2) + randi() % 5` de oro garantizado (se cobra tanto al elegir carta como al saltar la selección).
+
+### Tienda del Bazar (`ShopView`)
+Cada tienda ofrece **3 cartas** y **2 reliquias** sin repetir (generadas de forma determinista con la semilla de las coordenadas de la sala). Los precios son fijos según el `RaritySystem.Tier`:
+
+| Rareza (`Tier`) | Precio de Carta en Tienda | Precio de Reliquia en Tienda |
 |---|---|---|
-| BATTLE | 40% | Combate normal, recompensa de carta + oro |
-| ELITE | 10% | Combate difícil, recompensa de relic garantizada |
-| EVENT | 15% | Evento con choices |
-| SHOP | 8% | Tienda (cartas, reliquias, poción) por oro |
-| REST | 12% | Descansar (curar 30% HP) o forjar (+5 max HP) |
-| TREASURE | 5% | Reliquia garantizada sin combate |
-| BOSS | 1 por piso | Boss final, recompensa grande |
+| **Común (`COMMON`)** | 45 Oro | 120 Oro |
+| **Poco Común (`UNCOMMON`)** | 60 Oro | 140 Oro |
+| **Rara (`RARE`)** | 75 Oro | 160 Oro |
+| **Épica (`EPIC`)** | 120 Oro | 220 Oro |
+| **Legendaria (`LEGENDARY`)** | 180 Oro | 300 Oro |
 
-### Reglas de generación
-
-1. **Garantizar camino al boss**: todos los caminos llegan al boss.
-2. **Bifurcaciones**: cada nodo se conecta a 1-3 nodos de la columna siguiente.
-3. **No backtrack**: solo se avanza hacia adelante.
-4. **Semilla reproducible**: dado el `floor_num` y `seed`, el floor generado es idéntico.
-5. **Dificultad escalante**: piso 2 tiene más élites, piso 3 tiene eventos más riesgosos.
+- **Servicio de remover carta en tienda**: `🚧 [FUTURO / PENDIENTE]`.
 
 ---
 
-## Eventos
+## Progresión meta y Guardado
 
-Eventos con **choices**. Cada choice tiene riesgo/recompensa.
-
-### Ejemplos
-
-#### El Santuario Olvidado
-
-> Un altar antiguo pulsa con energía. ¿Te acercas?
-
-- **Rezar**: +5 max HP, pero -10 HP actuales.
-- **Sacrificar sangre**: -15 HP, +1 relic aleatoria.
-- **Ignorar**: nada.
-
-#### El Mercader Errante
-
-> Un mercader te ofrece un trato. 50 oro por una carta infrecuente aleatoria.
-
-- **Aceptar**: -50 oro, +1 carta infrecuente.
-- **Regatear**: 50% chance → -30 oro, +1 carta; 50% chance → -50 oro, nada.
-- **Rechazar**: nada.
-
-#### El Espejo Roto
-
-> Ves tu reflejo hacer algo distinto a ti.
-
-- **Cruzar el espejo**: -1 carta aleatoria del mazo, +1 relic rara.
-- **Romperlo**: +20 oro, -2 cartas aleatorias del mazo.
-- **Mirar y marcharse**: nada.
-
-### Reglas de diseño
-
-1. **Siempre una opción "ignorar"** para jugadores conservadores.
-2. **Riesgo proporcional a recompensa**: alto riesgo = alta recompensa.
-3. **Visible antes de decidir**: el jugador sabe qué puede perder.
-4. **Algunos eventos pueden repetirse** en pisos distintos con variaciones.
-
----
-
-## Sistema de rarezas
-
-Cuando el jugador gana una carta, se rolla la rareza:
-
-| Rareza | Peso piso 1 | Peso piso 2 | Peso piso 3 |
-|---|---|---|---|
-| COMMON | 70 | 60 | 50 |
-| UNCOMMON | 25 | 30 | 35 |
-| RARE | 5 | 10 | 15 |
-
-Implementado en `core/run/rarity_system.gd`. `roll_rarity(floor_num) -> Rarity` devuelve un valor del enum.
-
-### Reliquias
-
-Las reliquias siguen un sistema similar pero con pool más pequeño (más control sobre qué drops):
-
-| Rareza | Pool size | Drop chance |
-|---|---|---|
-| COMMON | 8 | 50% |
-| UNCOMMON | 10 | 35% |
-| RARE | 6 | 15% |
-
-Bosses siempre dropean una **boss relic** específica (no rollada).
-
----
-
-## Economía
-
-### Oro
-
-- Drop base por batalla: 8-15 oro.
-- Drop por elite: 25-35 oro.
-- Drop por boss: 50-80 oro.
-- Eventos pueden dar/quitar oro.
-
-### Tienda
-
-- Cartas: precio = `10 + cost * 5` oro (común), `25 + cost * 8` (infrecuente), `50 + cost * 10` (rara).
-- Reliquia: 100-150 oro (random pool).
-- Poción (cuando se implemente): 50 oro.
-- **Servicio de remover carta**: 75 oro, sube 25 por uso en la misma run.
-
-### HP
-
-- HP inicial depende del héroe (50-80).
-- Descansar en REST cura 30% HP máximo.
-- Cartas/events pueden curar.
-- **No hay regen entre batallas** excepto eventos.
-
----
-
-## Progresión meta
-
-### Slots de guardado
-
-3 slots. Cada slot guarda:
-- Run actual (si está en curso).
-- Stats del slot (partidas jugadas, victorias, derrotas).
-
-### Stats globales
-
-Compartidos entre slots:
-- Total de oro ganado.
-- Total de runs completadas.
-- Enemigos derrotados (counter por tipo).
-- Mejor tiempo de run.
-
-### Unlocks (sistema de desbloqueo)
-
-A definir. Sugerencia: unlocks basados en logros (matar X boss con héroe Y → desbloquea nueva carta inicial para ese héroe).
+Implementado en `autoload/persistence_manager.gd`:
+- **3 Ranuras de Guardado (`user://saves/slot_1..3/`)**:
+  - `profile.json`: Nombre del jugador, fecha de creación, `unlocked_heroes` y estadísticas históricas (`runs_started`, `runs_won`, `highest_floor`, `total_enemies_killed`).
+  - `run.json`: Snapshot completo de la partida en curso (`master_seed`, `current_floor`, héroe, arma equipada, mochila de armas, posición en la grilla 8x8, salas despejadas y descubiertas, stats actuales, mazo completo y reliquias).
+- **Auto-login (`user://last_slot.cfg`)**: Recuerda la última ranura activa para reanudar sin fricción al abrir el juego.
+- **Permadeath estricto**: Cuando el jugador muere en combate o abandona la partida desde el menú de pausa, `delete_active_run()` elimina físicamente `run.json` y registra la derrota y el piso alcanzado en `profile.json`.
 
 ---
 
 ## Balance numérico
 
-### Constantes (en `core/constants/combat_constants.gd`)
+Constantes actuales en `core/constants/combat_constants.gd`:
 
 ```gdscript
-const STARTING_ENERGY: int = 3
-const HAND_SIZE: int = 5
-const BLOCK_DECAY_AT_TURN_END: bool = true  # block se resetea al inicio del turno del jugador
-const POISON_TICK: bool = true               # poison aplica al final del turno del enemigo
-const VULNERABLE_MULTIPLIER: float = 1.5
-const WEAK_MULTIPLIER: float = 0.75
+# --- UMBRALES Y BALANCE DE ESTADOS (STATUS EFFECTS) ---
+const FREEZE_STUN_THRESHOLD: int = 5
+const HEMORRHAGE_BURST_THRESHOLD: int = 10
+const HEMORRHAGE_THRESHOLD_SCALING: int = 5
+const STATUS_DECAY_PER_TURN: int = 1
+
+const SHOCK_STUN_CHANCE_PER_STACK: float = 0.12
+const SHOCK_LUCK_BONUS_PER_POINT: float = 0.03
+const SHOCK_MAX_STUN_CHANCE: float = 0.80
+
+# --- REGLAS BASE DEL JUGADOR Y COMBATE ---
+const BASE_HAND_SIZE: int = 5
+const BASE_MAX_ENERGY: int = 3
+const BASE_DISCARDS_PER_COMBAT: int = 2
+const BASE_LUCKY: int = 1
+const BASE_HEALTH: int = 50
+const BASE_GOLD: int = 100
+const BASE_STR: int = 1
+const BASE_DEX: int = 1
+const BASE_INT: int = 1
+
+# --- BONUS DE COMBOS (Catalizador de Combo) ---
+const BASE_MIN_CARDS_REQUIERED: int = 3
+const BASE_BONUS_DMG: int = 6
+const BASE_BONUS_SHIELD: int = 5
+
+const MAX_INVENTORY_SIZE: int = 4
 ```
-
-### Curva de daño esperada
-
-| Costo | Daño ataque común | Block skill común | Draw skill común |
-|---|---|---|---|
-| 0 | 3-4 | — | 1-2 |
-| 1 | 6-8 | 5-6 | 2 |
-| 2 | 12-15 | 10-12 | 3 |
-| 3 | 20-25 | 18-20 | 4-5 |
-
-### HP enemigos por piso
-
-| Piso | Común | Elite | Boss |
-|---|---|---|---|
-| 1 | 15-30 | 40-50 | 70-90 |
-| 2 | 30-50 | 60-80 | 120-150 |
-| 3 | 50-70 | 90-120 | 180-220 |
-
-### Daño enemigo por piso
-
-| Piso | Hit básico | Hit fuerte |
-|---|---|---|
-| 1 | 5-10 | 12-18 |
-| 2 | 10-15 | 18-25 |
-| 3 | 15-20 | 25-35 |
-
-### Reglas de balance
-
-1. **HP jugador > HP enemigo**: el héroe tiene 50-80 HP, los enemigos comunes 15-30. El jugador debe tomar muchos golpes para morir, pero cada uno importa.
-2. **Combates duren 4-7 turnos**: ni muy cortos (aburridos) ni muy largos (slogs).
-3. **Damage/energy ≈ 6-8 para comunes**: cualquier carta muy por encima rompe balance.
-4. **Statuses tienen counterplay**: Vulnerable dura poco, Veneno se acumula pero el enemigo puede tener curación.
 
 ---
 
 ## UI/UX
 
-### Layout de batalla
+### Layout de Batalla (`battle_table.tscn` + `BattleHUD`)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                 │
-│                                                                                 │
+│ [F3] DEBUG                                                                      │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │   Esqueleto   |   HP: 50 / 50   |   Defensa: +5 Bloqueo                 │   │
+│   │ Esqueleto  |  HP: 50 / 50  |  🛡 5  |  Defensa: +5 Bloqueo              │   │
+│   │ Estados: Quemadura: 2  |  Congelamiento: 2/5  |  Electrocutado: 3 (39%) │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                 │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                                                                         │   │
-│   │                                                                         │   │
-│   │                                                                         │   │
+│   │                              ZONA DE COMBO                              │   │
+│   │        [ Golpe Ígneo ]     [ Golpe Congelante ]     [ Sobrecarga ]      │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                 │
-│                     Selecciona o arrastra cartas a la Zona de Combo             │
+│       COMBO ACTIVO:   16 DAÑO   |   +2 QUEMADURA   |   +2 CONGELAMIENTO   | x2  │
 │                                                                                 │
-│   ┌───────────┐   ┌─────────────────────────────────────────────────────────┐   │
-│   │           │   │   Escudo   │   Escudo   │ Estocada │ Estocada │ Escudo  │   │
-│   │  GUERRERO │   │   +8 Esc.  │   +8 Esc.  │ Costo: 1 │ Costo: 1 │ +8 Esc. │   │
-│   │  ❤️ 50/50 │   │   Costo: 1 │   Costo: 1 │ [Comun]  │ [Comun]  │ Costo: 1│   │
-│   │  ⚔️ Arma  │   │  [P.Comun] │  [P.Comun] │          │          │[P.Comun]│   │
-│   │  ⚡ 4/4   │   └─────────────────────────────────────────────────────────┘   │
-│   │  🍀 1     │                                                                 │
-│   └───────────┘                                        [PASAR TURNO]            │
-│                                                                                 │
-│   ┌───────────┐                                        [DESCARTAR (2)]          │
-│   │ Mazo (2)  │                                                                 │
-│   └───────────┘                                        [Descarte (0)]           │
-│                                                        [Cementerio (0)]         │
+│   ┌──────────────┐  ┌───────────────────────────────────────────────────────┐   │
+│   │ GUERRERO     │  │                        MANO                           │   │
+│   │ ❤️: 50 / 50  │  │   [ Escudo ]        [ Estocada ]        [ Robo ]      │   │
+│   │ 🛡️: +8       │  │    +8 Escudo         Costo: 1            Roba +1      │   │
+│   │ 🗡️: Espadon  │  │    Costo: 1          [Comun]          [INSTANTANEO]   │   │
+│   │ ⚡: 4 / 4    │  └───────────────────────────────────────────────────────┘   │
+│   │ 🍀: 1        │                                      [Grito de Guerra (1/1)] │
+│   └──────────────┘                                      [EJECUTAR COMBO]        │
+│   [INVENTARIO]                                          [DESCARTAR (2)]         │
+│   [Mazo (4)]                                            [Descarte (0)]          │
+│                                                         [Cementerio (0)]        │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Interacciones clave
-
-- **Hover carta**: agranda + muestra descripción completa.
-- **Drag carta al enemigo**: juega carta de ataque dirigida.
-- **Click carta**: juega carta (auto-target si single enemy).
-- **Botón fin de turno**: termina turno, enemigo actúa.
-- **Tab**: abre inventario (mazo actual, reliquias).
-- **Esc**: pausa.
-
-### Feedback visual
-
-- **Daño**: número flotante rojo.
-- **Block**: número flotante azul.
-- **Curación**: número flotante verde.
-- **Status aplicado**: icono del status con popup del nombre.
-- **Carta jugada**: animación de carta volando al objetivo.
-- **Muerte enemigo**: fade out + partículas.
-
-### Accesibilidad
-
-- **Tamaño de fuente escalable** (pequeño/mediano/grande).
-- **Modo alto contraste** (opción).
-- **Sonidos con feedback visual duplicado** (no dependen solo de audio).
-- **Sin mecánicas de tiempo real**: todo es por turnos.
+### Interacciones clave en Combate y Mapa
+- **Clic rápido en carta de la mano**: Si es instantánea (`Robo`), se consume en el acto; si es normal y hay energía, sube al final de la `ComboZone`.
+- **Clic rápido en carta de la `ComboZone`**: La devuelve a la mano y reembolsa su energía.
+- **Drag & Drop en `ComboZone` / `HandZone`**: Permite arrastrar cartas entre zonas e **intercalar su orden horizontalmente en vivo**, recalculando instantáneamente el `ComboBanner`.
+- **Botón `INVENTARIO`**: Abre `InventoryModalView` para ver `STR / INT / DEX / LUCK` y cambiar el arma equipada desde la mochila.
+- **Botones `Mazo`, `Descarte`, `Cementerio`**: Abren `PileInspector` mostrando el conteo agrupado de cartas en esa pila.
+- **`ESC`**: Abre `PauseMenuView` (Continuar, Abandonar Partida con confirmación, Guardar y Salir).
+- **`F3` / `F4`** *(solo builds debug)*: Abre/oculta el `DebugOverlay`.
 
 ---
 
 ## Arte y audio
 
-### Estilo visual
-
-- **Pixel art** con paleta limitada (16-32 colores).
-- **Color scheme**: oscuro con acentos vibrantes (no fantasy genérico).
-- **Referencias**: Hades, Dead Cells, Slay the Spire (animaciones 2D con personalidad).
-
-### Tipografías
-
-- **UI body**: Noto Sans (legible a baja resolución).
-- **Títulos**: una display font con personalidad (TBD).
-
-### Audio
-
-- **Música**: por piso/zona. Boss tiene track dedicado.
-- **SFX**: удар, robo, descarte, jugar carta, daño recibido, muerte enemigo.
-- **UI**: clicks, hovers, transiciones.
-
-### Asset pipeline
-
-- Arte: importado a `assets/art/` como PNG.
-- Audio: `assets/audio/` como WAV (SFX) y OGG (música).
-- Compresión Godot: VRAM para textures, lossless para UI.
+- **Estado actual**: Toda la interfaz está construida con estilizado procedural (`StyleBoxFlat`, bordes temáticos por rareza/tipo de sala, texto BBCode y animaciones por `Tween` / resortes exponenciales). Las carpetas `assets/audio/`, `assets/fonts/` y `assets/textures/` están preparadas con `.gitkeep`.
+- **Implementación de sprites, shaders custom y pistas de audio**: `🚧 [FUTURO / PENDIENTE]`.
 
 ---
 
 ## Roadmap
 
-### MVP (2-3 semanas)
+### Fase 1: Core & Combate por Combos (Completado ✅)
+- [x] Combate 1v1 con `ComboZone`, reordenamiento drag & drop y `ComboBanner` predictivo.
+- [x] Mazo con 3 pilas (`draw_pile`, `discard_pile`, `graveyard_pile`) y cartas instantáneas.
+- [x] 5 estados alterados (`Burn`, `Poison`, `Freeze`, `Shock`, `Hemorrhage`) y 3 reacciones elementales (`StatusReactions`).
+- [x] Sistema de Armas con clases, requisitos/escalado RPG (`STR`, `INT`, `DEX`) y mochila de hasta 4 armas.
+- [x] 5 perfiles de héroe `.tres` y habilidades activas (`HeroAbility`).
+- [x] IA enemiga componible mediante `EnemyBehavior` (`Attack`, `Defend`, `Charge`).
 
-- [ ] Combate 1v1 funcionando.
-- [ ] 1 héroe (Guerrero) con mazo inicial.
-- [ ] 5 cartas jugables.
-- [ ] 3 statuses (Veneno, Vulnerable, Block).
-- [ ] 1 enemigo común.
-- [ ] UI mínima (HUD, mano, intent enemigo).
-- [ ] Tests de `combat_resolver` y `deck_manager` en verde.
+### Fase 2: Loop de Expedición y Persistencia (Completado ✅)
+- [x] Generador procedural de pisos `FloorGenerator` en grilla ortogonal `8x8` con niebla de guerra.
+- [x] Salas de Combate, Jefe, Tesoro, Hoguera (`REST`), Santuario (`SANCTUARY`) y Tienda (`SHOP`).
+- [x] Pantalla de recompensas `RewardView` con animaciones estilo Balatro.
+- [x] Máquina de estados `RunStateMachine` y `RunDirector`.
+- [x] Sistema de guardado atómico JSON en 3 slots (`PersistenceManager`) y `DebugOverlay` (`F3`/`F4`).
 
-### Run loop (2-3 semanas)
+### Fase 3: Testing, Subsistemas y Contenido (`🚧 [FUTURO / PENDIENTE]`)
+- [ ] Escribir suites de tests automatizados con GUT en `test/combat/`, `test/deck/` y `test/run/` (`🚧 [FUTURO / PENDIENTE]`).
+- [ ] Implementar wrappers `CardInstance` (`cards/card_instance.gd`) y `RelicInstance` para upgrades de cartas en partida (`🚧 [FUTURO / PENDIENTE]`).
+- [ ] Implementar eventos narrativos con opciones (`systems/events/` y `scenes/event/`) (`🚧 [FUTURO / PENDIENTE]`).
+- [ ] Agregar servicio de eliminar/mejorar cartas en Tienda y Hoguera (`🚧 [FUTURO / PENDIENTE]`).
+- [ ] Expandir catálogo de enemigos comunes, élites y jefes por planta (`🚧 [FUTURO / PENDIENTE]`).
+- [ ] Integrar assets visuales y SFX/música en `assets/` (`🚧 [FUTURO / PENDIENTE]`).
 
-- [ ] Mapa procedural de 1 piso.
-- [ ] 3 nodos: BATTLE, REST, BOSS.
-- [ ] Recompensa post-batalla (1 carta de 3).
-- [ ] Save/load de run.
-- [ ] 1 boss.
+---
 
-### Sistemas completos (3-4 semanas)
+## Matriz de transiciones legales (FSM)
 
-- [ ] Statuses completos (8-10).
-- [ ] Reliquias (5-10).
-- [ ] Armas (3-4).
-- [ ] Eventos (3-5).
-- [ ] Tienda.
-- [ ] 3 héroes jugables.
-- [ ] 3 pisos por run.
-- [ ] 3 bosses.
-
-### Contenido completo (4-6 semanas)
-
-- [ ] 30 cartas.
-- [ ] 15 reliquias.
-- [ ] 10 enemigos.
-- [ ] 6-8 eventos.
-- [ ] Balance fino iterativo.
-
-### Meta (2-3 semanas)
-
-- [ ] 3 slots de guardado.
-- [ ] Stats globales.
-- [ ] Unlocks básicos (3-5).
-- [ ] Pantalla de créditos.
-
-### Polish (ongoing)
-
-- [ ] Arte final.
-- [ ] Música.
-- [ ] SFX.
-- [ ] Animaciones.
-- [ ] Localización (ES + EN).
-
+Definida en `core/run/run_state_machine.gd`:
 
 | Desde \ Hacia | MENU | MAP | BATTLE | REWARD | EVENT | SHOP | DEAD | VICTORY |
 |---|---|---|---|---|---|---|---|---|
@@ -784,25 +539,12 @@ const WEAK_MULTIPLIER: float = 0.75
 | **DEAD** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | — | ❌ |
 | **VICTORY** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — |
 
+> **Nota:** En `RunDirector._on_pause_abandon_run()`, cuando el jugador abandona la run desde pausa (estando en `MAP`, `BATTLE` o `SHOP`), la transición hacia `MENU` hoy emite un `push_error` en la FSM si el estado previo no era `DEAD` o `VICTORY`. Se recomienda transicionar primero a `DEAD` o habilitar `to == State.MENU` desde cualquier estado al abandonar.
 
 ---
 
 ## Open questions
 
-1. **¿Pociones?** StS las tiene, agregan otro layer de decisiones. MVP sin ellas, evaluar después.
-2. **¿Diferentes armas por héroe?** Sí, pero cuántas y con qué frecuencia se consiguen.
-3. **¿Modo diario?** Para comunidad. Evaluar post-launch.
-4. **¿Mods?** Tooling de modding desde día 1 vale la pena? Probablemente no en MVP.
-5. **¿Idiomas?** Empezar con ES + EN. Otros según demanda.
-
----
-
-## Apéndice: referencias técnicas
-
-- Godot 4.3+
-- GDScript
-- GUT para tests
-- Save: `ConfigFile` para run, JSON para stats globales
-- Assets: PNG para arte, WAV/OGG para audio
-
-Para la arquitectura técnica completa, ver [`ARCHITECTURE.md`](ARCHITECTURE.md).
+1. **¿Cómo se consiguen nuevas armas durante la run?** Actualmente cada héroe inicia con su `starting_weapon` y se pueden inyectar armas a la mochila desde el `DebugOverlay` (`F3`). Falta definir si las armas dropearán en salas de `TREASURE` / `BOSS` o si tendrán su propia sección en `ShopView` (`🚧 [FUTURO / PENDIENTE]`).
+2. **¿Condición de `VICTORY` final?** Actualmente al derrotar al `BOSS` de una planta, `RunDirector._clear_room_after_combat()` avanza indefinidamente a `current_floor + 1` (escalando hasta 28 salas en Planta 7+). Falta definir en qué planta se dispara `RunStateMachine.State.VICTORY` en lugar de generar otro piso.
+3. **¿Pociones / Consumibles?** Evaluar si las cartas `single_use` (que van al Cementerio) cubren ese rol o si se agregará un cinturón de pociones separado.

@@ -1,11 +1,11 @@
+## Stub reservado para encapsular el estado vivo de una carta en partida (mejoras temporales, costos alterados)
+## separado de la plantilla estática `CardData`. Actualmente la clonación se gestiona vía `CardData.duplicate()` en `DeckManager`.
 extends Node
 
-
-# Called when the node enters the scene tree for the first time.
+## Inicializa el nodo contenedor de instancia de carta (stub sin implementación activa).
 func _ready() -> void:
-	pass # Replace with function body.
+	pass
 
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
+## Ciclo de actualización por cuadro (stub sin implementación activa).
+func _process(_delta: float) -> void:
 	pass

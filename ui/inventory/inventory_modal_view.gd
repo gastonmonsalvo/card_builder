@@ -15,6 +15,7 @@ var equipped_weapon_details_label: Label
 var weapons_box: VBoxContainer
 var close_btn: Button
 
+## Configura el contenedor a pantalla completa, construye la interfaz interna del inventario y la mantiene centrada ante cambios de resolución.
 func _ready() -> void:
 	name = "InventoryModalView"
 

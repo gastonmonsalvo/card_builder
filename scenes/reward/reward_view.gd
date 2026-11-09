@@ -276,12 +276,14 @@ func _close() -> void:
 	reward_completed.emit()
 	queue_free()
 
+## Emite la señal `card_chosen` con la carta seleccionada hacia el `RunDirector` y cierra la vista de recompensas.
 func _select_card_reward(card_data: CardData) -> void:
 	# Ya no mutamos run ni deck directamente desde acá
 	# Solo emitimos la señal con los datos elegidos
 	card_chosen.emit(card_data)
 	_close()
 
+## Maneja el botón de omitir recompensa de carta, emitiendo `skipped` y cerrando la vista.
 func _on_skip_button_pressed() -> void:
 	if _is_selecting:
 		return

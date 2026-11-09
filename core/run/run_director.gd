@@ -253,6 +253,9 @@ func _on_combat_won() -> void:
 	state_machine.transition_to(RunStateMachine.State.REWARD)
 
 
+## Ejecuta la secuencia de muerte definitiva (Permadeath) cuando el jugador cae en combate.
+## Transiciona la FSM a `DEAD`, elimina el archivo de guardado activo, registra la derrota en el perfil
+## y devuelve al jugador al menú principal tras una pausa dramática.
 func _on_combat_lost() -> void:
 	var defeated_floor: int = run.current_floor
 	var enemy_name: String = table.enemy.enemy_name if table.enemy else "un enemigo"
@@ -276,11 +279,14 @@ func _on_combat_lost() -> void:
 	main_menu.visible = true
 	main_menu.show_menu("HAS MUERTO en la Planta %d ante %s." % [defeated_floor, enemy_name])
 
+## Cierra la vista de la tienda, transiciona la máquina de estados de regreso a `MAP` y refresca el mapa.
 func _on_shop_closed() -> void:
 	state_machine.transition_to(RunStateMachine.State.MAP) 
 	table.refresh_ui()
 	open_map("Saliste de la tienda.")
-	
+
+## Procesa la compra de una carta en la tienda. Debita el oro, marca el slot de la sala como vendido (`null`),
+## clona y sella la carta dentro del `draw_pile` y persiste el estado de la partida.
 func _on_shop_card_bought(card: CardData, cost: int) -> void:
 	if card == null or cost < 0 or run.player_gold < cost:
 		return
@@ -312,6 +318,9 @@ func _on_shop_card_bought(card: CardData, cost: int) -> void:
 	table.refresh_ui()
 	if PersistenceManager.current_slot > 0:
 		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
+
+## Procesa la compra de una reliquia en la tienda. Debita el oro, equipa la reliquia en el `RunState`,
+## anula su slot en el stock de la sala y guarda automáticamente la partida.
 func _on_shop_relic_bought(relic: RelicData, cost: int) -> void:
 	if relic == null or cost < 0 or run.player_gold < cost:
 		return
@@ -329,6 +338,8 @@ func _on_shop_relic_bought(relic: RelicData, cost: int) -> void:
 	if PersistenceManager.current_slot > 0:
 		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
 
+## Callback disparado al elegir o crear una ranura de guardado en `SlotSelectView`.
+## Si el slot contiene una partida activa en curso, la restaura y reanuda; de lo contrario, abre el menú principal.
 func _on_slot_confirmed() -> void:
 	slot_view.visible = false
 	state_machine.transition_to(RunStateMachine.State.MENU)
@@ -376,6 +387,8 @@ func _on_pause_abandon_run() -> void:
 	main_menu.visible = true
 	main_menu.show_menu("Has abandonado la expedición.")
 
+## Guarda el estado actual de la partida en el slot activo (o limpia el snapshot si el jugador ya había muerto)
+## y cierra ordenadamente la aplicación desde el menú de pausa.
 func _on_pause_quit_game() -> void:
 	if PersistenceManager.current_slot > 0:
 		if run.is_player_dead():

@@ -54,9 +54,7 @@ func _init(p_data: EnemyData, current_floor: int) -> void:
 func is_dead() -> bool:
 	return current_hp <= 0
 
-## Resta directamente la cantidad de daño especificada de la vida actual (`current_hp`), 
-## asegurando mediante un límite inferior que la vida nunca caiga por debajo de 0.
-## Resta daño, absorbiendo primero con el block. Si queda daño, baja HP.
+## Aplica daño al enemigo absorbiendo primero con su `block` activo y descontando el excedente de `current_hp` (con piso en 0).
 func take_damage(amount: int) -> void:
 	if amount <= 0:
 		return
@@ -94,12 +92,6 @@ func apply_statuses(incoming: Dictionary) -> Dictionary:
 		hemorrhage += max(0, int(incoming.get("hemorrhage", 0)))
 	
 	return reaction
-# Wrapper de compatibilidad (deprecated: usar apply_statuses con Dictionary)
-func add_statuses(added_burn: int, added_poison: int, added_freeze: int, added_shock: int, added_hemorrhage: int) -> void:
-	apply_statuses({
-		"burn": added_burn, "poison": added_poison, "freeze": added_freeze,
-		"shock": added_shock, "hemorrhage": added_hemorrhage
-	})
 	
 ## Calcula el daño real que el enemigo infligirá en su turno.
 ## Si está bajo congelamiento absoluto (`freeze >= umbral`), retorna 0. En caso contrario, mitiga el daño en base a las cargas de `freeze`.
@@ -228,25 +220,6 @@ func get_hud_data(player_luck) -> Dictionary:
 		"statuses": statuses
 	}
 
-static func decide_intent(enemy: Enemy, run: RunState, p_turn_count: int) -> EnemyIntent:
-	var context := EnemyContext.new(enemy, run, p_turn_count)
-	
-	var decide_data: EnemyData = enemy.data  # necesitás guardar la data en el enemy
-	if decide_data and decide_data.intent_pattern.size() > 0:
-		for behavior in decide_data.intent_pattern:
-			if behavior == null:
-				continue
-			var intent := behavior.decide(context)
-			if intent != null:
-				return intent
-	
-	# Fallback: atacar por intent_damage (comportamiento viejo)
-	return EnemyIntent.new(
-		EnemyIntent.Type.ATTACK,
-		enemy.get_effective_intent_damage(),
-		0,
-		"Atacar por %d" % enemy.get_effective_intent_damage()
-	)
 ## Pide el intent al AI para este turno.
 func get_current_intent(run: RunState) -> EnemyIntent:
 	return EnemyAI.decide_intent(self, run, turn_count)

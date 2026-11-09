@@ -176,6 +176,7 @@ func _ready() -> void:
 	_layout_for_viewport()
 	get_viewport().size_changed.connect(_layout_for_viewport)
 
+## Recalcula la posición del panel principal para mantenerlo centrado respecto al tamaño actual del viewport.
 func _layout_for_viewport() -> void:
 	if not is_instance_valid(main_panel):
 		return

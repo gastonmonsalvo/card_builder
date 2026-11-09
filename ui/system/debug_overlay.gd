@@ -105,8 +105,8 @@ func toggle_panel() -> void:
 		_refresh_god_mode_visuals()
 		
 ## Construye las 3 columnas principales de botones inyectando las lógicas agrupadas:
-## Columna 1: Trucos sobre el Jugador.
-## Columna 2: Trucos de Combate y Avance por el mapa.
+## Columna 1: God Mode y estadísticas RPG del jugador (STR, INT, DEX, LUCK, Energía, Oro, HP).
+## Columna 2: Trucos de Combate, estados alterados, avance por el mapa e inyector de Armas.
 ## Columna 3: Inyector directo de Reliquias permanentes.
 func _build_columns() -> void:
 	# --- COLUMNA 1: GOD MODE & STATS RPG ---
@@ -210,6 +210,7 @@ func _rebuild_relic_buttons() -> void:
 		relics_box.add_child(btn)
 		
 
+## Crea una etiqueta estilizada de cabecera para separar secciones dentro de las columnas del panel de depuración.
 func _make_section_label(txt: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = txt
@@ -217,6 +218,7 @@ func _make_section_label(txt: String) -> Label:
 	lbl.add_theme_color_override("font_color", Color(0.55, 0.78, 1.0))
 	return lbl
 
+## Instancia un botón de acción estándar del panel de depuración y conecta su pulsación al `callback` indicado.
 func _make_action_btn(txt: String, callback: Callable) -> Button:
 	var btn := Button.new()
 	btn.text = txt
@@ -226,6 +228,7 @@ func _make_action_btn(txt: String, callback: Callable) -> Button:
 	return btn
 	
 	
+## Sincroniza el texto y color del botón de God Mode y de la insignia `[F3]` según el estado activo en `RunState`.
 func _refresh_god_mode_visuals() -> void:
 	var active: bool = run != null and run.god_mode
 	if god_mode_btn:
@@ -272,6 +275,7 @@ func _rebuild_weapon_buttons() -> void:
 
 # --- VALIDACIONES Y REFRESCO ---
 
+## Verifica si existe una partida activa y jugable (fuera de menús de inicio/pausa y con el héroe con vida).
 func _has_active_run() -> bool:
 	if run == null or run.floor_data.is_empty() or run.is_player_dead():
 		return false
@@ -285,11 +289,13 @@ func _has_active_run() -> bool:
 		return false
 	return true
 
+## Comprueba si es seguro mutar el estado de la run (hay partida activa y la mesa no está resolviendo animaciones).
 func _can_modify_run() -> bool:
 	# Evita modificar atributos, reliquias o equipo mientras una corrutina
 	# está resolviendo cartas/estados del combate.
 	return _has_active_run() and (table == null or not table.is_resolving)
 
+## Evalúa si el jugador se encuentra actualmente dentro de un encuentro de combate activo y visible.
 func _is_active_combat() -> bool:
 	if table == null or table.enemy == null or table.enemy.is_dead() or table.is_resolving:
 		return false
@@ -301,6 +307,7 @@ func _is_active_combat() -> bool:
 		and not director.slot_view.visible \
 		and not director.pause_menu.visible
 
+## Refresca la interfaz de combate y/o la vista del mapa tras aplicar una modificación desde el panel de debug.
 func _refresh_after_run_change() -> void:
 	if table and table.enemy:
 		table.refresh_ui()
@@ -507,8 +514,8 @@ func _on_give_relic(relic: RelicData) -> void:
 	if director.map_view.visible:
 		director.open_map("[DEBUG] Reliquia inyectada: " + relic.get_effects_description())
 	log_label.text = "Equipada reliquia: %s" % relic.get_inspector_text()
-## Elimina forzosamente todas las reliquias en inventario y resetea atributos estáticos del héroe
-##  (Energía, Suerte, Descartes y Tamaño de Mano) a sus valores vanilla.
+## Elimina forzosamente todas las reliquias en inventario y resetea los atributos base del héroe
+## (Vida Máxima, Energía, Descartes y Suerte) a sus valores iniciales de clase.
 func _on_clear_relics() -> void:
 	if not _can_modify_run() or not table or not director:
 		return
@@ -549,7 +556,7 @@ func _on_burn_enemy() -> void:
 	table.enemy.burn += 3
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Quemadura al enemigo actual (Total: %d)." % table.enemy.burn
-## Inyecta daño residual escalado por porcentajes según el HP faltante.
+## Inyecta +3 acumulaciones de Veneno (daño directo por turno con decaimiento lineal) al enemigo activo.
 func _on_poison_enemy() -> void:
 	if not _is_active_combat():
 		log_label.text = "No hay un enemigo activo."
@@ -557,8 +564,7 @@ func _on_poison_enemy() -> void:
 	table.enemy.poison += 3
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Veneno al enemigo actual (Total: %d)." % table.enemy.poison
-## Inyecta la condición que aturde temporalmente a un enemigo paralizando su turno, 
-## dependiente de un chequeo dinámico de Suerte (`player_luck`).
+## Inyecta +3 acumulaciones de Electrocutado (probabilidad de aturdir al enemigo en su turno escalada con `player_luck`).
 func _on_shock_enemy() -> void:
 	if not _is_active_combat() or not run:
 		log_label.text = "No hay un enemigo activo."
@@ -570,7 +576,7 @@ func _on_shock_enemy() -> void:
 		table.enemy.shock, run.player_luck, pct
 	]
 	
-## Inyecta daño físico residual desencadenado únicamente si la unidad ataca (o recibe ataques).
+## Inyecta +3 acumulaciones de Hemorragia (daño por sangrado con estallido porcentual al alcanzar el umbral dinámico).
 func _on_hemorrhage_enemy() -> void:
 	if not _is_active_combat():
 		log_label.text = "No hay un enemigo activo."
@@ -579,24 +585,28 @@ func _on_hemorrhage_enemy() -> void:
 	table.refresh_ui()
 	log_label.text = "Aplicado +3 Hemorragia al enemigo actual (Total: %d)." % table.enemy.hemorrhage
 
+## Incrementa en +1 la estadística permanente de Fuerza (`player_str`) del héroe durante la run actual.
 func _on_add_str() -> void:
 	if not _can_modify_run() or not table: return
 	run.player_str += 1
 	_refresh_after_run_change()
 	log_label.text = "Fuerza (STR) aumentada a %d." % run.player_str
 
+## Incrementa en +1 la estadística permanente de Inteligencia (`player_int`) del héroe durante la run actual.
 func _on_add_int() -> void:
 	if not _can_modify_run() or not table: return
 	run.player_int += 1
 	_refresh_after_run_change()
 	log_label.text = "Inteligencia (INT) aumentada a %d." % run.player_int
 
+## Incrementa en +1 la estadística permanente de Destreza (`player_dex`) del héroe durante la run actual.
 func _on_add_dex() -> void:
 	if not _can_modify_run() or not table: return
 	run.player_dex += 1
 	_refresh_after_run_change()
 	log_label.text = "Destreza (DEX) aumentada a %d." % run.player_dex
 
+## Agrega el arma seleccionada del catálogo a la mochila del jugador (`inventory_weapons`) y refresca los botones de equipo.
 func _on_equip_weapon(weapon: WeaponData) -> void:
 	if not _can_modify_run() or not table or weapon == null:
 		return

@@ -1,8 +1,12 @@
 # Architecture
 
-Documento de referencia para todo desarrollo en `card-prototype`. Define qué va en cada carpeta, reglas de responsabilidad y decisiones de diseño.
+Documento de referencia arquitectónica para todo desarrollo en `card-prototype`. Define qué va en cada carpeta, el grafo real de dependencias entre clases, el detalle archivo por archivo de lo que está hoy en producción y las decisiones técnicas del motor.
 
-**Lectura obligatoria** antes de agregar un archivo nuevo al proyecto.
+**Lectura obligatoria** antes de agregar o refactorizar un archivo en el proyecto.
+
+> **Leyenda de estado:**
+> - Sin etiqueta: **Implementado y activo en el código actual.**
+> - **`🚧 [FUTURO / PENDIENTE]`**: Planificado en diseño o en transición; aún no implementado o con archivo stub vacío.
 
 ---
 
@@ -10,23 +14,24 @@ Documento de referencia para todo desarrollo en `card-prototype`. Define qué va
 
 1. [Árbol de directorios](#árbol-de-directorios)
 2. [Capas y responsabilidades](#capas-y-responsabilidades)
-3. [Detalle archivo por archivo](#detalle-archivo-por-archivo)
-4. [Reglas de oro](#reglas-de-oro)
-5. [Patrones de diseño aplicados](#patrones-de-diseño-aplicados)
-	6. [DecisionesTecnicas ] (#Decisiones Tecnicas)
-		6.1 [Decision: Por qué CombatResolver no usa Command pattern] (#¿Por qué CombatResolver no usa Command pattern?)
-		6.2 [Decisión: Data vs Instance](#decisión-data-vs-instance)
-		6.3 [Decisión: `scenes/` vs `ui/`](#decisión-scenes-vs-ui)
-		6.4 [Decisión: `¿Por qué RewardView se construye 100% en código ?`](#¿Por qué RewardView se construye 100% en código (sin .tscn)?)
-		6.5[Decisión: `¿Por qué RewardView no genera sus propias recompensas?`](#¿Por qué RewardView no genera sus propias recompensas?)
-8. [Guía de migración desde la arquitectura anterior](#guía-de-migración-desde-la-arquitectura-anterior)
-9. [Checklist: agregar X al proyecto](#checklist-agregar-x-al-proyecto)
+3. [Grafo de dependencias reales](#grafo-de-dependencias-reales)
+4. [Detalle archivo por archivo](#detalle-archivo-por-archivo)
+5. [Reglas de oro](#reglas-de-oro)
+6. [Patrones de diseño aplicados](#patrones-de-diseño-aplicados)
+7. [Decisiones Técnicas](#decisiones-técnicas)
+   - 7.1 [¿Por qué CombatResolver es Stateless y no usa Command pattern?](#71-por-qué-combatresolver-es-stateless-y-no-usa-command-pattern)
+   - 7.2 [Decisión: Protección de Recursos (Duplicate + Sellado vs Data/Instance)](#72-decisión-protección-de-recursos-duplicate--sellado-vs-datainstance)
+   - 7.3 [Decisión: `scenes/` vs `ui/` y Vistas 100% en Código](#73-decisión-scenes-vs-ui-y-vistas-100-en-código)
+   - 7.4 [¿Por qué RewardView no genera sus propias recompensas?](#74-por-qué-rewardview-no-genera-sus-propias-recompensas)
+   - 7.5 [Decisión: Simulación Predictiva Determinista en `calculate_sequential_preview`](#75-decisión-simulación-predictiva-determinista-en-calculate_sequential_preview)
+8. [Checklist: agregar X al proyecto](#checklist-agregar-x-al-proyecto)
+9. [FAQ](#faq)
 
 ---
 
 ## Árbol de directorios
 
-```
+```text
 card-prototype/
 ├── README.md
 ├── .gitignore
@@ -44,107 +49,121 @@ card-prototype/
 ├── core/
 │   ├── combat/
 │   │   ├── combat_resolver.gd
-│   │   ├── temp_stat_manager.gd
 │   │   ├── status_reactions.gd
-│   │   ├── combat_action.gd        # FALTA
-│   │   └── actions/                 # FALTA
-│   │       ├── play_card_action.gd	 # FALTA
-│   │       ├── take_damage_action.gd	 # FALTA
-│   │       ├── apply_status_action.gd	 # FALTA
-│   │       └── end_turn_action.gd	 # FALTA
-│   │  
+│   │   ├── temp_stat_manager.gd
+│   │   ├── combat_action.gd                    # 🚧 [FUTURO / PENDIENTE - Solo si se agrega Replay/Undo]
+│   │   └── actions/                            # 🚧 [FUTURO / PENDIENTE]
+│   │
 │   ├── deck/
 │   │   ├── deck_manager.gd
 │   │   └── card_pile.gd
+│   │
 │   ├── enemies/
+│   │   ├── enemy.gd
 │   │   ├── enemy_ai.gd
 │   │   └── behaviors/
+│   │       ├── enemy_behavior.gd
+│   │       ├── enemy_context.gd
+│   │       ├── enemy_intent.gd
+│   │       ├── attack_behavior.gd
+│   │       ├── defend_behavior.gd
+│   │       └── charge_behavior.gd
+│   │
 │   ├── run/
 │   │   ├── run_director.gd
 │   │   ├── run_state.gd
-│   │   ├── run_state_machine.gd  #FSM
+│   │   ├── run_state_machine.gd
 │   │   └── rarity_system.gd
+│   │
 │   ├── map/
 │   │   ├── floor_generator.gd
 │   │   └── room_data.gd
+│   │
 │   └── constants/
 │       └── combat_constants.gd
 │
-├── systems/
-│   ├── statuses/
-│   │   ├── status_data.gd
-│   │   ├── status_instance.gd
-│   │   ├── status_manager.gd
-│   │   └── data/
-│   │       ├── poison.tres
-│   │       ├── vulnerable.tres
-│   │       ├── weak.tres
-│   │       ├── strength.tres
-│   │       └── dexterity.tres
-│   ├── modifiers/
-│   │   ├── modifier_data.gd
-│   │   └── modifier_manager.gd
-│   └── events/
-│       ├── event_data.gd
-│       ├── event_choice.gd
-│       ├── event_resolver.gd
-│       └── data/
-│           ├── campfire.tres
-│           └── shop.tres
+├── systems/                                    # 🚧 [FUTURO / PENDIENTE - Hoy resuelto en core/combat y RunState]
+│   ├── statuses/                               # 🚧 [FUTURO / PENDIENTE - Hoy en Enemy + StatusReactions]
+│   ├── modifiers/                              # 🚧 [FUTURO / PENDIENTE - Hoy en TempStatManager]
+│   └── events/                                 # 🚧 [FUTURO / PENDIENTE - Hoy en SanctuaryModalView + RunState]
 │
 ├── entities/
 │   ├── hero/
 │   │   ├── hero_data.gd
-│   │   │── data/
-│   │   │    ├── guerrero.tres
-│   │   │    ├── mago.tres
-│   │   │    └── picaro.tres
-│   │   └── abilities/
-│   │       ├── hero_ability.tres
-│   │       ├── arcane_flow.tres
-│   │       └── 
+│   │   ├── abilities/
+│   │   │   ├── hero_ability.gd
+│   │   │   ├── war_cry_ability.gd
+│   │   │   ├── arcane_flow_ability.gd
+│   │   │   ├── demon_thrust_ability.gd
+│   │   │   └── bloody_slash_ability.gd         # (Define class_name BloodySlashAbility)
+│   │   └── data/
+│   │       ├── warrior_hero.tres
+│   │       ├── magic_hero.tres
+│   │       ├── samurai_hero.tres
+│   │       ├── assasin_hero.tres
+│   │       └── demo_hero.tres
+│   │
 │   └── enemies/
 │       ├── enemy_data.gd
 │       └── data/
 │           ├── esqueleto.tres
-│           ├── goblin.tres
-│           └── jefe_ogro.tres
+│           └── jefe_basico.tres
 │
 ├── cards/
 │   ├── card_data.gd
-│   ├── card_instance.gd
+│   ├── card_instance.gd                        # 🚧 [FUTURO / PENDIENTE - Archivo stub vacío]
 │   ├── data/
-│   │   ├── tajo.tres
+│   │   ├── corte_rapido.tres
+│   │   ├── curacion_basica.tres
+│   │   ├── efecto_caotico.tres
+│   │   ├── escudo_basico.tres
 │   │   ├── estocada.tres
-│   │   ├── bloqueo.tres
-│   │   └── meditar.tres
+│   │   ├── frasco_veneno_basico.tres
+│   │   ├── golpe_congelante.tres
+│   │   ├── golpe_fuego.tres
+│   │   ├── lanza_rayo.tres
+│   │   ├── robo_basico.tres
+│   │   ├── sobre_carga.tres
+│   │   └── tajo.tres
 │   └── effects/
 │       ├── card_effect.gd
 │       ├── damage_effect.gd
-│       ├── block_effect.gd
-│       ├── draw_effect.gd
-│       ├── apply_status_effect.gd
-│       └── heal_effect.gd
+│       ├── defense_effect.gd
+│       ├── burn_effect.gd
+│       ├── poison_effect.gd
+│       ├── freeze_effect.gd
+│       ├── shock_effect.gd
+│       ├── hemorrhage_effect.gd
+│       ├── heal_effect.gd
+│       ├── multiply_effect.gd
+│       ├── steal_effect.gd
+│       └── apply_status_effect.gd
 │
 ├── relics/
 │   ├── relic_data.gd
-│   ├── relic_instance.gd	# FALTA
+│   ├── relic_instance.gd                       # 🚧 [FUTURO / PENDIENTE]
 │   ├── data/
 │   │   ├── anillo_brasas.tres
+│   │   ├── bolsillo_dimensional.tres
+│   │   ├── catalizador_combo.tres
 │   │   ├── cenizas_fenix.tres
-│   │   └── ...
+│   │   ├── colmillo_vibora.tres
+│   │   ├── nucleo_sobrecargado.tres
+│   │   ├── pata_conejo.tres
+│   │   └── trebol_abismo.tres
 │   └── effects/
 │       ├── relic_effect.gd
-│       ├── on_play_card_effect.gd	#FALTA
-│       ├── on_take_damage_effect.gd
-│       ├── on_turn_start_effect.gd
-│       └── on_kill_enemy_effect.gd
+│       ├── relic_combo_synergy_effect.gd
+│       ├── relic_revive_effect.gd
+│       ├── relic_start_status_effect.gd
+│       └── relic_stat_bonus_effect.gd
 │
 ├── weapons/
 │   ├── weapon_data.gd
 │   └── data/
 │       ├── arma_basica.tres
 │       ├── baculo.tres
+│       ├── dagger.tres
 │       ├── espadon.tres
 │       └── katana_basica.tres
 │
@@ -152,92 +171,157 @@ card-prototype/
 │   ├── battle/
 │   │   ├── battle_table.tscn
 │   │   ├── battle_table.gd
-│   │   └── hand_controller.gd
+│   │   └── card_board_controller.gd
 │   ├── map/
 │   │   └── map_view.gd
-│   ├── event/
-│   │   ├── event_view.tscn   FALTA
-│   │   └── event_view.gd
-│   │
+│   ├── event/                                  # 🚧 [FUTURO / PENDIENTE]
 │   ├── reward/
-│   │  └── reward_view.gd
-│   │
-│   ├── shop/                    
+│   │   └── reward_view.gd
+│   ├── shop/
 │   │   └── shop_view.gd
-│   └── menus/                    
+│   └── menus/
 │       ├── main_menu_view.gd
 │       ├── slot_select_view.gd
 │       └── hero_select_view.gd
+│
 ├── ui/
 │   ├── cards/
 │   │   ├── card_ui.tscn
 │   │   └── card_ui.gd
 │   ├── battle/
-│   │   ├── battle_hud.gd          
-│   │   ├── player_hud.gd   
-│   │   ├── enemy_hud.gd          
-│   │   ├── combo_banner.gd 
-│   │   └── pile_inspector.gd  
+│   │   ├── hud_battle.gd                       # (class_name BattleHUD)
+│   │   ├── player_hud.gd
+│   │   ├── enemy_hud.gd
+│   │   ├── combo_banner.gd
+│   │   └── pile_inspector.gd
 │   ├── inventory/
-│   │   └── inventory_modal.gd
+│   │   └── inventory_modal_view.gd
 │   ├── map/
-│   │   ├── map_node.gd
-│   │   ├── sanctuary_view.gd
+│   │   ├── map_node_view.gd
+│   │   ├── sanctuary_modal_view.gd
+│   │   └── inspector_modal_view.gd
 │   ├── menus/
-│   │   ├── slot_select.gd
-│   │   └── hero_select.gd
+│   │   └── hero_card_view.gd
 │   └── system/
-│       ├── pause_menu.gd
+│       ├── pause_menu_view.gd
 │       └── debug_overlay.gd
 │
 ├── assets/
-│   ├── art/
-│   │   ├── cards/
-│   │   ├── enemies/
-│   │   ├── heroes/
-│   │   ├── relics/
-│   │   ├── ui/
-│   │   └── map/
-│   ├── audio/
-│   │   ├── sfx/
-│   │   ├── music/
-│   │   └── ui/
-│   └── fonts/
+│   ├── audio/                                  # music/, sfx/, ui/ (.gitkeep)
+│   ├── fonts/                                  # (.gitkeep)
+│   └── textures/                               # cards/, heroes/, map/, relics/, ui/ (.gitkeep)
 │
 ├── addons/
 │   └── gut/
 │
-└── tests/
+└── test/                                       # 🚧 [FUTURO / PENDIENTE - Carpetas con .gitkeep]
 	├── combat/
-	│   ├── test_combat_resolver.gd
-	│   ├── test_status_manager.gd
-	│   └── test_actions.gd
 	├── deck/
-	│   └── test_deck_manager.gd
-	├── run/
-	│   ├── test_rarity_system.gd
-	│   └── test_run_state_machine.gd
-	└── run_tests.cfg
+	└── run/
 ```
 
 ---
 
 ## Capas y responsabilidades
 
-| Capa | Carpeta | Conoce | No conoce |
+| Capa | Carpeta | Conoce / Depende de | No conoce |
 |---|---|---|---|
-| **Servicios globales** | `autoload/` | Todo | — |
-| **Lógica de dominio** | `core/` | `systems/`, `entities/`, `cards/`, `relics/`, `weapons/` | `scenes/`, `ui/`, `assets/` |
-| **Subsistemas** | `systems/` | Sus propios datos | Otras `systems/` (habla por signal bus) |
-| **Definición de entidades** | `entities/` | `core/hero`, `core/enemies` (tipos) | Lógica de juego |
-| **Datos de cartas** | `cards/` | `systems/statuses` (referencias) | `scenes/`, `ui/` |
-| **Datos de reliquias** | `relics/` | `autoload/signal_bus` | `scenes/`, `ui/` |
-| **Escenas** | `scenes/` | Todo | — |
-| **UI atómica** | `ui/` | `core/` (vía signal bus) | Otras `ui/` (composición manual) |
+| **Servicios globales** | `autoload/` | `CombatConstants`, `RunState`, `DeckManager`, `Resource` types | `scenes/`, `ui/` |
+| **Lógica de dominio** | `core/` | `entities/`, `cards/`, `relics/`, `weapons/`, `autoload/` | `scenes/`, `ui/` *(excepto `RunDirector`, que actúa como Mediador de vistas)* |
+| **Definición de actores** | `entities/` | `cards/`, `relics/`, `weapons/`, `core/enemies/behaviors/`, `CombatConstants` | `scenes/`, `ui/` *(nota: `ArcaneFlowAbility` y `BloodySlashAbility` reciben `table` vía diccionario `context`)* |
+| **Datos de cartas** | `cards/` | `RaritySystem`, `WeaponData`, `RunState` (para `combat_rng` en `ApplyStatusEffect`) | `scenes/`, `ui/` |
+| **Datos de reliquias** | `relics/` | `RaritySystem`, `CombatConstants`, `Enemy`, `RunState` | `scenes/`, `ui/` |
+| **Datos de armas** | `weapons/` | — (100% autónomo) | Todo lo demás |
+| **Escenas / Pantallas** | `scenes/` | `core/`, `ui/`, `autoload/`, `entities/`, `cards/`, `relics/`, `weapons/` | — |
+| **UI atómica y modales** | `ui/` | Datos inyectados (`CardData`, `RoomData`, `CardPile`, `RunState`, `RaritySystem`) | `scenes/` *(salvo `DebugOverlay`, que es herramienta de QA transversal)* |
 
-**Flecha de dependencias**: `scenes` → `core` → `systems` → `entities` → `cards/relics/weapons`
+---
 
-**NUNCA al revés.** Si un `.gd` en `core/` necesita cargar una escena, está mal diseñado.
+## Grafo de dependencias reales
+
+```mermaid
+flowchart TD
+	subgraph Autoloads["autoload/ (Singletons)"]
+		SB["SignalBus"]
+		GDB["GameDatabase"]
+		PM["PersistenceManager"]
+	end
+
+	subgraph Scenes["scenes/ (Pantallas y Controladores)"]
+		BT["BattleTable (battle_table.tscn + .gd)"]
+		CBC["CardBoardController"]
+		MV["MapView (100% código)"]
+		SV["ShopView (100% código)"]
+		RV["RewardView (100% código)"]
+		MMV["MainMenuView (100% código)"]
+		SSV["SlotSelectView (100% código)"]
+	end
+
+	subgraph UI["ui/ (Componentes Atómicos y Modales)"]
+		BHUD["BattleHUD (PlayerHUD, EnemyHUD, ComboBanner, PileInspector)"]
+		CUI["CardUI (card_ui.tscn + .gd)"]
+		IMV["InventoryModalView"]
+		SMV["SanctuaryModalView"]
+		INSP["InspectorModalView"]
+		MNV["MapNodeView"]
+		HCV["HeroCardView"]
+		PMV["PauseMenuView"]
+		DBG["DebugOverlay"]
+	end
+
+	subgraph Core["core/ (Lógica de Dominio - RefCounted)"]
+		RD["RunDirector (Mediator)"]
+		RS["RunState"]
+		RSM["RunStateMachine (FSM)"]
+		CR["CombatResolver (Static)"]
+		SR["StatusReactions (Static)"]
+		TSM["TempStatManager"]
+		DM["DeckManager & CardPile"]
+		EN["Enemy & EnemyAI"]
+		FG["FloorGenerator & RoomData"]
+		RAR["RaritySystem (Static)"]
+	end
+
+	subgraph Data["entities/ + cards/ + relics/ + weapons/ (Resources)"]
+		RES["HeroData, HeroAbility, EnemyData, EnemyBehavior,\nCardData, CardEffect, RelicData, RelicEffect, WeaponData"]
+	end
+
+	BT --> CBC
+	BT --> BHUD
+	BT --> RD
+	BT --> CR
+	BT --> DM
+	BT --> DBG
+	CBC --> CUI
+	BHUD --> IMV
+
+	RD --> RSM
+	RD --> RS
+	RD --> PM
+	RD --> MV
+	RD --> SV
+	RD --> RV
+	RD --> MMV
+	RD --> SSV
+	RD --> PMV
+
+	MV --> MNV
+	MV --> SMV
+	MV --> INSP
+	MV --> IMV
+	MMV --> HCV
+	RV --> CUI
+
+	RS --> GDB
+	RS --> FG
+	RS --> RAR
+	RS --> TSM
+	RS --> EN
+	CR --> SR
+	EN --> SR
+	Core --> RES
+	Core --> SB
+```
 
 ---
 
@@ -245,456 +329,233 @@ card-prototype/
 
 ### `autoload/` — Singletons globales
 
-| Archivo | Contenido | Por qué |
+| Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
-| `signal_bus.gd` | Solo `signal` declarations y nada más. Ej: `card_played(card_instance)`, `enemy_died(enemy)`, `turn_started`. | Bus de eventos central. Cualquier subsistema emite/escucha sin acoplamiento. **Crítico** para reliquias reactivas. |
-| `game_database.gd` | Diccionarios `cards: Dictionary`, `relics`, `weapons`, `enemies`, `statuses`. Se carga con `load()` de los `.tres` en `_init()`. | Registro central. Evita hacer `load("res://...")` desparramado por todo el código. |
-| `persistence_manager.gd` | `save_game(slot: int)`, `load_game(slot)`, `save_run_stats()`. Usa `ConfigFile` para runs y JSON para stats globales. | Guardado/carga. 3 slots + stats de meta-progreso. |
-
----
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `combat_resolver.gd` | `extends RefCounted`, `class_name CombatResolver`. Todos los métodos `static`. Métodos puros: `calculate_sequential_preview`, `calculate_final_card_damage`, `_apply_card_effects_to_combo`, `_is_status_effect`, `process_card_in_combo`, `finalize_combo`, `tick_enemy_statuses`, `resolve_enemy_turn`, `calculate_instant_card`. | **Stateless**. No tiene estado mutable compartido, así que no necesita Command pattern. La orquestación de UI + animaciones vive en `scenes/battle/battle_table.gd`, que llama a estos métodos estáticos. |
-
+| `signal_bus.gd` | `SignalBus` (`Node`) | Declara 4 señales globales desacopladas: `card_played(card_data: CardData)`, `relic_acquired(relic: RelicData)`, `room_entered(room: RoomData)` y `floor_started(floor_number: int)`. |
+| `game_database.gd` | `GameDatabase` (`Node`) | Escanea directorios con `ResourceLoader.list_directory()` usando las rutas de `CombatConstants`. Expone `load_all_heroes()` (ordenados por `sort_order`), `load_all_cards()` (recursivo, ignorando `effects/`), `load_all_relics()`, `load_all_enemies()` y `load_all_weapons()`. |
+| `persistence_manager.gd` | `PersistenceManager` (`Node`) | Administra hasta 3 ranuras (`user://saves/slot_1..3/profile.json` y `run.json`) y el puntero de auto-arranque `user://last_slot.cfg`. Implementa escritura atómica (`_write_atomic`: escribe en `.tmp` y renombra) para evitar corrupción de JSON. |
 
 ---
 
-### `core/deck/` — Pilas de cartas
+### `core/combat/` — Resolución de combate, reacciones y stats temporales
 
-| Archivo | Contenido | Por qué |
+| Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
-| `card_pile.gd` | `class_name CardPile`. Array de `CardInstance`. Métodos `add()`, `draw() -> CardInstance`, `shuffle()`, `peek_top()`. | Pila genérica. Robo, descarte y mazo son instancias de esto. |
-| `deck_manager.gd` | 3 `CardPile`: `draw_pile`, `hand`, `discard`. Métodos `draw_card()`, `play_card()`, `discard_hand()`, `shuffle_discard_into_draw()`. | Maneja el ciclo de vida de la mano. Cuando `draw_pile` está vacío y piden robar, mezcla el descarte. |
+| `combat_resolver.gd` | `CombatResolver` (`RefCounted`) | **100% estático y stateless.** Métodos puros: `calculate_sequential_preview()` (simula el combo preservando el estado de `combat_rng`), `calculate_final_card_damage()` (verifica `required_weapon_class`, suma `base_damage` y `get_scaling_bonus()` del arma, o aplica penalización de -25% por cada punto de déficit en `STR`/`INT`/`DEX` anulando estados), `_apply_card_effects_to_combo()`, `process_card_in_combo()`, `finalize_combo()`, `tick_enemy_statuses()`, `resolve_enemy_turn()` y `calculate_instant_card()`. |
+| `status_reactions.gd` | `StatusReactions` (`RefCounted`) | Motor estático data-driven (`const REACTIONS`). `check(enemy, incoming)` simula la suma de estados y detecta si se activa **Vaporización** (`burn + freeze` → consume hasta 3 de c/u, 15 daño fijo), **Superconductor** (`freeze + shock` → consume todo, 20 daño fijo) o **Combustión Tóxica** (`burn + poison` → consume todo el veneno, 10 daño fijo). `apply(enemy, reaction)` consume las cargas y aplica el daño. |
+| `temp_stat_manager.gd` | `TempStatManager` (`RefCounted`) | Gestiona buffs/debuffs temporales de estadísticas RPG (`str`, `int`, `dex`) durante un combate. Métodos: `add_mod(stat, amount, turns)`, `tick_turn()`, `get_total_mod(stat)`, `has_mod(stat)`, `clear()`, `get_active_mods_summary()`. |
 
 ---
 
-### `core/hero/` y `core/enemies/` — Lógica de actores
+### `core/deck/` — Pilas de cartas y ciclo del mazo
 
-| Archivo | Contenido | Por qué |
+| Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
-| `enemy_ai.gd` | `class_name EnemyAI`. `static func decide_intent(enemy, run, turn_count) -> EnemyIntent`. Itera los behaviors de `enemy.data.intent_pattern` y devuelve el primer intent no-null. Fallback a Attack. | Orquestador de IA. |
-| `behaviors/enemy_behavior.gd` | `class_name EnemyBehavior extends Resource`. Abstract: `decide(context) -> EnemyIntent`. | Clase base para estrategias de IA. Es Resource para que aparezca en el Inspector. |
-| `behaviors/enemy_intent.gd` | `class_name EnemyIntent extends RefCounted`. Enum Type { ATTACK, DEFEND, CHARGE, APPLY_STATUS, NOTHING }. Campos: `damage`, `block`, `status_id`, `description`. | Tipo de dato que viaja entre el behavior y el resolver. |
-| `behaviors/enemy_context.gd` | `class_name EnemyContext extends RefCounted`. Campos: `enemy`, `run`, `turn_count`. | Contexto inyectado en `decide()`. |
-| `behaviors/attack_behavior.gd` | `class_name AttackBehavior`. `@export var damage, every_n_turns`. `decide()` retorna `AttackIntent`. | Ataca cada N turnos. |
-| `behaviors/defend_behavior.gd` | `class_name DefendBehavior`. `@export var block, every_n_turns`. `decide()` retorna `DefendIntent`. | Gana escudo cada N turnos. |
-| `behaviors/charge_behavior.gd` | `class_name ChargeBehavior`. `@export var bonus_multiplier, every_n_turns`. `decide()` retorna `Charge` el primer turno y `Attack` cargado el siguiente. | Carga + golpe devastador. |
-**Composición de IA**: un enemigo puede tener `[AttackBehavior, FleeBehavior]`. El `enemy_ai.gd` itera los behaviors y elige según prioridad.
+| `card_pile.gd` | `CardPile` (`RefCounted`) | Contenedor de `Array[CardData]` con señal `pile_changed(new_count: int)`. Métodos: `add_card()`, `draw_top()`, `shuffle()`, `clear()`, `move_all_to()`, `get_contents_summary()`. |
+| `deck_manager.gd` | `DeckManager` (`RefCounted`) | Administra 3 instancias de `CardPile`: `draw_pile` ("Mazo"), `discard_pile` ("Descarte") y `graveyard_pile` ("Cementerio"). Clona las cartas iniciales (`duplicate()`) sellando la ruta en `resource_name` para serialización (`to_dict()` / `from_dict()`). `route_played_card()` envía cartas con `single_use == true` al Cementerio y el resto a Descarte. |
 
 ---
 
-### `core/run/` — Estado de la partida
+### `core/enemies/` — Lógica de enemigos e IA componible
 
-| Archivo | Contenido | Por qué |
+| Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
-| `run_state.gd` | Datos: `floor`, `gold`, `current_hero`, `deck`, `relics`, `hp`, `max_hp`. Métodos de negocio: `generate_combat_rewards()`, `apply_combat_rewards()`, `start_new_run()`, `rest_at_campfire()`. | Estado serializable + lógica de negocio. Lo que se guarda/carga. |
-| `run_director.gd` | Orquestador. Genera recompensas, crea `RewardView`, escucha señales de UI, llama a `RunState.apply_combat_rewards()`. | El "director de película" de la run. Conecta UI con lógica de dominio. |
-| `run_state_machine.gd` | `enum State { MENU, MAP, BATTLE, REWARD, EVENT, SHOP, DEAD, VICTORY }`. `transition_to(state) -> bool` valida si la transición es legal. Emite `state_changed`. | FSM explícita. Evita bugs de transiciones simultáneas. |
-| `rarity_system.gd` | `roll_tier(rng, floor, luck, bonus) -> Tier`. Pesos dinámicos por piso y suerte. | Sorteo determinista de rarezas. |
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `reward_view.gd` | `extends Control`. Recibe `rewards: Dictionary` en `setup()`. Anima cartas (idle, hover, pop-in). Emite `card_chosen(card_data)` o `skipped()`. | Vista pura: no muta estado del juego. Toda la lógica de "qué recompensas tocaron" vive en `RunState.generate_combat_rewards()`. |
-
-Flujo de recompensas:
-
-1. BattleTable emite combat_won cuando el enemigo muere.
-2. RunDirector._on_combat_won() transiciona FSM a REWARD y abre RewardView.
-3. RewardView muestra las recompensas ya generadas y anima las cartas.
-4. Jugador elige carta o skippea → RewardView emite card_chosen o skipped.
-5. RunDirector escucha, aplica recompensas vía RunState.apply_combat_rewards() y transiciona FSM a MAP.
+| `enemy.gd` | `Enemy` (`RefCounted`) | Entidad viva del enemigo. Escala `max_hp` (`+25/piso` normal, `+45/piso` jefe) e `intent_damage` (`+3/piso` normal, `+4/piso` jefe). Gestiona `block`, los 5 estados alterados (`burn`, `poison`, `freeze`, `shock`, `hemorrhage`), reacciones elementales (`apply_statuses()`), estallido dinámico de hemorragia (`apply_hemorrhage_tick()`), parálisis por shock (`try_trigger_shock_stun()`) y congelamiento (`apply_freeze_tick()`). |
+| `enemy_ai.gd` | `EnemyAI` (`RefCounted`) | Orquestador estático `decide_intent(enemy, run, turn_count) -> EnemyIntent`. Itera `enemy.data.intent_pattern` y devuelve el primer `EnemyIntent` no nulo; si no hay ninguno o el array está vacío, hace fallback a un ataque básico con `get_effective_intent_damage()`. |
+| `behaviors/enemy_behavior.gd` | `EnemyBehavior` (`Resource`) | Clase base abstracta para comportamientos de IA configurables desde el Inspector (`decide(context) -> EnemyIntent`). |
+| `behaviors/enemy_context.gd` | `EnemyContext` (`RefCounted`) | DTO que encapsula `enemy: Enemy`, `run: RunState` y `turn_count: int`. |
+| `behaviors/enemy_intent.gd` | `EnemyIntent` (`RefCounted`) | DTO con `enum Type { ATTACK, DEFEND, CHARGE, APPLY_STATUS, NOTHING }`, `damage`, `block`, `status_id`, `status_stacks` y `description`. |
+| `behaviors/attack_behavior.gd` | `AttackBehavior` (`EnemyBehavior`) | Ataca cada `every_n_turns` turnos sumando el escalado de piso del enemigo. |
+| `behaviors/defend_behavior.gd` | `DefendBehavior` (`EnemyBehavior`) | Otorga `block` al enemigo cada `every_n_turns` turnos. |
+| `behaviors/charge_behavior.gd` | `ChargeBehavior` (`EnemyBehavior`) | Ciclo en fases (`turn_count % every_n_turns`): fase 0 retorna `CHARGE` (0 daño), fase 1 retorna `ATTACK` multiplicado por `bonus_multiplier`, resto retorna `null` para delegar al siguiente behavior. |
 
 ---
 
-### `core/map/` — Generación procedural
+### `core/run/` — Estado de partida, FSM, Director y Rarezas
 
-| Archivo | Contenido | Por qué |
+| Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
-| `room_data.gd` | `class_name RoomData`. `type: Enum { BATTLE, ELITE, EVENT, SHOP, REST, TREASURE, BOSS }`, `position: Vector2i`, `connections: Array[Vector2i]`, `visited: bool`. | Data de una habitación. Inmutable. |
-| `floor_generator.gd` | `generate_floor(floor_num: int) -> Array[RoomData]`. Algoritmo: generar nodos en columnas, conectar vecinos, garantizar camino al boss. | Procedural. Semilla para reproducibilidad. |
+| `run_state.gd` | `RunState` (`RefCounted`) | Contenedor de estado vivo y lógica de dominio de la run: stats del jugador (`player_hp`, `max_player_hp`, `max_energy`, `target_hand_size`, `discards_per_combat`, `player_gold`, `player_luck`, `player_str`, `player_int`, `player_dex`), `temp_stats`, `current_weapon`, `inventory_weapons` (mochila hasta 4 armas), `current_ability`, `active_relics`, `floor_data`, `combat_rng`. Genera y aplica recompensas de combate, stock de tienda, curación en hoguera, bendiciones de santuario y serialización completa (`to_dict` / `from_dict`). |
+| `run_director.gd` | `RunDirector` (`RefCounted`) | Mediador central. Instancia en código `MapView`, `PauseMenuView`, `MainMenuView`, `ShopView`, `SlotSelectView` y `RewardView` como hijos de `BattleTable`. Maneja el auto-login con `last_slot.cfg`, la navegación entre salas del mapa, compras en tienda, fin de combate y guardado al salir. |
+| `run_state_machine.gd` | `RunStateMachine` (`RefCounted`) | FSM con `enum State { MENU, MAP, BATTLE, REWARD, EVENT, SHOP, DEAD, VICTORY }`. Valida transiciones en `_is_valid_transition(from, to)` y emite `state_changed(new_state)`. |
+| `rarity_system.gd` | `RaritySystem` (`RefCounted`) | Motor estático de probabilidades con 5 Tiers (`COMMON`, `UNCOMMON`, `RARE`, `EPIC`, `LEGENDARY`). Calcula `fortune` según `floor_number` y `player_luck`, sortea rarezas (`roll_tier`), hace sorteos ponderados genéricos (`roll_weighted`) e interpolación lineal suavizada por suerte (`get_scaled_value_smooth`). |
 
 ---
 
-### `core/constants/`
+### `core/map/` y `core/constants/`
 
-| Archivo | Contenido |
-|---|---|
-| `combat_constants.gd` | `const STARTING_ENERGY = 3`, `const HAND_SIZE = 5`, `const STARTING_HP = 50`, `const BLOCK_DECAY_AT_TURN_END = true`, etc. |
-
----
-
-### `systems/statuses/` — Sistema de buffs/debuffs
-
-| Archivo | Contenido | Por qué |
+| Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
-| `status_data.gd` | `class_name StatusData extends Resource`. `id: String`, `name: String`, `icon: Texture2D`, `stack_behavior: Enum { REPLACE, ADD, MAX_CAP }`, `tick_type: Enum { NONE, TURN_START, TURN_END }`. | La **definición** inmutable del status. No tiene lógica de aplicación. |
-| `status_instance.gd` | `class_name StatusInstance extends RefCounted`. `data: StatusData`, `stacks: int`, `duration: int`. Métodos `add_stacks(n)`, `tick() -> bool` (devuelve true si expiró). | El estado runtime. Cada enemigo tiene su propia instancia de veneno con stacks distintos. |
-| `status_manager.gd` | `class_name StatusManager`. Una instancia por entidad. `apply(data, stacks)`, `get_stacks(id) -> int`, `tick_all()`, `has_status(id) -> bool`. | Orquesta todas las instancias de una entidad. Lo llama `combat_resolver` al fin de turno. |
-| `data/poison.tres` | tick TURN_END, stack_behavior ADD. Daño = stacks al final de turno. | |
-| `data/vulnerable.tres` | duration 3, stack_behavior REPLACE. +50% daño recibido. | |
-| `data/weak.tres` | duration 3. Ataques hacen -25% daño. | |
-| `data/strength.tres` | Permanente mientras dure el combate. +1 daño por stack a ataques. | |
-| `data/dexterity.tres` | Permanente. +1 block por stack. | |
+| `room_data.gd` | `RoomData` (`RefCounted`) | Representa una celda de la matriz `8x8` con `enum Type { START, COMBAT, TREASURE, REST, SANCTUARY, BOSS, SHOP }`, `grid_pos`, `cleared`, `discovered`, `neighbors: Array[Vector2i]` y caché de tienda (`shop_cards`, `shop_relics`, `shop_initialized`). Provee nombre y color temático según estado. |
+| `floor_generator.gd` | `FloorGenerator` (`RefCounted`) | Generador procedural estático de grafo ortogonal en grilla `8x8`. Expande la frontera desde el centro evitando bloques 2x2, conecta vecinos ortogonales y asigna salas especiales en los `dead_ends` ordenados por distancia Manhattan (`BOSS` en el más lejano, `TREASURE`, `REST`, `SHOP`, `SANCTUARY`). |
+| `combat_constants.gd` | `CombatConstants` (`RefCounted`) | Rutas de catálogos, umbrales (`FREEZE_STUN_THRESHOLD = 5`, `HEMORRHAGE_BURST_THRESHOLD = 10`, `SHOCK_STUN_CHANCE_PER_STACK = 0.12`, etc.) y estadísticas base del jugador (`BASE_HAND_SIZE = 5`, `BASE_MAX_ENERGY = 3`, `MAX_INVENTORY_SIZE = 4`). |
 
 ---
 
-### `systems/modifiers/` — Modificadores de atributos
+### `entities/`, `cards/`, `relics/`, `weapons/` — Recursos de Datos y Estrategias
 
-Diferencia con statuses: modifiers son **operaciones** sobre atributos base (multiplicar daño, sumar block), statuses son **estados** con duración/stacks.
-
-| Archivo | Contenido | Por qué |
+| Carpeta / Archivo | Clase Base | Implementaciones Concretas Actuales |
 |---|---|---|
-| `modifier_data.gd` | `class_name ModifierData extends Resource`. `target_attribute: Enum { DAMAGE, BLOCK, ENERGY, DRAW }`, `operation: Enum { ADD, MULTIPLY }`, `value: float`, `condition: String` (opcional). | Ej: "cartas de ataque hacen +50% daño" = `DAMAGE, MULTIPLY, 1.5, condition="card.tags.has(ATTACK)"`. |
-| `modifier_manager.gd` | `class_name ModifierManager`. `add(mod)`, `remove(mod)`, `calculate(base_value, context) -> float`. | Apila modifiers y calcula valor final. Permanente o temporal. |
-
-**Cuándo usar modifier vs status**:
-- Status: temporal con stacks (veneno x3, vulnerable 2 turnos).
-- Modifier: permanente o condicional ("relíquia: +1 energía en turnos pares").
-
----
-
-### `systems/events/` — Eventos de mapa
-
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `event_data.gd` | `class_name EventData extends Resource`. `id`, `title`, `description`, `choices: Array[EventChoice]`. | La definición del evento. |
-| `event_choice.gd` | `class_name EventChoice`. `label`, `outcome: Callable` o `effect_id`. | Cada opción del evento. |
-| `event_resolver.gd` | `apply_choice(event, choice, run_state) -> Result`. | Ejecuta la elección del jugador y modifica el run_state. |
-| `data/campfire.tres` | Choices: `[Descansar (+30% HP), Forjar (+5 max HP)]`. | |
-| `data/shop.tres` | Choices dinámicos: comprar carta, comprar relic, comprar poción. Precio por item. | |
+| `entities/hero/hero_data.gd` | `HeroData` (`Resource`) | `warrior_hero.tres` (Guerrero), `magic_hero.tres` (Mago), `samurai_hero.tres` (Samurai), `assasin_hero.tres` (Asesino), `demo_hero.tres` (DEMO). |
+| `entities/hero/abilities/` | `HeroAbility` (`Resource`) | `WarCryAbility` (`war_cry_ability.gd`), `ArcaneFlowAbility` (`arcane_flow_ability.gd`), `DemonThrustAbility` (`demon_thrust_ability.gd`), `BloodySlashAbility` (`bloody_slash_ability.gd`). |
+| `entities/enemies/enemy_data.gd` | `EnemyData` (`Resource`) | `esqueleto.tres` (con `DefendBehavior`), `jefe_basico.tres` (`is_boss = true`). |
+| `cards/card_data.gd` | `CardData` (`Resource`) | 12 cartas en `cards/data/`: `corte_rapido`, `curacion_basica`, `efecto_caotico`, `escudo_basico`, `estocada`, `frasco_veneno_basico`, `golpe_congelante`, `golpe_fuego`, `lanza_rayo`, `robo_basico`, `sobre_carga`, `tajo`. |
+| `cards/effects/` | `CardEffect` (`Resource`) | `DamageEffect`, `DefenseEffect`, `BurnEffect`, `PoisonEffect`, `FreezeEffect`, `ShockEffect`, `HemorrhageEffect`, `HealEffect`, `MultiplyEffect`, `StealEffect` (instantánea), `ApplyStatusEffect` (fijo o `RANDOM`). |
+| `relics/relic_data.gd` | `RelicData` (`Resource`) | 8 reliquias en `relics/data/`: `anillo_brasas`, `bolsillo_dimensional`, `catalizador_combo`, `cenizas_fenix`, `colmillo_vibora`, `nucleo_sobrecargado`, `pata_conejo`, `trebol_abismo`. |
+| `relics/effects/` | `RelicEffect` (`Resource`) | `RelicStatBonusEffect`, `RelicStartStatusEffect`, `RelicComboSynergyEffect`, `RelicReviveEffect`. |
+| `weapons/weapon_data.gd` | `WeaponData` (`Resource`) | 5 armas en `weapons/data/`: `arma_basica.tres` (Palito), `baculo.tres` (Báculo Básico), `dagger.tres` (Daga), `espadon.tres` (Espadón), `katana_basica.tres` (Katana Básica). |
 
 ---
 
-### `entities/` — Definición de actores (solo data)
+### `scenes/` y `ui/` — Capa de Presentación
 
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `hero_data.gd` | `class_name HeroData extends Resource`. `id`, `name`, `max_hp`, `starting_deck: Array[CardData]`, `starting_relic: RelicData`, `portrait: Texture2D`. | Definición del héroe. |
-| `enemies/enemy_data.gd` | `class_name EnemyData extends Resource`. `id`, `name`, `max_hp_range: Vector2i`, `ai: EnemyAI`, `intent_pattern: Array`, `loot_table: Dictionary`. | Definición del enemigo. El `ai` es un resource con la composición de behaviors. |
-
-**Instancias concretas**:
-- `hero/data/guerrero.tres`, `mago.tres`, `picaro.tres`.
-- `enemies/data/esqueleto.tres`, `goblin.tres`, `jefe_ogro.tres`.
-
----
-
-### `cards/` — Sistema de cartas (solo data + effects)
-
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `card_data.gd` | `class_name CardData extends Resource`. `id`, `name`, `description`, `cost: int`, `tags: Array[String]`, `rarity: Rarity`, `effects: Array[CardEffect]`, `art: Texture2D`. | La plantilla inmutable. |
-| `card_instance.gd` | `class_name CardInstance extends RefCounted`. `data: CardData`, `cost_override: int` (null si no modificado), `upgrades: int`, `temporary_modifiers: Array`. Métodos `get_cost() -> int`, `upgrade()`. | El runtime. Una carta en el mazo es un `CardInstance` apuntando a un `CardData`. Permite upgrades, modificadores temporales, sin tocar el `.tres`. |
-| `data/tajo.tres` | cost 1, effects `[DamageEffect(amount=6)]`, tags `["attack"]`. | |
-| `data/estocada.tres` | cost 1, effects `[DamageEffect(amount=4), DrawEffect(amount=1)]`. | |
-| `data/bloqueo.tres` | cost 1, effects `[BlockEffect(amount=5)]`, tags `["skill"]`. | |
-| `data/meditar.tres` | cost 0, effects `[DrawEffect(amount=2)]`, tags `["skill"]`. | |
-| `effects/card_effect.gd` | Clase abstracta `class_name CardEffect extends Resource`. `execute(context: CombatContext) -> void`. | Strategy pattern. Cada efecto es su propio resource. |
-| `effects/damage_effect.gd` | `extends CardEffect`. `amount: int`. `execute()` crea `TakeDamageAction` y lo manda al resolver. | Encapsula "hacer X daño". |
-| `effects/block_effect.gd` | `amount: int`. Aplica `block` al hero. | |
-| `effects/draw_effect.gd` | `amount: int`. Llama `deck_manager.draw_card()` n veces. | |
-| `effects/apply_status_effect.gd` | `status: StatusData`, `stacks: int`, `target: Enum { SELF, ALL_ENEMIES, RANDOM_ENEMY }`. | |
-| `effects/heal_effect.gd` | `amount: int`. | |
-
----
-
-### `relics/` — Sistema de reliquias
-
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `relic_data.gd` | `class_name RelicData extends Resource`. `id`, `name`, `description`, `rarity`, `effects: Array[RelicEffect]`, `counter: int` (0 = pasivo, >0 = cargas). | Definición. |
-| `relic_instance.gd` | `class_name RelicInstance`. `data: RelicData`, `counter: int`, `enabled: bool`. Métodos `tick()`, `consume_charge()`. | Runtime: cuenta cuántas veces se activó, cuántas cargas le quedan. |
-| `effects/relic_effect.gd` | Abstracto. `on_event(event_name: String, context) -> void`. | Se suscribe al signal_bus. |
-| `effects/on_play_card_effect.gd` | Escucha `SignalBus.card_played`. Ej: "Anillo de Brasas — al jugar carta de ataque, +2 daño". | |
-| `effects/on_take_damage_effect.gd` | Escucha `SignalBus.hero_damaged`. Ej: "Cenizas de Fénix — al morir, resucitar con 50% HP". | |
-| `effects/on_turn_start_effect.gd` | Escucha `SignalBus.turn_started`. Ej: "+1 energía en el primer turno". | |
-| `effects/on_kill_enemy_effect.gd` | Escucha `SignalBus.enemy_died`. Ej: "+5 oro por cada kill". | |
-
-**Instancias concretas en `data/`**:
-- `anillo_brasas.tres`: rarity COMMON. Effect: OnPlayCard (condición: tags.has("attack") → +2 daño).
-- `cenizas_fenix.tres`: rarity RARE. Effect: OnTakeDamage (condición: hp ≤ 0 → resucitar con 50% HP, consumir carga).
-- `ojo_auditivo.tres`: rarity UNCOMMON. Effect: OnTurnStart (primer turno → +1 energía).
-
----
-
-### `weapons/` — Armas equipables
-
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `weapon_data.gd` | `class_name WeaponData extends Resource`. `id`, `name`, `damage_bonus: int`, `block_bonus: int`, `slots: int` (1 o 2 manos), `tags: Array[String]`, `special_effect: CardEffect` (opcional). | Definición. El `special_effect` permite armas con efecto único ("Katana: al atacar, aplicas sangrado"). |
-| `data/arma_basica.tres` | damage +1. | |
-| `data/baculo.tres` | damage +0, special_effect: ApplyStatusEffect(strength, 1) al inicio de combate. | |
-| `data/espadon.tres` | damage +4, slots 2 (ocupa 2 manos). | |
-| `data/katana_basica.tres` | damage +3, special_effect: ApplyStatusEffect(sangrado, 2). | |
-
----
-
-### `scenes/` — Escenas raíz
-
-**Regla**: cada escena raíz tiene un `.tscn` + un `.gd` controlador. La escena instancia componentes de `ui/` y orquesta lógica de `core/`.
-
-| Carpeta | Contenido | Por qué |
-|---|---|---|
-| `scenes/battle/battle_table.tscn` | Escena principal de combate. Instancia enemigos, mano, HUD. | La "pantalla" de batalla. |
-| `scenes/battle/battle_table.gd` | Controlador. Escucha `SignalBus` para actualizar vista. Llama a `CombatResolver` en respuesta a input del jugador. | Vista + input → core. |
-| `scenes/battle/hand_controller.gd` | Maneja el layout espacial de la mano (fan, posición de cartas, hover). Recibe orden de `DeckManager`. | Separado de la lógica de mazo. |
-| `scenes/map/map_view.tscn` + `.gd` | Renderiza los `RoomData` del floor actual. Click en nodo → `RunStateMachine.transition_to(BATTLE)`. | |
-| `scenes/event/event_view.tscn` + `.gd` | Muestra `EventData` y sus `EventChoice`. Click → `EventResolver.apply_choice()`. | |
-| `scenes/reward/reward_view.gd` | Pantalla post-batalla: elegir carta, oro, relic. | |
-
----
-
-### `ui/` — Componentes de interfaz reutilizables
-
-**Regla de oro**: `ui/` = componentes atómicos reutilizables. `scenes/` = pantallas completas que los instancian.
-
-| Carpeta | Contenido | Por qué |
-|---|---|---|
-| `ui/cards/card_ui.tscn` + `.gd` | Representación visual de UNA carta. Recibe un `CardInstance`. Muestra cost, nombre, art, description. Hover/play animations. | Separado de `cards/data/` para que la lógica sea testeable sin escena. |
-| `ui/battle/hp_bar.tscn` | Barra de HP reutilizable (hero y enemigos la usan). Recibe `max_hp, current_hp`. | Componente atómico. |
-| `ui/battle/intent_display.tscn` | Muestra qué va a hacer el enemigo (icono de espada + número). | |
-| `ui/battle/energy_counter.tscn` | "3/3" de energía. | |
-| `ui/battle/block_indicator.tscn` | Escudo sobre HP. | |
-| `ui/inventory/inventory_modal.tscn` + `.gd` | Modal que abre con Tab/Esc. Muestra mazo actual, reliquias, arma equipada. | |
-| `ui/map/map_node.tscn` | Nodo visual del mapa (un círculo con icono de tipo). | |
-| `ui/map/sanctuary_view.tscn` | Vista de descanso (descansar/forjar). | |
-| `ui/map/room_inspector.tscn` | Tooltip al hacer hover sobre un nodo: muestra tipo y recompensa potencial. | |
-| `ui/menus/main_menu.tscn` | "Nuevo Juego / Cargar / Opciones / Salir". | |
-| `ui/menus/slot_select.tscn` | 3 slots de guardado. | |
-| `ui/menus/hero_select.tscn` | Selección de héroe al iniciar run. | |
-| `ui/run/hud_battle.tscn` | HUD superior: piso, oro, HP del héroe, mapa mini. | |
-| `ui/run/map_overlay.tscn` | Overlay del mapa entre pisos. | |
-| `ui/run/shop_view.tscn` | Vista de tienda. | |
-| `ui/system/pause_menu.tscn` | Pausa: continuar/guardar/salir. | |
-| `ui/system/debug_overlay.tscn` | Overlay de debug: mostrar hitboxes, FPS, forzar evento. **Solo en builds de debug.** | |
-
----
-
-### `assets/` — Recursos binarios
-
-| Subcarpeta | Contenido |
-|---|---|
-| `art/cards/` | Arte de cartas. |
-| `art/enemies/` | Sprites de enemigos. |
-| `art/heroes/` | Retratos/sprites de héroes. |
-| `art/relics/` | Iconos de reliquias. |
-| `art/ui/` | Iconos genéricos (energía, oro, escudo). |
-| `art/map/` | Iconos de tipos de sala, background de mapa. |
-| `audio/sfx/` | Sonidos: golpe, robo, descarte. |
-| `audio/music/` | Música por zona. |
-| `audio/ui/` | Clicks, hovers. |
-| `fonts/` | Tipografías. Recomendado: Noto Sans para UI, una display font para títulos. |
-
----
-
-### `tests/` — GUT
-
-| Archivo | Contenido | Por qué |
-|---|---|---|
-| `combat/test_combat_resolver.gd` | Test integral: jugar carta de daño, verificar HP enemigo, verificar energía gastada, verificar carta en descarte. | El combate es lo más crítico. |
-| `combat/test_status_manager.gd` | Aplicar veneno x5, tick, verificar daño aplicado, verificar expira a los 3 turnos. | |
-| `combat/test_actions.gd` | PlayCard, undo, verificar estado revertido. | Validar Command pattern. |
-| `deck/test_deck_manager.gd` | Robo hasta vaciar mazo, verificar mezcla de descarte, verificar no se pierden cartas. | |
-| `run/test_rarity_system.gd` | Simular 1000 rolls, verificar distribución aproxima a los pesos. | |
-| `run/test_run_state_machine.gd` | Transiciones válidas/inválidas. No permite BATTLE→EVENT sin pasar por REWARD. | |
-| `run_tests.cfg` | Config GUT: qué tests correr, con qué flags. | Permite `godot --script run_tests.cfg` en CI. |
+| Archivo | Clase | Tipo de UI | Responsabilidad |
+|---|---|---|---|
+| `scenes/battle/battle_table.gd` | *(Control)* | `.tscn` + `.gd` | Nodo raíz de la escena principal y fachada de combate. Coordina `CardBoardController`, `BattleHUD`, `DeckManager`, `CombatResolver` y `RunDirector`. |
+| `scenes/battle/card_board_controller.gd` | `CardBoardController` | `RefCounted` | Administra las listas `hand_cards` y `combo_cards` de nodos `CardUI`, calcula el layout dinámico horizontal, e intercala cartas en vivo durante el drag & drop. |
+| `scenes/map/map_view.gd` | `MapView` | 100% código (`Control`) | Dibuja la grilla 8x8 y sus pasillos (`_draw()`), instancia `MapNodeView` por cada sala descubierta, y aloja `SanctuaryModalView`, `InspectorModalView` e `InventoryModalView`. |
+| `scenes/reward/reward_view.gd` | `RewardView` | 100% código (`Control`) | Modal post-victoria con animaciones estilo Balatro (pop-in con `TRANS_BACK`, flotación senoidal desfasada y hover magnético con inclinación). |
+| `scenes/shop/shop_view.gd` | `ShopView` | 100% código (`Control`) | Tienda del Bazar: renderiza 3 cartas y 2 reliquias tasadas por `RaritySystem.Tier`, validando oro y marcando slots como `"VENDIDO"` / `"COMPRADO"`. |
+| `scenes/menus/main_menu_view.gd` | `MainMenuView` | 100% código (`Control`) | Selección de héroe mediante `HeroCardView`, visualización de stats del perfil activo, e input de semilla custom. |
+| `scenes/menus/slot_select_view.gd` | `SlotSelectView` | 100% código (`Control`) | Gestión de las 3 ranuras de guardado con modal emergente para nombrar nuevo perfil. |
+| `scenes/menus/hero_select_view.gd` | `HeroSelectView` | 100% código (`Control`) | Vista alternativa de selección de personaje en pantalla completa. |
+| `ui/cards/card_ui.gd` | `CardUI` | `.tscn` + `.gd` | Representación visual de una carta con física de resorte exponencial (`exp(-28 * delta)`), tilt por velocidad horizontal y animación de disolución/quemado (`play_consume_animation()`). |
+| `ui/battle/hud_battle.gd` | `BattleHUD` | Nodos en `battle_table.tscn` + `.gd` | Orquesta `PlayerHUD`, `EnemyHUD`, `ComboBanner`, `PileInspector`, botones de pilas y botón de `InventoryModalView`. |
+| `ui/battle/player_hud.gd` | `PlayerHUD` | `Panel` | Renderiza nombre del héroe, HP, escudo, arma equipada, energía y suerte. |
+| `ui/battle/enemy_hud.gd` | `EnemyHUD` | `Panel` | Renderiza nombre, HP, bloqueo, intención declarada y cargas de estados alterados (incluyendo `% Stun` de Shock y progreso `X/5` de Freeze). |
+| `ui/battle/combo_banner.gd` | `ComboBanner` | `Label` | Formatea el diccionario predictivo de `CombatResolver.calculate_sequential_preview()` o muestra alertas de combate. |
+| `ui/battle/pile_inspector.gd` | `PileInspector` | `Panel` | Popup que muestra el resumen agrupado (`get_contents_summary()`) de Mazo, Descarte o Cementerio. |
+| `ui/inventory/inventory_modal_view.gd` | `InventoryModalView` | 100% código (`Control`) | Muestra `STR`, `INT`, `DEX`, `LUCK`, tarjeta destacada del arma equipada y lista scrollable de la mochila (`inventory_weapons`) para intercambiar el arma activa. |
+| `ui/map/map_node_view.gd` | `MapNodeView` | 100% código (`Button`) | Celda individual del mapa 8x8 coloreada según `RoomData.get_room_color()` con bordes jerárquicos (blanco = actual, dorado = viajable, gris = bloqueado). |
+| `ui/map/sanctuary_modal_view.gd` | `SanctuaryModalView` | 100% código (`Panel`) | Modal de decisión binaria para las salas `SANCTUARY`. |
+| `ui/map/inspector_modal_view.gd` | `InspectorModalView` | 100% código (`Panel`) | Modal con scroll vertical para inspeccionar el texto detallado de reliquias o cartas del mazo. |
+| `ui/menus/hero_card_view.gd` | `HeroCardView` | 100% código (`Button`) | Tarjeta con `RichTextLabel` BBCode que resume stats, arma inicial y reliquias coloreadas por rareza de cada `HeroData`. |
+| `ui/system/pause_menu_view.gd` | `PauseMenuView` | 100% código (`Control`) | Congela el árbol (`get_tree().paused = true` con `PROCESS_MODE_ALWAYS`), ofrece Continuar, Abandonar Partida (con modal de confirmación) y Guardar y Salir. |
+| `ui/system/debug_overlay.gd` | `DebugOverlay` | 100% código (`Control`) | Consola QA de 3 columnas (`F3`/`F4`) inyectada solo en builds debug. |
 
 ---
 
 ## Reglas de oro
 
-1. **`core/` no conoce `scenes/` ni `ui/`.** La lógica de juego es testeable sin levantar escenas.RunState.generate_combat_rewards() no sabe que existe un RewardView.
-2. **Data vs Instance**: cada `.tres` es plantilla inmutable; el runtime usa `*_instance.gd` con estado.
-3. **Signal bus primero**: si dos subsistemas necesitan hablar, usan `SignalBus`, no referencias directas.
-4. **No `load()` desparramado**: todo recurso se pide a `GameDatabase`.
-5. **Tests obligatorios** para `combat_resolver`, `status_manager`, `deck_manager`, `run_state_machine` y `rarity_system`.
-6. **No crear acoplamientos nuevos entre `systems/`**: si `statuses` necesita hablar con `events`, lo hace por signal bus.
-7. **Una acción = un `CombatAction`**: cualquier cosa que modifique estado de combate va por el command pattern.
-8. **`*.tres` solo data, nunca lógica**: si un resource necesita comportamiento, vá a `effects/` con un script.
-9. **Las vistas no mutan dominio** : RewardView no llama a run.player_gold += ... directamente. Emite señales (card_chosen, skipped) y el RunDirector aplica los cambios vía RunState.apply_combat_rewards().
+1. **`core/` no conoce `scenes/` ni `ui/`** (con la única excepción de `RunDirector`, cuya responsabilidad explícita es ser el Mediador entre las vistas y `RunState`).
+2. **Inmutabilidad de `.tres` en disco**: ningún archivo `.tres` se muta en runtime; se clona con `.duplicate()` sellando `resource_name = resource_path`.
+3. **UI fuera del Resolver**: `CombatResolver` y `StatusReactions` son 100% estáticos y puros. Ningún `await`, `Tween` ni manipulación de nodos entra en `core/combat/`.
+4. **No `load()` desparramado**: la carga de catálogos se centraliza en `GameDatabase` y las rutas constantes en `CombatConstants`.
+5. **Las vistas no mutan dominio directamente**: las vistas (`RewardView`, `ShopView`, `InventoryModalView`, `MapView`) emiten señales; `RunDirector` o `BattleTable` invocan los métodos de negocio en `RunState`.
+6. **Determinismo por semillas**: toda generación aleatoria de mapas, tiendas, recompensas y efectos de combate (`ApplyStatusEffect` con `RANDOM`) debe utilizar instancias de `RandomNumberGenerator` derivadas de `master_seed` (`FloorGenerator.get_floor_subseed` o `run.combat_rng`), nunca el `randi()` global sin semilla cuando afecte decisiones reproducibles.
 
 ---
 
 ## Patrones de diseño aplicados
 
-| Patrón | Dónde | Para qué |
+| Patrón | Dónde se aplica | Propósito técnico |
 |---|---|---|
-| **Singleton** | `autoload/` | Servicios globales: signal bus, database, persistence. |
-| **Strategy** | `cards/effects/`, `relics/effects/`, `enemies/behaviors/` | Cambiar comportamiento sin tocar la clase base. |
-| **Observer** | `signal_bus.gd` | Desacoplar emisores de receptores. |
-| **State Machine** | `core/run/run_state_machine.gd` | Transiciones de run explícitas. |
-| **Data-Resource** | Todos los `*.tres` | Configuración editable desde el inspector. |
-| **Flyweight** | `*_data.gd` + `*_instance.gd` | Compartir data inmutable entre instancias runtime. |
-| **Composition over inheritance** | `enemies/behaviors/` | IA compuesta por behaviors, no herencia rígida. |
-
----
-## Decisiones Tecnicas
----
-## ¿Por qué RewardView no genera sus propias recompensas?
-RewardView es una vista pura. No decide qué recompensas tocaron, no muta el estado del juego. Toda la lógica de "qué oro/cartas/relic salen" vive en RunState.generate_combat_rewards(), que es determinista (usa FloorGenerator.get_floor_subseed()) y testeable con GUT.
-
-Beneficios:
-
-Determinismo: al recargar una partida, las recompensas son las mismas.
-Testeable: generate_combat_rewards() es una función pura, se puede testear sin escena.
-Reusabilidad: si en el futuro se quiere mostrar un panel "recompensas obtenidas" en el inventario, se llama al mismo método de RunState.
-Separación de capas: la vista solo muestra y emite señales; el orquestador (RunDirector) muta el estado.
-
-## ¿Por qué RewardView se construye 100% en código (sin .tscn)?
-Porque RewardView es un modal transitorio que se crea y destruye en runtime, con muchas animaciones procedurales (tweens, hover magnético, idle float). Construirlo en código:
-
-Evita problemas de layout (top_level = true, set_anchors_and_offsets_preset).
-Permite forzar top_level = true para que se dibuje sobre todo, sin heredar el transform del padre.
-Centraliza las animaciones en un solo lugar (sin repartirlas entre .gd y .tscn).
-Las escenas .tscn se reservan para layouts estáticos que se diseñan visualmente en el editor. RewardView no es eso.
-
-## ¿Por qué CombatResolver no usa Command pattern?
-El CombatResolver es stateless: todos sus métodos son static, no mantieneestado mutable entre llamadas, y cada cálculo es puro (entrada → salida sinside effects). Esto significa que no hay estado que proteger con comandosreversibles.
-
-La separación de responsabilidades se logra con el patrón Pure Logic + UI Orchestrator:
-
-core/combat/combat_resolver.gd → lógica pura, testeable sin escena.
-scenes/battle/battle_table.gd → orquestación de turnos + UI + animaciones(await, hud.set_banner_message(), card.pulse(), card.queue_free()).
-El BattleTable llama a métodos estáticos del CombatResolver y maneja elfeedback visual entre medio.
-
-Si en el futuro se necesita:
-
-Undo para debugging → implementar Command pattern encima del resolver actual.
-Replay de partidas → loggear llamadas al resolver.
-Logging de balance → ya tenés los métodos puros, solo agregar print.
-Ninguno de estos escenarios rompe la arquitectura actual.
-
-## Decisión: Data vs Instance
-
-El patrón más importante del proyecto. Aplica a `cards`, `relics` y `statuses`.
-
-### El problema
-
-Si mutás un `.tres` en runtime, **rompés todo el mazo**. Ejemplo clásico:
-- Jugás una carta que dice "esta carta cuesta 1 menos este turno".
-- Si escribís en `card_data.cost -= 1`, estás modificando el `.tres`.
-- La próxima vez que robes esa carta del mazo, va a tener costo reducido para siempre.
-- Al guardar la partida, persistís el costo reducido. Bug.
-
-### La solución
-
-Dos clases por cada concepto:
-
-```
-CardData (.tres)               CardInstance (RefCounted, runtime)
-─────────────────              ─────────────────────────────────
-id: "card_tajo"                data: CardData
-name: "Tajo"                   cost_override: int (null = usar data.cost)
-cost: 1                        upgrades: int
-tags: ["attack"]               temporary_modifiers: Array
-effects: [DamageEffect(6)]     played_this_turn: bool
-rarity: COMMON
-							   get_cost() -> int:
-INMUTABLE                          return cost_override if not null
-								   return data.cost
-```
-
-- El `.tres` no se toca nunca en runtime.
-- El `CardInstance` es lo que vive en el mazo, mano y descarte.
-- Una misma carta (`tajo.tres`) puede tener 3 `CardInstance` en el mazo, cada uno con su propio estado.
-
-### Aplicación
-
-| Concepto | Data | Instance |
-|---|---|---|
-| Carta | `card_data.gd` | `card_instance.gd` |
-| Reliquia | `relic_data.gd` | `relic_instance.gd` |
-| Status | `status_data.gd` | `status_instance.gd` |
+| **Mediator** | `core/run/run_director.gd` | Coordina la navegación entre `SlotSelectView`, `MainMenuView`, `MapView`, `ShopView`, `RewardView`, `PauseMenuView` y `BattleTable` sin acoplar las vistas entre sí. |
+| **Facade** | `scenes/battle/battle_table.gd` | Unifica la interacción entre el tablero visual (`CardBoardController`), el mazo (`DeckManager`), el motor matemático (`CombatResolver`) y el HUD (`BattleHUD`). |
+| **Strategy (Data-Driven)** | `cards/effects/`, `relics/effects/`, `core/enemies/behaviors/`, `entities/hero/abilities/` | Inyecta comportamiento polimórfico desde archivos `.tres` editables en el Inspector. |
+| **Stateless Functional Core** | `CombatResolver`, `StatusReactions`, `FloorGenerator`, `RaritySystem` | Clases con métodos 100% `static` sin efectos secundarios ocultos, facilitando la predicción en vivo (`calculate_sequential_preview`) y el testeo unitario. |
+| **State Machine (FSM)** | `core/run/run_state_machine.gd` | Garantiza transiciones legales del ciclo de partida (`MENU`, `MAP`, `BATTLE`, `REWARD`, `EVENT`, `SHOP`, `DEAD`, `VICTORY`). |
+| **Observer (Event Bus)** | `autoload/signal_bus.gd` + señales locales | Desacopla notificaciones globales y eventos de UI. |
+| **Atomic Write Persistence** | `autoload/persistence_manager.gd` (`_write_atomic`) | Escribe primero en `.tmp` y reemplaza mediante `rename` para garantizar que un crash nunca corrompa `profile.json` ni `run.json`. |
 
 ---
 
-## Decisión: `scenes/` vs `ui/`
+## Decisiones Técnicas
 
-Sin regla clara, esto se vuelve caos. Definición:
+### 7.1 ¿Por qué `CombatResolver` es Stateless y no usa Command pattern?
 
-| | `scenes/` | `ui/` |
-|---|---|---|
-| **Qué** | Pantallas completas | Componentes atómicos |
-| **Instancia** | Una por vez (la pantalla activa) | Múltiples instancias (10 cartas en mano, 3 enemigos) |
-| **Ejemplos** | `battle_table.tscn`, `map_view.tscn` | `card_ui.tscn`, `hp_bar.tscn`, `intent_display.tscn` |
-| **Conoce** | `core/`, instancia `ui/` | Solo su data de input, emite señales al signal bus |
-| **Controlador** | `*.gd` orquesta subsistemas | `*.gd` solo maneja presentación |
+El `CombatResolver` es completamente **stateless**: todos sus métodos son `static`, no retiene estado mutable entre llamadas y opera transformando diccionarios de estado (`combo_state`).
 
-### Test: ¿va en `scenes/` o `ui/`?
+La separación de responsabilidades se resuelve mediante el patrón **Pure Logic + UI Orchestrator**:
+- `core/combat/combat_resolver.gd` → matemática pura y determinista, sin `await` ni referencias a nodos.
+- `scenes/battle/battle_table.gd` → orquestación asíncrona de turnos, animaciones (`await`, `card.pulse()`, `hud.set_banner_message()`, `card.queue_free()`).
 
-- ¿Se instancia una vez por partida? → `scenes/`
-- ¿Se instancia múltiples veces? → `ui/`
-- ¿Es una "pantalla" completa? → `scenes/`
-- ¿Es un componente que otra pantalla instancia? → `ui/`
+Esto permite usar exactamente la misma lógica (`calculate_final_card_damage` + `_apply_card_effects_to_combo`) tanto para **previsualizar el combo en tiempo real** mientras el jugador arrastra cartas como para **ejecutar el turno real**, sin necesidad de construir ni revertir objetos `CombatAction`.
+
+### 7.2 Decisión: Protección de Recursos (Duplicate + Sellado vs Data/Instance)
+
+Si se modifica un recurso `.tres` cargado en memoria, Godot altera la instancia compartida en caché y contamina todo el mazo.
+
+- **Implementación actual en producción (Clonación + Sellado de Ruta):**
+  Cuando `DeckManager.build_initial_deck_for_hero()` o `RunState` instancian cartas o reliquias para la partida, ejecutan `var copy := res.duplicate()` y sellan la ruta original en `copy.resource_name = res.resource_path`. Así cada copia en el mazo es independiente en memoria y, al guardar la partida en JSON (`PersistenceManager`), `DeckManager.to_dict()` recupera `resource_name` cuando `resource_path` está vacío por ser un duplicado.
+- **Evolución planificada (`🚧 [FUTURO / PENDIENTE]` — `CardInstance` / `RelicInstance`):**
+  Cuando se implementen mejoras permanentes por carta en partida (upgrades en hoguera, reducciones de costo por turno o contadores de cargas en reliquias), se migrará el stub `cards/card_instance.gd` y se creará `relics/relic_instance.gd` para envolver el `.tres` inmutable sin necesidad de duplicar el `Resource`.
+
+### 7.3 Decisión: `scenes/` vs `ui/` y Vistas 100% en Código
+
+- **`scenes/`**: Pantallas completas del flujo de la partida (`BattleTable`, `MapView`, `ShopView`, `RewardView`, `MainMenuView`, `SlotSelectView`).
+- **`ui/`**: Componentes atómicos que se instancian múltiples veces (`CardUI`, `MapNodeView`, `HeroCardView`), subpaneles del HUD (`PlayerHUD`, `EnemyHUD`, `ComboBanner`, `PileInspector`) y modales reutilizables (`InventoryModalView`, `SanctuaryModalView`, `InspectorModalView`, `PauseMenuView`, `DebugOverlay`).
+
+**¿Por qué la mayoría de las vistas (`MapView`, `ShopView`, `RewardView`, `MainMenuView`, `SlotSelectView`, modales) se construyen 100% en código sin `.tscn`?**
+1. Evita conflictos de UIDs y corrupción de escenas `.tscn` en Git cuando se itera rápido sobre el layout.
+2. Facilita el posicionamiento dinámico responsivo al viewport (`_layout_for_viewport()`, `top_level = true`) y animaciones procedurales complejas (como el efecto Balatro en `RewardView` o el trazado `_draw()` de pasillos en `MapView`).
+3. Solo se mantienen `.tscn` donde el diseño visual estático en el editor aporta valor directo (`battle_table.tscn` y `card_ui.tscn`).
+
+### 7.4 ¿Por qué `RewardView` no genera sus propias recompensas?
+
+`RewardView` es una vista pura: recibe el diccionario `rewards` ya calculado en `setup()`, renderiza las cartas con animaciones y emite `card_chosen(card_data)` o `skipped()`.
+Toda la generación vive en `RunState.generate_combat_rewards()`, que usa `FloorGenerator.get_floor_subseed(master_seed, current_floor * 1000 + combat_index)`. Esto garantiza que las recompensas sean **100% deterministas por semilla** y testeables sin instanciar nodos de UI.
+
+### 7.5 Decisión: Simulación Predictiva Determinista en `calculate_sequential_preview`
+
+Cartas como `Efecto Caótico` (`ApplyStatusEffect` con `StatusType.RANDOM`) consumen números aleatorios de `run.combat_rng` al evaluarse en el combo. Si el preview consumiera el RNG libremente cada vez que el jugador mueve una carta, el estado del RNG avanzaría y el resultado real al apretar "EJECUTAR COMBO" sería distinto al previsualizado (o permitiría hacer *scumming* moviendo cartas).
+
+Para blindar esto, `CombatResolver.calculate_sequential_preview()` guarda `var rng_state = run.combat_rng.state` antes de simular la fila de combo y lo restaura (`run.combat_rng.state = rng_state`) al terminar el cálculo. Así, la simulación es **libre de side-effects** y la ejecución real reproduce exactamente la misma tirada.
+
+### 7.6 Estándar de Documentación Interna (`##`) y Depuración de Código Obsoleto
+
+Todo el código fuente GDScript del proyecto (excluyendo addons de terceros como `addons/gut/`) cumple con **100% de cobertura de docstrings `##`** de Godot 4 tanto a nivel de clase como en cada función (`func` / `static func`).
+
+- **Convención de Docstrings (`##`):**
+  - Se coloca inmediatamente encima de la declaración `func` (sin comentarios `#` simples intercalados que corten la asociación del parser de Godot).
+  - Describe el **propósito, efectos secundarios y valor de retorno** de la función en lenguaje directo, sin requerir etiquetas `@param` redundantes cuando el tipado estático de GDScript ya explicita la firma.
+- **Unificación y Limpieza de Código Obsoleto (Refactor Consolidado):**
+  - **`Enemy.apply_statuses(incoming: Dictionary)` como único punto de entrada:** Se eliminó el wrapper deprecado `Enemy.add_statuses(...)` y se migraron todos los emisores de estados (`BloodySlashAbility`, `RelicStartStatusEffect`, `CombatResolver`) al contrato unificado por `Dictionary`, garantizando que cualquier aplicación de estados evalúe siempre las reacciones elementales (`StatusReactions`).
+  - **Delegación estricta de IA en `EnemyAI`:** Se eliminó la función estática duplicada `Enemy.decide_intent()` de `core/enemies/enemy.gd`; toda resolución de intenciones pasa exclusivamente por `EnemyAI.decide_intent()`.
+  - **Selección de cartas por rareza unificada en `RunState`:** Tanto la tienda (`generate_shop_cards`) como las recompensas post-combate (`generate_combat_rewards`) utilizan el mismo helper determinista `_pick_from_pool_by_tier_cards()` (eliminando el duplicado `_pick_card_by_tier()`).
+  - **Separación entre `InspectorModalView` e `InventoryModalView`:** Se purgaron de `InspectorModalView` las señales y callbacks residuales de equipamiento de armas (`weapon_selected_to_equip`, `_on_weapon_button_pressed`), responsabilidad que pertenece exclusivamente a `InventoryModalView`.
+  - **`HeroSelectView` marcado como Legacy:** `scenes/menus/hero_select_view.gd` se conserva únicamente como referencia histórica documentada (`[OBSOLETO / LEGACY]`), ya que la selección de héroe vive integrada en `MainMenuView` + `HeroCardView`.
 
 ---
 
 ## Checklist: agregar X al proyecto
 
 ### Agregar una carta nueva
+- [ ] Crear `cards/data/<nombre>.tres` de tipo `CardData`.
+- [ ] Configurar `title`, `rarity`, `single_use`, `cost`, `description`.
+- [ ] Configurar sinergia de arma: `required_weapon_class` y `uses_weapon_damage`.
+- [ ] Asignar recursos `CardEffect` en el array `effects`. (Si requiere un efecto nuevo, crearlo en `cards/effects/<nombre>_effect.gd` heredando de `CardEffect`).
+- [ ] Verificar en combate que `GameDatabase.load_all_cards()` la levanta automáticamente y que `ComboBanner` previsualiza bien su efecto.
 
-- [ ] Crear `cards/data/<nombre>.tres` con tipo `CardData`.
-- [ ] Configurar `id`, `name`, `description`, `cost`, `tags`, `rarity`.
-- [ ] Si el efecto es estándar (damage, block, draw), instanciar un `Effect` existente.
-- [ ] Si el efecto es nuevo, crear `cards/effects/<nombre>_effect.gd` heredando de `CardEffect`.
-- [ ] Agregar el `.tres` al catálogo en `game_database.gd`.
-- [ ] Si tiene lógica compleja, escribir test en `tests/cards/test_<nombre>.gd`.
-- [ ] Verificar que el `card_ui.tscn` renderiza bien la carta.
+### Agregar un arma nueva
+- [ ] Crear `weapons/data/<nombre>.tres` de tipo `WeaponData`.
+- [ ] Definir `weapon_id` único, `weapon_name`, `weapon_class` y `base_damage`.
+- [ ] Configurar estados on-hit (`inflict_poison`, `inflict_burn`, `inflict_hemorrhage`, `inflict_shock`), requisitos (`req_str`, `req_int`, `req_dex`) y escalado (`scale_str`, `scale_int`, `scale_dex`).
+- [ ] Probar equiparla desde `DebugOverlay` (`F3` → Columna 2) y verificar su visualización en `InventoryModalView`.
 
 ### Agregar una reliquia nueva
+- [ ] Crear `relics/data/<nombre>.tres` de tipo `RelicData`.
+- [ ] Si requiere un hook nuevo, crear `relics/effects/relic_<nombre>_effect.gd` heredando de `RelicEffect`.
+- [ ] Probar inyectándola en vivo desde `DebugOverlay` (`F3` → Columna 3).
 
-- [ ] Crear `relics/data/<nombre>.tres` con tipo `RelicData`.
-- [ ] Crear el effect en `relics/effects/on_<evento>_effect.gd` si no existe.
-- [ ] Conectar el effect al signal bus correspondiente.
-- [ ] Agregar al `game_database.gd`.
-- [ ] Test: simular el evento, verificar que la reliquia reacciona.
+### Agregar un enemigo o behavior nuevo
+- [ ] Si requiere nueva lógica de decisión, crear `core/enemies/behaviors/<nombre>_behavior.gd` heredando de `EnemyBehavior`.
+- [ ] Crear `entities/enemies/data/<nombre>.tres` de tipo `EnemyData`, configurar `enemy_name`, `base_hp`, `base_damage`, `is_boss` y poblar `intent_pattern`.
 
-### Agregar un enemigo nuevo
-
-- [ ] Crear `entities/enemies/data/<nombre>.tres` con tipo `EnemyData`.
-- [ ] Si la IA es estándar, componer behaviors existentes.
-- [ ] Si la IA es nueva, crear `core/enemies/behaviors/<nombre>_behavior.gd`.
-- [ ] Definir `intent_pattern` y `loot_table`.
-- [ ] Agregar al `game_database.gd`.
-- [ ] Test de IA: simular N turnos, verificar que las acciones tienen sentido.
-
-### Agregar un status nuevo
-
-- [ ] Crear `systems/statuses/data/<nombre>.tres` con tipo `StatusData`.
-- [ ] Definir `stack_behavior` y `tick_type`.
-- [ ] Si tiene lógica custom al aplicarse (no estándar), crear effect dedicado.
-- [ ] Test: aplicar, tick, expirar.
-
-### Agregar una escena/pantalla nueva
-
-- [ ] Crear `scenes/<area>/<nombre>_view.tscn` + `.gd`.
-- [ ] El `.gd` solo orquesta: escucha signal bus, llama a `core/`, instancia componentes de `ui/`.
-- [ ] Agregar transición desde `run_state_machine.gd` si es parte del loop de run.
-- [ ] No meter lógica de `core/` en el `.gd`.
-
-### Agregar un componente UI
-
-- [ ] Crear `ui/<area>/<nombre>.tscn` + `.gd`.
-- [ ] Recibe data por setter o constructor.
-- [ ] Emite señales propias (no usa signal bus si es atómico).
-- [ ] Reutilizable: no hardcodear IDs o referencias a escenas concretas.
+### Agregar un héroe o habilidad activa nueva
+- [ ] Si tiene habilidad nueva, crear `entities/hero/abilities/<nombre>_ability.gd` heredando de `HeroAbility` e implementar `activate(context: Dictionary)`.
+- [ ] Crear `entities/hero/data/<nombre>_hero.tres` de tipo `HeroData` y configurar sus stats base, stats RPG (`base_str`, `base_int`, `base_dex`), `starting_weapon`, `starting_deck`, `starting_relic` y `ability`.
 
 ---
 
 ## FAQ
 
 **¿Por qué `core/` y no `game/`?**
-`core/` es más explícito: lógica central, sin UI. `game/` era ambiguo (¿todo el juego o solo lógica?).
+`core/` explicita que se trata del núcleo de dominio puro (`RefCounted`), libre de escenas `.tscn`.
 
-**¿Por qué separar `entities/` de `core/`?**
-`entities/` solo tiene data (`*_data.gd`). `core/` tiene lógica. Si los mezclás, terminás con scripts de lógica referencing recursos visuales.
+**¿Por qué las cartas van al Cementerio (`graveyard_pile`)?**
+Las cartas marcadas con `single_use = true` (como `Curacion`) se envían a `graveyard_pile` tras ejecutarse en un combo (`DeckManager.route_played_card()`), impidiendo que se vuelvan a barajar cuando se agota el `draw_pile` durante ese mismo combate. Al iniciar el próximo combate, `reset_for_new_combat()` reúne `discard_pile` y `graveyard_pile` de vuelta en el mazo.
 
-**¿Por qué `systems/` no está dentro de `core/`?**
-`systems/` son subsistemas transversales que pueden ser usados por `core/combat`, `core/run`, etc. Si los metés dentro de `core/`, generás dependencias circulares conceptuales.
-
-**¿Puedo saltear el Command pattern al principio?**
-Sí, pero te vas a arrepentir. El `combat_resolver` se vuelve inmanejable a las 20 cartas. Empezá con `combat_action.gd` abstracto y 2 acciones concretas, ya está.
-
-**¿Por qué GUT y no los tests nativos de Godot?**
-Godot 4 no tiene testing framework nativo. GUT es el estándar de facto, mantiene con Godot 4, y tiene CLI para CI.
-
-**¿Necesito `addons/gut/` commiteado?**
-Sí. Si no lo commiteás, CI no tiene cómo correr tests sin descargar GUT primero. GUT oficial recomienda commitearlo.
+**¿Qué pasa si uso una carta con un arma incompatible o sin los stats RPG requeridos?**
+1. Si el arma equipada no coincide con `card.required_weapon_class`, la carta ejecuta un **"Golpe torpe"**: su daño cae a `card.fallback_damage` y no aplica estados alterados.
+2. Si el arma es de la clase correcta pero los stats efectivos del héroe (`STR`, `INT`, `DEX`) no alcanzan los requisitos del arma (`req_str`, `req_int`, `req_dex`), cada punto de déficit aplica un **-25% de penalización al daño final** (mínimo 1 de daño) y **anula todos los efectos de estado** tanto de la carta como del arma.

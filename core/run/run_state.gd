@@ -390,9 +390,8 @@ func _get_shop_rng(room_pos: Vector2i) -> RandomNumberGenerator:
 	rng.seed = shop_seed
 	return rng
 	
-## Instancia un motor de entropía aislada para gestionar el bazar. 
-## Combina la semilla maestra, el piso y las coordenadas de la tienda para asegurar 
-## que el stock sea el mismo si el jugador carga la partida.
+## Sortea y devuelve un arreglo de `count` cartas únicas del catálogo para el stock de la tienda,
+## filtrando por rareza (`RaritySystem.roll_tier`) según el piso y la Suerte del jugador sin repetir cartas en la misma sala.
 func generate_shop_cards(room_pos: Vector2i, count: int = 3, bonus_fortune: float = 0.0) -> Array[CardData]:
 	var rng: RandomNumberGenerator = _get_shop_rng(room_pos)
 	var result: Array[CardData] = []
@@ -666,7 +665,7 @@ func generate_combat_rewards(combat_index: int = 0) -> Dictionary:
 		if pool.is_empty():
 			break
 		var tier := RaritySystem.roll_tier(rng, current_floor, player_luck)
-		var card := _pick_card_by_tier(pool, tier, rng)
+		var card := _pick_from_pool_by_tier_cards(pool, tier, rng)
 		if card:
 			cards.append(card.duplicate())
 			pool.erase(card)
@@ -682,19 +681,6 @@ func generate_combat_rewards(combat_index: int = 0) -> Dictionary:
 		"relic": relic
 	}
 
-
-## Selecciona una carta del pool filtrando por tier. Fallback al pool completo si el tier está vacío.
-## (Este método lo movemos desde RewardView hacia acá, RunState)
-func _pick_card_by_tier(
-	pool: Array[CardData], tier: RaritySystem.Tier, rng: RandomNumberGenerator
-) -> CardData:
-	var candidates: Array[CardData] = pool.filter(func(c): return c.rarity == tier)
-	if candidates.is_empty():
-		candidates = pool
-	if candidates.is_empty():
-		return null
-	return candidates[rng.randi_range(0, candidates.size() - 1)]
-	
 ## Aplica las recompensas elegidas por el jugador al estado de la run.
 func apply_combat_rewards(
 	chosen_card: CardData, gold: int, relic: RelicData, deck: DeckManager
