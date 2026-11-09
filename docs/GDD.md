@@ -84,7 +84,15 @@ Estado: Prototipo jugable (Core Loop, Combate por Combos, Reacciones Elementales
 							▼
 ┌──────────────────────────────────────────────────────────┐
 │  MENÚ PRINCIPAL (MainMenuView)                           │
+│  → Muestra el perfil activo ya cargado y sus récords     │
+│  → Botones: Nueva Expedición / Cambiar Perfil / Salir    │
+└──────────────────────────────────────────────────────────┘
+							│
+							▼
+┌──────────────────────────────────────────────────────────┐
+│  SELECCIÓN DE HÉROE (HeroSelectView)                     │
 │  → Elegir Héroe (Guerrero, Mago, Samurai, Asesino, DEMO) │
+│  → Inspeccionar Stats RPG, Arma, Habilidad y Reliquias   │
 │  → Iniciar Partida Aleatoria o ingresar Semilla (Seed)   │
 └──────────────────────────────────────────────────────────┘
 							│
@@ -479,7 +487,8 @@ const MAX_INVENTORY_SIZE: int = 4
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Interacciones clave en Combate y Mapa
+### Interacciones clave en Menús, Combate y Mapa
+- **Selección de Héroe (`HeroSelectView` + `HeroCardView`)**: Las tarjetas de héroe reaccionan con física de resorte exponencial igual que las cartas de batalla: en reposo quedan ligeramente retraídas (`0.95x`) con un tinte gris acero suave; al pasar el mouse crecen a `1.04x` encendiendo el color de acento de su clase; y al hacer clic pegan un pulso elástico (`1.13x`) quedando fijas y destacadas al frente en `1.08x` con el color vivo de hover.
 - **Clic rápido en carta de la mano**: Si es instantánea (`Robo`), se consume en el acto; si es normal y hay energía, sube al final de la `ComboZone`.
 - **Clic rápido en carta de la `ComboZone`**: La devuelve a la mano y reembolsa su energía.
 - **Drag & Drop en `ComboZone` / `HandZone`**: Permite arrastrar cartas entre zonas e **intercalar su orden horizontalmente en vivo**, recalculando instantáneamente el `ComboBanner`.

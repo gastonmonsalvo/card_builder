@@ -283,6 +283,8 @@ func _has_active_run() -> bool:
 		return true
 	if director.main_menu and director.main_menu.visible:
 		return false
+	if director.hero_select_view and director.hero_select_view.visible:
+		return false
 	if director.slot_view and director.slot_view.visible:
 		return false
 	if director.pause_menu and director.pause_menu.visible:
@@ -303,6 +305,7 @@ func _is_active_combat() -> bool:
 		return true
 	return not director.map_view.visible \
 		and not director.main_menu.visible \
+		and not director.hero_select_view.visible \
 		and not director.shop_view.visible \
 		and not director.slot_view.visible \
 		and not director.pause_menu.visible

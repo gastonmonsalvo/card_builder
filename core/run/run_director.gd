@@ -15,8 +15,10 @@ var table: Variant
 var run: RunState
 ## Vista principal de navegación del grafo (matriz `8x8`).
 var map_view: MapView
-## Vista del menú principal para selección de héroes e ingreso de semilla custom.
+## Vista del menú principal con el resumen del perfil activo.
 var main_menu: MainMenuView
+## Vista dedicada para la selección de héroe e ingreso opcional de semilla (`HeroSelectView`).
+var hero_select_view: HeroSelectView
 ## Vista interactiva de la tienda mercantil.
 var shop_view: ShopView
 ## Vista del gestor de perfiles y ranuras de guardado (Slots).
@@ -25,7 +27,7 @@ var slot_view: SlotSelectView
 var pause_menu: PauseMenuView
 
 ## Constructor del Director. Instancia las vistas principales 
-## (`MapView`, `PauseMenuView`, `MainMenuView`, `ShopView`, `SlotSelectView`) como hijas de la mesa.
+## (`MapView`, `PauseMenuView`, `MainMenuView`, `HeroSelectView`, `ShopView`, `SlotSelectView`) como hijas de la mesa.
 ## Conecta las señales de transición, precarga el catálogo de héroes y 
 ## determina el flujo de arranque inicial evaluando si existe un último slot jugado.
 func _init(p_table: Control, p_run: RunState) -> void:
@@ -45,14 +47,21 @@ func _init(p_table: Control, p_run: RunState) -> void:
 	pause_menu.abandon_run_requested.connect(_on_pause_abandon_run)
 	pause_menu.quit_game_requested.connect(_on_pause_quit_game)
 	
-	# 2. Menú Principal (arranca oculto hasta elegir slot)
+	# 2. Menú Principal (arranca oculto hasta validar el último slot jugado)
 	main_menu = MainMenuView.new()
 	main_menu.visible = false
+	main_menu.new_run_requested.connect(_on_new_run_requested)
+	main_menu.change_slot_requested.connect(_on_change_slot_requested)
 	main_menu.quit_requested.connect(_on_main_menu_quit_requested)
 	table.add_child(main_menu)
-	main_menu.start_random_run_requested.connect(_on_start_random_run)
-	main_menu.start_seeded_run_requested.connect(_on_start_seeded_run)
-	main_menu.change_slot_requested.connect(_on_change_slot_requested)
+
+	# 2b. Pantalla dedicada de Selección de Héroe y Semilla
+	hero_select_view = HeroSelectView.new()
+	hero_select_view.visible = false
+	hero_select_view.start_random_run_requested.connect(_on_start_random_run)
+	hero_select_view.start_seeded_run_requested.connect(_on_start_seeded_run)
+	hero_select_view.cancelled.connect(_on_hero_select_cancelled)
+	table.add_child(hero_select_view)
 	
 	# 3. Tienda
 	shop_view = ShopView.new()
@@ -66,52 +75,64 @@ func _init(p_table: Control, p_run: RunState) -> void:
 	table.combat_won.connect(_on_combat_won)
 	table.combat_lost.connect(_on_combat_lost)
 	
-	# 5. Vista de Ranuras de Guardado (Primer elemento visible)
+	# 5. Vista de Ranuras de Guardado
 	slot_view = SlotSelectView.new()
 	table.add_child(slot_view)
 	slot_view.slot_chosen.connect(_on_slot_confirmed)
 	
-	# 5. Precarga de héroes para tener el menú listo de fondo
+	# 6. Precarga del catálogo de héroes en HeroSelectView
 	var heroes: Array[HeroData] = GameDatabase.load_all_heroes()
-	main_menu.setup_heroes(heroes)
+	hero_select_view.setup_heroes(heroes)
 	
-	#  Escuchar transiciones de la FSM
+	# Escuchar transiciones de la FSM
 	state_machine.state_changed.connect(_on_state_changed)
 
-	# 6. Bifurcación de arranque: Auto-login o Selector de Ranuras
+	# 7. Bifurcación de arranque: Auto-login con el último perfil jugado o Selector de Ranuras
 	var last_slot: int = PersistenceManager.get_last_played_slot()
 	
 	if last_slot > 0 and PersistenceManager.select_slot(last_slot):
 		# Encontró el último slot jugado: ocultamos el selector de ranuras
 		slot_view.visible = false
 		
-		# Si ese slot tenía una run en pausa en el mapa, la levantamos de una
+		# Si ese slot tenía una run activa guardada, la reanudamos directamente donde quedó
 		if PersistenceManager.has_active_run():
 			if PersistenceManager.load_active_run(run, table.deck):
-				_resume_loaded_run(last_slot) # 
+				_resume_loaded_run(last_slot)
 				return
 		
-		# Si no tenía una run viva, lo mandamos al menú con su perfil cargado
+		# Si no tenía una run viva, entra directo al Menú Principal con su perfil ya cargado
 		main_menu.visible = true
 		main_menu.show_menu()
 	else:
-		# Primera vez que abre el juego o todos los slots vacíos: va al selector
+		# Primera vez que abre el juego o todos los slots vacíos: va al selector de perfil
 		main_menu.visible = false
+		hero_select_view.visible = false
 		slot_view.refresh_slots()
 		slot_view.visible = true
-	
-## Oculta el menú principal, reinicia el estado de la partida con una semilla procedimental (`-1`),
+
+## Abre la pantalla dedicada de selección de héroe (`HeroSelectView`) desde el menú principal.
+func _on_new_run_requested() -> void:
+	main_menu.visible = false
+	hero_select_view.show_view()
+
+## Regresa desde `HeroSelectView` hacia `MainMenuView` manteniendo el perfil activo cargado.
+func _on_hero_select_cancelled() -> void:
+	hero_select_view.visible = false
+	main_menu.show_menu()
+
+## Oculta el selector de héroes, reinicia el estado de la partida con una semilla procedimental (`-1`),
 ## construye el mazo inicial basado en el héroe elegido y transiciona al mapa.
 func _on_start_random_run(hero: HeroData) -> void:
 	_start_new_run(hero, -1, "Partida iniciada con: %s" % hero.hero_name)
 
-## Inicia una partida con semilla personalizada.
+## Inicia una partida con semilla personalizada elegida desde `HeroSelectView`.
 func _on_start_seeded_run(hero: HeroData, custom_seed: int) -> void:
 	_start_new_run(hero, custom_seed, "Partida iniciada con %s | Semilla: %d" % [hero.hero_name, custom_seed])
 
 ## Limpia los elementos efímeros de la run anterior antes de crear una nueva.
 func _start_new_run(hero: HeroData, p_seed: int, map_message: String) -> void:
 	main_menu.visible = false
+	hero_select_view.visible = false
 	map_view.visible = false
 	shop_view.visible = false
 	map_view.free_travel_enabled = false
@@ -271,6 +292,7 @@ func _on_combat_lost() -> void:
 
 	map_view.visible = false
 	shop_view.visible = false
+	hero_select_view.visible = false
 	map_view.free_travel_enabled = false
 	table.is_resolving = false
 	table.clear_board_visuals()
@@ -339,17 +361,18 @@ func _on_shop_relic_bought(relic: RelicData, cost: int) -> void:
 		PersistenceManager.save_current_run(run, table.deck, _get_active_board_cards())
 
 ## Callback disparado al elegir o crear una ranura de guardado en `SlotSelectView`.
-## Si el slot contiene una partida activa en curso, la restaura y reanuda; de lo contrario, abre el menú principal.
+## Si el slot contiene una partida activa en curso, la restaura y reanuda; de lo contrario, abre el menú principal con el perfil cargado.
 func _on_slot_confirmed() -> void:
 	slot_view.visible = false
+	hero_select_view.visible = false
 	state_machine.transition_to(RunStateMachine.State.MENU)
 	# Si el slot tenía una run congelada, restaurarla
 	if PersistenceManager.has_active_run():
 		if PersistenceManager.load_active_run(run, table.deck):
-			_resume_loaded_run(PersistenceManager.current_slot) # <--- ACÁ ESTÁ EL CAMBIO
+			_resume_loaded_run(PersistenceManager.current_slot)
 			return
 			
-	# Si no hay partida viva, pasar al menú principal de selección de héroe
+	# Si no hay partida viva, pasar al menú principal con el perfil ya cargado
 	map_view.free_travel_enabled = false
 	main_menu.visible = true
 	main_menu.show_menu()
@@ -357,20 +380,25 @@ func _on_slot_confirmed() -> void:
 ## Intercepta el botón de "Cambiar Perfil" del menú principal para volver a mostrar el selector de ranuras.
 func _on_change_slot_requested() -> void:
 	main_menu.visible = false
+	hero_select_view.visible = false
 	slot_view.refresh_slots()
 	slot_view.visible = true
 
-## Captura la pulsación de ESC para pausar la partida si hay una run activa.
+## Captura la pulsación de ESC: si está en `HeroSelectView` regresa a `MainMenuView`; si hay una run activa abre el menú de pausa.
 func handle_unhandled_key(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
+			if hero_select_view and hero_select_view.visible:
+				_on_hero_select_cancelled()
+				table.get_viewport().set_input_as_handled()
+				return
 			# Solo permitimos pausar si no estamos en los menús de inicio
 			if not slot_view.visible and not main_menu.visible and not pause_menu.visible:
 				pause_menu.open_pause()
 				table.get_viewport().set_input_as_handled()
 
 ## Elimina permanentemente la partida en curso del disco duro y computa la derrota en las estadísticas del perfil.
-## Purga las vistas actuales y regresa al menú de selección de Héroes.
+## Purga las vistas actuales y regresa al menú principal con el perfil cargado.
 func _on_pause_abandon_run() -> void:
 	state_machine.transition_to(RunStateMachine.State.MENU) 
 	# Eliminamos el snapshot y registramos el abandono como una derrota.
@@ -379,6 +407,7 @@ func _on_pause_abandon_run() -> void:
 
 	map_view.visible = false
 	shop_view.visible = false
+	hero_select_view.visible = false
 	map_view.free_travel_enabled = false
 	table.clear_board_visuals()
 	table.enemy = null
@@ -514,6 +543,8 @@ func _get_active_board_cards() -> Array[CardData]:
 ##  reinicia el encuentro. Si estaba pacífico en el mapa, abre la vista de expedición.
 func _resume_loaded_run(slot: int) -> void:
 	var room: RoomData = run.current_room
+	main_menu.visible = false
+	hero_select_view.visible = false
 	map_view.free_travel_enabled = run.god_mode
 	table.clear_board_visuals()
 	table.enemy = null

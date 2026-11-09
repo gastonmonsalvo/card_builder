@@ -254,6 +254,7 @@ flowchart TD
 		SV["ShopView (100% código)"]
 		RV["RewardView (100% código)"]
 		MMV["MainMenuView (100% código)"]
+		HSV["HeroSelectView (100% código)"]
 		SSV["SlotSelectView (100% código)"]
 	end
 
@@ -376,7 +377,7 @@ flowchart TD
 | Archivo | Clase / Tipo | Responsabilidad real en código |
 |---|---|---|
 | `run_state.gd` | `RunState` (`RefCounted`) | Contenedor de estado vivo y lógica de dominio de la run: stats del jugador (`player_hp`, `max_player_hp`, `max_energy`, `target_hand_size`, `discards_per_combat`, `player_gold`, `player_luck`, `player_str`, `player_int`, `player_dex`), `temp_stats`, `current_weapon`, `inventory_weapons` (mochila hasta 4 armas), `current_ability`, `active_relics`, `floor_data`, `combat_rng`. Genera y aplica recompensas de combate, stock de tienda, curación en hoguera, bendiciones de santuario y serialización completa (`to_dict` / `from_dict`). |
-| `run_director.gd` | `RunDirector` (`RefCounted`) | Mediador central. Instancia en código `MapView`, `PauseMenuView`, `MainMenuView`, `ShopView`, `SlotSelectView` y `RewardView` como hijos de `BattleTable`. Maneja el auto-login con `last_slot.cfg`, la navegación entre salas del mapa, compras en tienda, fin de combate y guardado al salir. |
+| `run_director.gd` | `RunDirector` (`RefCounted`) | Mediador central. Instancia en código `MapView`, `PauseMenuView`, `MainMenuView`, `HeroSelectView`, `ShopView`, `SlotSelectView` y `RewardView` como hijos de `BattleTable`. Maneja el auto-login con `last_slot.cfg` (dejando siempre al jugador con su perfil ya cargado o reanudando su run activa), la navegación hacia `HeroSelectView`, salas del mapa, compras en tienda, fin de combate y guardado al salir. |
 | `run_state_machine.gd` | `RunStateMachine` (`RefCounted`) | FSM con `enum State { MENU, MAP, BATTLE, REWARD, EVENT, SHOP, DEAD, VICTORY }`. Valida transiciones en `_is_valid_transition(from, to)` y emite `state_changed(new_state)`. |
 | `rarity_system.gd` | `RaritySystem` (`RefCounted`) | Motor estático de probabilidades con 5 Tiers (`COMMON`, `UNCOMMON`, `RARE`, `EPIC`, `LEGENDARY`). Calcula `fortune` según `floor_number` y `player_luck`, sortea rarezas (`roll_tier`), hace sorteos ponderados genéricos (`roll_weighted`) e interpolación lineal suavizada por suerte (`get_scaled_value_smooth`). |
 
@@ -416,9 +417,9 @@ flowchart TD
 | `scenes/map/map_view.gd` | `MapView` | 100% código (`Control`) | Dibuja la grilla 8x8 y sus pasillos (`_draw()`), instancia `MapNodeView` por cada sala descubierta, y aloja `SanctuaryModalView`, `InspectorModalView` e `InventoryModalView`. |
 | `scenes/reward/reward_view.gd` | `RewardView` | 100% código (`Control`) | Modal post-victoria con animaciones estilo Balatro (pop-in con `TRANS_BACK`, flotación senoidal desfasada y hover magnético con inclinación). |
 | `scenes/shop/shop_view.gd` | `ShopView` | 100% código (`Control`) | Tienda del Bazar: renderiza 3 cartas y 2 reliquias tasadas por `RaritySystem.Tier`, validando oro y marcando slots como `"VENDIDO"` / `"COMPRADO"`. |
-| `scenes/menus/main_menu_view.gd` | `MainMenuView` | 100% código (`Control`) | Selección de héroe mediante `HeroCardView`, visualización de stats del perfil activo, e input de semilla custom. |
+| `scenes/menus/main_menu_view.gd` | `MainMenuView` | 100% código (`Control`) | Menú principal enfocado en mostrar el estado del perfil activo ya cargado (nombre, ranura, mejor piso, victorias), mensajes de Game Over y navegación hacia `HeroSelectView` o `SlotSelectView`. |
 | `scenes/menus/slot_select_view.gd` | `SlotSelectView` | 100% código (`Control`) | Gestión de las 3 ranuras de guardado con modal emergente para nombrar nuevo perfil. |
-| `scenes/menus/hero_select_view.gd` | `HeroSelectView` | 100% código (`Control`) | Vista alternativa de selección de personaje en pantalla completa. |
+| `scenes/menus/hero_select_view.gd` | `HeroSelectView` | 100% código (`Control`) | Pantalla dedicada de preparación de expedición: instancia las tarjetas `HeroCardView`, muestra la ficha técnica del héroe elegido (descripción, arma y habilidad activa) y gestiona el ingreso opcional de semilla (`seed`). |
 | `ui/cards/card_ui.gd` | `CardUI` | `.tscn` + `.gd` | Representación visual de una carta con física de resorte exponencial (`exp(-28 * delta)`), tilt por velocidad horizontal y animación de disolución/quemado (`play_consume_animation()`). |
 | `ui/battle/hud_battle.gd` | `BattleHUD` | Nodos en `battle_table.tscn` + `.gd` | Orquesta `PlayerHUD`, `EnemyHUD`, `ComboBanner`, `PileInspector`, botones de pilas y botón de `InventoryModalView`. |
 | `ui/battle/player_hud.gd` | `PlayerHUD` | `Panel` | Renderiza nombre del héroe, HP, escudo, arma equipada, energía y suerte. |
@@ -429,7 +430,7 @@ flowchart TD
 | `ui/map/map_node_view.gd` | `MapNodeView` | 100% código (`Button`) | Celda individual del mapa 8x8 coloreada según `RoomData.get_room_color()` con bordes jerárquicos (blanco = actual, dorado = viajable, gris = bloqueado). |
 | `ui/map/sanctuary_modal_view.gd` | `SanctuaryModalView` | 100% código (`Panel`) | Modal de decisión binaria para las salas `SANCTUARY`. |
 | `ui/map/inspector_modal_view.gd` | `InspectorModalView` | 100% código (`Panel`) | Modal con scroll vertical para inspeccionar el texto detallado de reliquias o cartas del mazo. |
-| `ui/menus/hero_card_view.gd` | `HeroCardView` | 100% código (`Button`) | Tarjeta con `RichTextLabel` BBCode que resume stats, arma inicial y reliquias coloreadas por rareza de cada `HeroData`. |
+| `ui/menus/hero_card_view.gd` | `HeroCardView` | 100% código (`Button`) | Tarjeta con `RichTextLabel` BBCode (stats base, atributos RPG, arma inicial, habilidad y reliquias) y resorte exponencial de escala (`0.95x` en reposo con tinte gris acero, `1.04x` en hover, `1.08x` fija seleccionada con pulso `1.13x` al clic y `StyleBox` `"hover"`). |
 | `ui/system/pause_menu_view.gd` | `PauseMenuView` | 100% código (`Control`) | Congela el árbol (`get_tree().paused = true` con `PROCESS_MODE_ALWAYS`), ofrece Continuar, Abandonar Partida (con modal de confirmación) y Guardar y Salir. |
 | `ui/system/debug_overlay.gd` | `DebugOverlay` | 100% código (`Control`) | Consola QA de 3 columnas (`F3`/`F4`) inyectada solo en builds debug. |
 
@@ -514,7 +515,7 @@ Todo el código fuente GDScript del proyecto (excluyendo addons de terceros como
   - **Delegación estricta de IA en `EnemyAI`:** Se eliminó la función estática duplicada `Enemy.decide_intent()` de `core/enemies/enemy.gd`; toda resolución de intenciones pasa exclusivamente por `EnemyAI.decide_intent()`.
   - **Selección de cartas por rareza unificada en `RunState`:** Tanto la tienda (`generate_shop_cards`) como las recompensas post-combate (`generate_combat_rewards`) utilizan el mismo helper determinista `_pick_from_pool_by_tier_cards()` (eliminando el duplicado `_pick_card_by_tier()`).
   - **Separación entre `InspectorModalView` e `InventoryModalView`:** Se purgaron de `InspectorModalView` las señales y callbacks residuales de equipamiento de armas (`weapon_selected_to_equip`, `_on_weapon_button_pressed`), responsabilidad que pertenece exclusivamente a `InventoryModalView`.
-  - **`HeroSelectView` marcado como Legacy:** `scenes/menus/hero_select_view.gd` se conserva únicamente como referencia histórica documentada (`[OBSOLETO / LEGACY]`), ya que la selección de héroe vive integrada en `MainMenuView` + `HeroCardView`.
+  - **Separación de responsabilidades entre `MainMenuView` y `HeroSelectView`:** `MainMenuView` actúa como hub del perfil activo ya cargado (estadísticas del jugador, alertas de fin de run, cambio de perfil), delegando la selección de personaje (`HeroCardView`), inspección de habilidad/arma e ingreso de semilla (`seed`) a la pantalla dedicada `HeroSelectView`.
 
 ---
 

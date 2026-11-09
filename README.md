@@ -59,7 +59,7 @@ godot --path .                          # abre el editor
 godot --path . --main-scene res://scenes/battle/battle_table.tscn
 ```
 
-> **Nota de arquitectura de arranque:** `battle_table.tscn` actúa como contenedor raíz del `SceneTree`. Al inicializarse, instancia `RunDirector`, el cual monta proceduralmente por código (`SlotSelectView`, `MainMenuView`, `MapView`, `ShopView`, `PauseMenuView`) como capas superpuestas por `z_index`.
+> **Nota de arquitectura de arranque:** `battle_table.tscn` actúa como contenedor raíz del `SceneTree`. Al inicializarse, instancia `RunDirector`, el cual monta proceduralmente por código (`SlotSelectView`, `MainMenuView`, `HeroSelectView`, `MapView`, `ShopView`, `PauseMenuView`) como capas superpuestas por `z_index`.
 
 ---
 
@@ -196,9 +196,9 @@ card-prototype/
 │   ├── shop/
 │   │   └── shop_view.gd                    # Tienda del Bazar construida en código
 │   └── menus/
-│       ├── main_menu_view.gd               # Selección de héroe + input de semilla en código
+│       ├── main_menu_view.gd               # Menú principal con resumen del perfil activo ya cargado
 │       ├── slot_select_view.gd             # Selector/creador de 3 perfiles de guardado en código
-│       └── hero_select_view.gd             # Vista alternativa de selección de héroe en código
+│       └── hero_select_view.gd             # Pantalla dedicada de selección de héroe, ficha técnica e input de semilla
 │
 ├── ui/                                     # Componentes UI atómicos y modales reutilizables
 │   ├── cards/
@@ -217,7 +217,7 @@ card-prototype/
 │   │   ├── sanctuary_modal_view.gd         # Modal interactivo del Santuario Ancestral
 │   │   └── inspector_modal_view.gd         # Modal con scroll para inspeccionar mazo y reliquias
 │   ├── menus/
-│   │   └── hero_card_view.gd               # Tarjeta BBCode de héroe para MainMenuView
+│   │   └── hero_card_view.gd               # Tarjeta BBCode de héroe para HeroSelectView
 │   └── system/
 │       ├── pause_menu_view.gd              # Menú de pausa con confirmación de abandono y guardado al salir
 │       └── debug_overlay.gd                # Panel QA/Debug (F3/F4): God Mode, stats, armas, reliquias, pisos
@@ -247,7 +247,7 @@ card-prototype/
 3. **`RunDirector._init()`** verifica en `PersistenceManager` si existe un `last_slot.cfg` válido:
    - **Auto-login:** Si el último slot jugado tiene una partida activa (`run.json`), la deserializa en `RunState` y `DeckManager`, y reanuda directamente en la sala correspondiente (Mapa, Combate o Tienda). Si no tiene partida activa, abre `MainMenuView` con el perfil cargado.
    - **Selección de Perfil (`SlotSelectView`):** Si no hay slot previo, muestra las **3 ranuras de guardado**. El jugador puede crear un perfil nuevo (ingresando su nombre), continuar/seleccionar uno existente o borrarlo.
-4. En **`MainMenuView`**, el jugador visualiza su récord (Mejor Piso y Victorias), elige un héroe (`HeroCardView` poblado desde `entities/hero/data/`) e inicia una partida aleatoria o con **semilla personalizada (numérica o alfanumérica)**.
+4. En **`MainMenuView`** (con el perfil ya cargado), el jugador visualiza su récord (Mejor Piso y Victorias) y puede cambiar de ranura o pulsar **"NUEVA EXPEDICIÓN"**, lo que abre **`HeroSelectView`**, donde inspecciona la ficha técnica de cada héroe (`HeroCardView` poblado desde `entities/hero/data/`) e inicia una partida aleatoria o con **semilla personalizada (numérica o alfanumérica)**.
 
 ### 2. Creación de la Run y Generación Procedural (`core/run/` & `core/map/`)
 
