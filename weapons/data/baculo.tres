@@ -6,6 +6,8 @@
 script = ExtResource("1_v453c")
 weapon_name = "Baculo Basico"
 weapon_class = 3
+rarity = 1
+lore = "Tallado en madera de fresno ceniciento por aprendices del Círculo Interior. Canaliza el intelecto del portador en descargas elementales puras."
 req_str = 3
 scale_int = 1.0
 metadata/_custom_type_script = "uid://db3042vswtitv"

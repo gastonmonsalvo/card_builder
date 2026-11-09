@@ -188,6 +188,12 @@ card-prototype/
 │   ├── cards/
 │   │   ├── card_ui.tscn
 │   │   └── card_ui.gd
+│   ├── relics/
+│   │   ├── relic_ui.tscn
+│   │   └── relic_ui.gd
+│   ├── weapons/
+│   │   ├── weapon_ui.tscn
+│   │   └── weapon_ui.gd
 │   ├── battle/
 │   │   ├── hud_battle.gd                       # (class_name BattleHUD)
 │   │   ├── player_hud.gd
@@ -402,9 +408,9 @@ flowchart TD
 | `entities/enemies/enemy_data.gd` | `EnemyData` (`Resource`) | `esqueleto.tres` (con `DefendBehavior`), `jefe_basico.tres` (`is_boss = true`). |
 | `cards/card_data.gd` | `CardData` (`Resource`) | 12 cartas en `cards/data/`: `corte_rapido`, `curacion_basica`, `efecto_caotico`, `escudo_basico`, `estocada`, `frasco_veneno_basico`, `golpe_congelante`, `golpe_fuego`, `lanza_rayo`, `robo_basico`, `sobre_carga`, `tajo`. Incluye `@export var is_magical: bool`, `@export var artwork: Texture2D` y helpers de presentación (`is_magic_card()`, `get_color()`, `get_art_accent_color()`, `get_weapon_icon()`, `get_weapon_tag_text()`, `get_placeholder_emblem()`, `get_rules_text()`, `get_enemy_status_icons()`). |
 | `cards/effects/` | `CardEffect` (`Resource`) | Clase base con `@export var is_magical: bool = false`. Subclases: `DamageEffect`, `DefenseEffect`, `BurnEffect` (`is_magical = true`), `PoisonEffect`, `FreezeEffect` (`is_magical = true`), `ShockEffect` (`is_magical = true`), `HemorrhageEffect`, `HealEffect`, `MultiplyEffect` (`is_magical = true`), `StealEffect` (instantánea), `ApplyStatusEffect` (`is_magical = true`, fijo o `RANDOM`). |
-| `relics/relic_data.gd` | `RelicData` (`Resource`) | 8 reliquias en `relics/data/`: `anillo_brasas`, `bolsillo_dimensional`, `catalizador_combo`, `cenizas_fenix`, `colmillo_vibora`, `nucleo_sobrecargado`, `pata_conejo`, `trebol_abismo`. |
+| `relics/relic_data.gd` | `RelicData` (`Resource`) | 8 reliquias en `relics/data/`: `anillo_brasas`, `bolsillo_dimensional`, `catalizador_combo`, `cenizas_fenix`, `colmillo_vibora`, `nucleo_sobrecargado`, `pata_conejo`, `trebol_abismo`. Incluye `@export var artwork: Texture2D`, `@export_multiline var lore: String` y helpers de presentación (`get_effect_summary_text()`, `get_lore_text()`, `get_placeholder_emblem()`). |
 | `relics/effects/` | `RelicEffect` (`Resource`) | `RelicStatBonusEffect`, `RelicStartStatusEffect`, `RelicComboSynergyEffect`, `RelicReviveEffect`. |
-| `weapons/weapon_data.gd` | `WeaponData` (`Resource`) | 5 armas en `weapons/data/`: `arma_basica.tres` (Palito), `baculo.tres` (Báculo Básico), `dagger.tres` (Daga), `espadon.tres` (Espadón), `katana_basica.tres` (Katana Básica). |
+| `weapons/weapon_data.gd` | `WeaponData` (`Resource`) | 5 armas en `weapons/data/`: `arma_basica.tres` (Palito), `baculo.tres` (Báculo Básico), `dagger.tres` (Daga), `espadon.tres` (Espadón), `katana_basica.tres` (Katana Básica). Incluye `@export var rarity: RaritySystem.Tier`, `@export var artwork: Texture2D`, `@export_multiline var lore: String` y helpers de presentación (`get_weapon_tag_text()`, `get_stats_and_scaling_text()`, `get_lore_text()`, `get_placeholder_emblem()`). |
 
 ---
 
@@ -421,15 +427,17 @@ flowchart TD
 | `scenes/menus/slot_select_view.gd` | `SlotSelectView` | 100% código (`Control`) | Gestión de las 3 ranuras de guardado con modal emergente para nombrar nuevo perfil. |
 | `scenes/menus/hero_select_view.gd` | `HeroSelectView` | 100% código (`Control`) | Pantalla dedicada de preparación de expedición: instancia las tarjetas `HeroCardView`, muestra la ficha técnica del héroe elegido (descripción, arma y habilidad activa) y gestiona el ingreso opcional de semilla (`seed`). |
 | `ui/cards/card_ui.gd` | `CardUI` | `.tscn` + `.gd` | Representación visual responsiva de una carta en 4 bloques (`[Costo] Nombre [Icono Arma]`, recuadro de Arte 2D / emblema, tag `[🏷️ Familia de Arma]`, y caja inferior con descripción centrada + ícono de estado alterado sobre el enemigo abajo a la izquierda). Cuerpo y reborde fijo (`2px`) coloreados por Rareza (`RaritySystem.Tier`); `TitleLabel` (con contorno negro de `2px`) coloreado según la función/naturaleza mágica de la carta (`CardData.get_color()`). Incluye física de resorte exponencial (`exp(-28 * delta)`), tilt por velocidad horizontal, animación de disolución (`play_consume_animation()`) y modo estático para contenedores (`set_static_display_mode(true)`). |
-| `ui/battle/hud_battle.gd` | `BattleHUD` | Nodos en `battle_table.tscn` + `.gd` | Orquesta `PlayerHUD`, `EnemyHUD`, `ComboBanner`, `PileInspector`, botones de pilas y botón de `InventoryModalView`. |
+| `ui/relics/relic_ui.gd` | `RelicUI` | `.tscn` + `.gd` | Representación visual de una reliquia en 4 bloques (`Nombre + [Rareza]`, Marco/Pedestal central con Sprite 2D o emblema, bloque de `EFECTO` resaltado y bloque de `LORE / HISTORIA` en cursiva BBCode atenuada) con resorte de escala e inclinación en hover. |
+| `ui/weapons/weapon_ui.gd` | `WeaponUI` | `.tscn` + `.gd` | Representación visual e interactiva de un arma en 5 bloques (`Nombre + [Rareza]`, Marco/Pedestal central con Sprite 2D o emblema, píldora `🏷️ Tipo de Arma`, bloque de `ESTADÍSTICAS / ESCALADO` con daño base y efecto pasivo On-Hit, y bloque de `LORE / DESCRIPCIÓN` en cursiva atenuada). Emite `weapon_clicked(weapon)` para equiparla desde el inventario. |
+| `ui/battle/hud_battle.gd` | `BattleHUD` | Nodos en `battle_table.tscn` + `.gd` | Orquesta `PlayerHUD`, `EnemyHUD`, `ComboBanner`, `PileInspector`, botones de pilas y los botones/modales laterales de `INVENTARIO` (`InventoryModalView`) y `RELIQUIAS` (`InspectorModalView.open_relic_cards()`). |
 | `ui/battle/player_hud.gd` | `PlayerHUD` | `Panel` | Renderiza nombre del héroe, HP, escudo, arma equipada, energía y suerte. |
 | `ui/battle/enemy_hud.gd` | `EnemyHUD` | `Panel` | Renderiza nombre, HP, bloqueo, intención declarada y cargas de estados alterados (incluyendo `% Stun` de Shock y progreso `X/5` de Freeze). |
 | `ui/battle/combo_banner.gd` | `ComboBanner` | `Label` | Formatea el diccionario predictivo de `CombatResolver.calculate_sequential_preview()` o muestra alertas de combate. |
 | `ui/battle/pile_inspector.gd` | `PileInspector` | `Panel` | Popup que renderiza visualmente las cartas de Mazo, Descarte o Cementerio mediante una grilla de `CardUI` en modo estático con insignia superior `"x1"` / `"xN"` por cantidad de copias. |
-| `ui/inventory/inventory_modal_view.gd` | `InventoryModalView` | 100% código (`Control`) | Muestra `STR`, `INT`, `DEX`, `LUCK`, tarjeta destacada del arma equipada y lista scrollable de la mochila (`inventory_weapons`) para intercambiar el arma activa. |
+| `ui/inventory/inventory_modal_view.gd` | `InventoryModalView` | 100% código (`Control`) | Muestra los atributos efectivos (`STR`, `INT`, `DEX`, `SUERTE`), renderiza el arma actualmente equipada a la izquierda como `WeaponUI` destacada y despliega a la derecha la galería de la mochila (`inventory_weapons`) con tarjetas `WeaponUI` interactivas para intercambiar el arma activa con un clic. |
 | `ui/map/map_node_view.gd` | `MapNodeView` | 100% código (`Button`) | Celda individual del mapa 8x8 coloreada según `RoomData.get_room_color()` con bordes jerárquicos (blanco = actual, dorado = viajable, gris = bloqueado). |
 | `ui/map/sanctuary_modal_view.gd` | `SanctuaryModalView` | 100% código (`Panel`) | Modal de decisión binaria para las salas `SANCTUARY`. |
-| `ui/map/inspector_modal_view.gd` | `InspectorModalView` | 100% código (`Panel`) | Modal con scroll vertical que soporta modo texto (reliquias) y modo grilla visual de cartas (`open_deck_cards()`: instancia cada carta única como `CardUI` con su contador superior `"x1"` / `"xN"`). |
+| `ui/map/inspector_modal_view.gd` | `InspectorModalView` | 100% código (`Panel`) | Modal con scroll vertical que soporta modo texto, grilla visual de cartas (`open_deck_cards()` con `CardUI` en 5 columnas) y grilla visual de reliquias (`open_relic_cards()` con `RelicUI` en 3 columnas), coronando cada ítem con su contador `"x1"` / `"xN"`. |
 | `ui/menus/hero_card_view.gd` | `HeroCardView` | 100% código (`Button`) | Tarjeta con `RichTextLabel` BBCode (stats base, atributos RPG, arma inicial, habilidad y reliquias) y resorte exponencial de escala (`0.95x` en reposo con tinte gris acero, `1.04x` en hover, `1.08x` fija seleccionada con pulso `1.13x` al clic y `StyleBox` `"hover"`). |
 | `ui/system/pause_menu_view.gd` | `PauseMenuView` | 100% código (`Control`) | Congela el árbol (`get_tree().paused = true` con `PROCESS_MODE_ALWAYS`), ofrece Continuar, Abandonar Partida (con modal de confirmación) y Guardar y Salir. |
 | `ui/system/debug_overlay.gd` | `DebugOverlay` | 100% código (`Control`) | Consola QA de 3 columnas (`F3`/`F4`) inyectada solo en builds debug. |

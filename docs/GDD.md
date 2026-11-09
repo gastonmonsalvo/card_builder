@@ -260,18 +260,40 @@ Cada carta renderizada por `ui/cards/card_ui.tscn` y `ui/cards/card_ui.gd` utili
 
 Las reliquias persisten durante toda la run y disparan sus efectos en cuatro momentos posibles: al equiparse (`on_equipped`), al inicio de cada combate (`on_combat_start`), al evaluar el cierre de un combo (`on_combo_evaluated`) o al recibir daño letal (`on_player_lethal_damage`).
 
+### Anatomía Visual de las Reliquias (`RelicUI` + `RelicData`)
+
+Al inspeccionar las reliquias desde el botón **`RELIQUIAS (N)`** en el Mapa (`InspectorModalView.open_relic_cards()`), cada reliquia se presenta como una tarjeta visual (`ui/relics/relic_ui.tscn` + `ui/relics/relic_ui.gd`) con su insignia superior de copias (`x1` / `xN`) y una estructura de 4 bloques:
+
+```text
+┌──────────────────────────────────────────────┐
+│  Nombre de la Reliquia           [Rareza]    │  <- Título sobrio + Rareza coloreada
+├──────────────────────────────────────────────┤
+│                                              │
+│         [ Marco / Pedestal ]                 │
+│              ( Sprite 2D )                   │  <- Objeto centrado (`artwork` o glifo)
+│                                              │
+├──────────────────────────────────────────────┤
+│  EFECTO                                      │
+│  "Aplica +3 de Quemadura al inicio."         │  <- Mecánica corta, clara y resaltada
+├──────────────────────────────────────────────┤
+│  LORE / HISTORIA                             │
+│  "Forjado en el corazón de una fragua        │  <- Párrafo narrativo en cursiva (`[i]`),
+│   enana hoy sepultada bajo cenizas..."       │     tono gris/azulado atenuado
+└──────────────────────────────────────────────┘
+```
+
 ### Catálogo de Reliquias implementadas (`relics/data/`)
 
-| Reliquia (`archivo.tres`) | Rareza (`Tier`) | Hook / Efecto (`RelicEffect`) | Impacto en partida |
-|---|---|---|---|
-| **Anillo de Brasas** (`anillo_brasas.tres`) | Común (`0`) | `RelicStartStatusEffect` | Aplica **+3 Quemadura inicial** al enemigo al comenzar cada combate. |
-| **Catalizador de Combo** (`catalizador_combo.tres`) | Común (`0`) | `RelicComboSynergyEffect` | Si el combo ejecutado tiene **3 o más cartas**, añade **+6 Daño y +5 Escudo**. |
-| **Bolsillo Dimensional** (`bolsillo_dimensional.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+1 Tamaño de Mano base** permanente (`target_hand_size`). |
-| **Colmillo de Víbora** (`colmillo_vibora.tres`) | Poco Común (`1`) | `RelicStartStatusEffect` | Aplica **+3 Veneno inicial** al enemigo al comenzar cada combate. |
-| **Núcleo Sobrecargado** (`nucleo_sobrecargado.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+1 Energía Máxima** permanente (`max_energy`). |
-| **Pata De Conejo** (`pata_conejo.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+10 Suerte** permanente (`player_luck`). |
-| **Trébol del Abismo** (`trebol_abismo.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+3 Suerte** permanente (`player_luck`). |
-| **Cenizas de Fénix** (`cenizas_fenix.tres`) | Épica (`3`) | `RelicReviveEffect` | Al recibir daño letal (`HP <= 0`), **revive al jugador con el 50% de su HP máximo** y la reliquia se consume (destruye). |
+| Reliquia (`archivo.tres`) | Rareza (`Tier`) | Hook / Efecto (`RelicEffect`) | Impacto en partida | Lore (`lore`) |
+|---|---|---|---|---|
+| **Anillo de Brasas** (`anillo_brasas.tres`) | Común (`0`) | `RelicStartStatusEffect` | Aplica **+3 Quemadura inicial** al enemigo al comenzar cada combate. | *"Forjado en el corazón de una fragua enana hoy sepultada bajo cenizas. Su metal jamás se enfría y murmura chispas al desenfundar."* |
+| **Catalizador de Combo** (`catalizador_combo.tres`) | Común (`0`) | `RelicComboSynergyEffect` | Si el combo ejecutado tiene **3 o más cartas**, añade **+6 Daño y +5 Escudo**. | *"Un engranaje rúnico que acelera el pulso de su portador. Cuanto más frenética es la cadena de estocadas, más violento resuena su núcleo."* |
+| **Bolsillo Dimensional** (`bolsillo_dimensional.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+1 Tamaño de Mano base** permanente (`target_hand_size`). | *"Cosido con hebras de vacío por un sastre exiliado de la Torre Arcana. Por dentro siempre cabe un truco más del que permite la tela."* |
+| **Colmillo de Víbora** (`colmillo_vibora.tres`) | Poco Común (`1`) | `RelicStartStatusEffect` | Aplica **+3 Veneno inicial** al enemigo al comenzar cada combate. | *"Arrancado de una sierpe albina de las criptas profundas. Aunque lleva décadas seco, su canal interno sigue destilando una gota letal al primer roce."* |
+| **Núcleo Sobrecargado** (`nucleo_sobrecargado.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+1 Energía Máxima** permanente (`max_energy`). | *"Una esfera de cuarzo agrietada que contiene una tormenta en miniatura. Los alquimistas que intentaron sellarla desaparecieron sin dejar sombra."* |
+| **Pata De Conejo** (`pata_conejo.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+10 Suerte** permanente (`player_luck`). | *"Un amuleto gastado por generaciones de tahúres y saqueadores de tumbas. Dicen que la suerte que otorga fue robada a su antiguo dueño."* |
+| **Trébol del Abismo** (`trebol_abismo.tres`) | Poco Común (`1`) | `RelicStatBonusEffect` | Otorga **+3 Suerte** permanente (`player_luck`). | *"Brotó en la oscuridad absoluta donde jamás llega el sol. Sus cuatro hojas negras inclinan los dados del destino a favor de quien no teme mirarlo."* |
+| **Cenizas de Fénix** (`cenizas_fenix.tres`) | Épica (`3`) | `RelicReviveEffect` | Al recibir daño letal (`HP <= 0`), **revive al jugador con el 50% de su HP máximo** y la reliquia se consume (destruye). | *"El clan, que perdió todo en el gran incendio, recogió este puñado de pavesas doradas como objeto sagrado. Aún laten esperando una última agonía."* |
 
 ### Reliquias adicionales en diseño (`🚧 [FUTURO / PENDIENTE]`)
 
@@ -294,15 +316,43 @@ Las reliquias persisten durante toda la run y disparan sus efectos en cuatro mom
    Además, inyecta automáticamente las cargas `inflict_poison`, `inflict_burn`, `inflict_hemorrhage` e `inflict_shock` del arma al combo.
 4. **Mochila de Armas (`inventory_weapons`)**: El jugador puede guardar hasta **4 armas en su mochila** (`MAX_INVENTORY_SIZE = 4`) y cambiar su arma equipada desde `InventoryModalView` tanto en el mapa como en combate.
 
+### Anatomía Visual de las Armas (`WeaponUI` + `WeaponData`)
+
+En el modal de **Inventario** (`InventoryModalView`), tanto el arma equipada como las armas guardadas en la mochila se renderizan mediante `ui/weapons/weapon_ui.tscn` y `ui/weapons/weapon_ui.gd` con una estructura de 5 bloques:
+
+```text
+┌──────────────────────────────────────────────┐
+│  Nombre del Arma                 [Rareza]    │  <- Título sobrio + Rareza coloreada
+├──────────────────────────────────────────────┤
+│                                              │
+│         [ Marco / Pedestal ]                 │
+│          ( Sprite del Arma )                 │  <- Visual claro del arma (`artwork` o glifo)
+│                                              │
+├──────────────────────────────────────────────┤
+│  🏷️ Tipo de Arma: Daga / Espada / etc.       │  <- Misma píldora de compatibilidad que `CardUI`
+├──────────────────────────────────────────────┤
+│  ESTADÍSTICAS / ESCALADO                     │
+│  • Daño Base: 2                              │  <- Números clave, escalado, requisitos
+│  • Efecto Pasivo: "Las cartas de DAGA        │     y estado On-Hit
+│    aplican +2 Hemorragia."                   │
+├──────────────────────────────────────────────┤
+│  LORE / DESCRIPCIÓN                          │
+│  "Hoja corta utilizada por asesinos de la    │  <- Párrafo de historia en cursiva (`[i]`)
+│   corte interior..."                         │     y tono gris atenuado
+└──────────────────────────────────────────────┘
+```
+
+Hacer clic directamente sobre cualquier tarjeta `WeaponUI` de la mochila (o en su botón inferior `EQUIPAR ARMA`) intercambia en el acto el arma activa con la de la mochila.
+
 ### Catálogo de Armas implementadas (`weapons/data/`)
 
-| Arma (`archivo.tres`) | ID (`weapon_id`) | Clase (`WeaponData.Class`) | Daño Base | Requisitos (`STR / INT / DEX`) | Escalado (`STR / INT / DEX`) | Efecto On-Hit por carta |
-|---|---|---|---|---|---|---|
-| **Palito** (`arma_basica.tres`) | `"weapon_base"` | `ANY` (`0`) | 3 | 0 / 0 / 0 | 0 / 0 / 0 | — |
-| **Báculo Básico** (`baculo.tres`) | `"weapon_base"` | `STAFF` (`3`) | 3 | **3** / 0 / 0 | 0 / **1.0** / 0 | — |
-| **Daga** (`dagger.tres`) | `"2134"` | `DAGGER` (`4`) | 2 | **1** / 0 / **3** | 0 / 0 / **0.4** | **+2 Hemorragia** |
-| **Espadón** (`espadon.tres`) | `"2"` | `HEAVY` (`2`) | 5 | 0 / 0 / 0 | 0 / 0 / 0 | **+2 Hemorragia** |
-| **Katana Básica** (`katana_basica.tres`) | `"234"` | `KATANA` (`5`) | 5 | **4** / 0 / 0 | 0 / 0 / 0 | — |
+| Arma (`archivo.tres`) | Rareza (`Tier`) | Clase (`WeaponData.Class`) | Daño Base | Requisitos (`STR / INT / DEX`) | Escalado (`STR / INT / DEX`) | Efecto Pasivo On-Hit | Lore (`lore`) |
+|---|---|---|---|---|---|---|---|
+| **Palito** (`arma_basica.tres`) | Común (`0`) | `ANY` (`0`) | 3 | 0 / 0 / 0 | 0 / 0 / 0 | — | *"Una rama nudosa arrancada de un roble seco a la entrada de la cripta. No impone respeto, pero golpea mejor que un puño desnudo."* |
+| **Báculo Básico** (`baculo.tres`) | Poco Común (`1`) | `STAFF` (`3`) | 3 | **3** / 0 / 0 | 0 / **1.0** / 0 | — | *"Tallado en madera de fresno ceniciento por aprendices del Círculo Interior. Canaliza el intelecto del portador en descargas elementales puras."* |
+| **Daga** (`dagger.tres`) | Poco Común (`1`) | `DAGGER` (`4`) | 2 | **1** / 0 / **3** | 0 / 0 / **0.4** | **+2 Hemorragia** | *"Hoja corta utilizada por asesinos de la corte interior. El filo dentado conserva un leve brillo carmesí que abre heridas imposibles de cerrar."* |
+| **Espadón** (`espadon.tres`) | Poco Común (`1`) | `HEAVY` (`2`) | 5 | 0 / 0 / 0 | 0 / 0 / 0 | **+2 Hemorragia** | *"Una mole de hierro negro concebida para partir escudos y armaduras de un solo tajo. Su propio peso desgarra la carne al impactar."* |
+| **Katana Básica** (`katana_basica.tres`) | Rara (`2`) | `KATANA` (`5`) | 5 | **4** / 0 / 0 | 0 / 0 / 0 | — | *"Forjada mediante cien pliegues de acero templado en agua helada. Exige un brazo firme, pero su corte es tan limpio que la víctima tarda en notarlo."* |
 
 ---
 

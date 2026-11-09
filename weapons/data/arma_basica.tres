@@ -5,4 +5,5 @@
 [resource]
 script = ExtResource("1_gl3ob")
 weapon_name = "Palito"
+lore = "Una rama nudosa arrancada de un roble seco a la entrada de la cripta. No impone respeto, pero golpea mejor que un puño desnudo."
 metadata/_custom_type_script = "uid://db3042vswtitv"
