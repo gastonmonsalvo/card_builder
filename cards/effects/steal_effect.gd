@@ -19,3 +19,6 @@ func get_color() -> Color:
 ## Retorna `true` para que la carta se consuma inmediatamente al seleccionarla desde la mano.
 func is_instant() -> bool:
 	return true
+
+func get_emblem_icon() -> String:
+	return "🃏"

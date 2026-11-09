@@ -304,9 +304,28 @@ Dentro del **Inventario General** (`InventoryModalView`, accesible desde el bot�
 
 ## Armas y Estadísticas RPG
 
-### Atributos RPG del Héroe
+### Atributos RPG del Héroe y Sistema de Niveles por Run (Uncapped Level Progression)
 - **Fuerza (`STR`)**, **Inteligencia (`INT`)** y **Destreza (`DEX`)**: Determinan qué armas puede dominar el héroe y cuánto daño adicional ganan sus ataques. Pueden aumentarse temporalmente en combate mediante `TempStatManager` (ej. *Grito de Guerra*).
 - **Suerte (`LUCK`)**: Afecta la probabilidad de obtener rarezas altas en `RaritySystem`, la probabilidad de aturdimiento por **Electrocutado (Shock)**, el porcentaje de daño del estallido de **Hemorragia**, la curación en **Hogueras / Santuarios** y la aparición de salas especiales en el `FloorGenerator`.
+- **Sistema de Curva de Nivel y Progresión de Atributos (`RunState`)**:
+  - **Principio rector**: El mazo y el arma siguen siendo el motor principal; los niveles complementan la run con escalado infinito protegido mediante rendimientos decrecientes y curvas asintóticas, premiando el riesgo de cazar nodos **`ELITE` (`ÉLITE ⚔️`)**.
+  - **Curva Polinómica de Experiencia Requerida** (calibrada a la cantidad real de salas de `FloorGenerator`):
+	$$\text{XP Requerida}(L) = \lfloor 55 \cdot L^{1.45} + 20 \cdot L \rfloor$$
+	- **Nivel 1 → 2 ($L=1$):** `75 XP` (Se alcanza en el 1° Combate Común del Piso 1 para feedback inmediato).
+	- **Nivel 2 → 3 ($L=2$):** `190 XP` (`265 XP` acumulados — 2° Combate o Élite del Piso 1).
+	- **Nivel 3 → 4 ($L=3$):** `330 XP` (`595 XP` acumulados — Jefe del Piso 1).
+	- **Nivel 4 → 5 ($L=4$):** `490 XP` (`1.085 XP` acumulados — Piso 2).
+  - **Generación de XP por Encuentro y Piso ($P \ge 1$):**
+	- **Combate Común (`RoomData.Type.COMBAT`):** $\text{XP}_{\text{Común}} = \lfloor 60 \cdot (1 + 0.35 \cdot P) \rfloor$ (`81 XP` en P1, `102 XP` en P2, `123 XP` en P3).
+	- **Combate Élite (`RoomData.Type.ELITE`):** $\text{XP}_{\text{Élite}} = \lfloor \text{XP}_{\text{Común}} \cdot 2.5 \rfloor$ (`202 XP` en P1, `255 XP` en P2, `307 XP` en P3). Además otorga `x1.6` oro, `+1.25` de fortuna en las cartas de recompensa y `65%` de probabilidad de reliquia.
+	- **Jefe de Piso (`RoomData.Type.BOSS`):** $\text{XP}_{\text{Jefe}} = \lfloor \text{XP}_{\text{Común}} \cdot 5.0 \rfloor$ (`405 XP` en P1, `510 XP` en P2, `615 XP` en P3).
+  - **Escalado de Atributos al Subir de Nivel (`gain_xp`)**:
+	1. **Vida Máxima (Escalado Aritmético Lineal + Sustain):** `+5 Max HP` fijo por cada nivel subido (`LEVEL_UP_MAX_HP_BONUS = 5`) y curación inmediata del **15% del nuevo HP Máximo** (`LEVEL_UP_HEAL_RATIO = 0.15`).
+	2. **Probabilidad de Golpe Crítico y Tirada de Dado D100 (Escalado Asintótico por Rating):** Activa desde el Nivel 1 con `+10 RatingCrit` por nivel (`max(1, Nivel) * 10`, iniciando en `3.8%` en Nivel 1). La probabilidad de crítico (`x1.5` daño total del combo al ejecutar en `CombatResolver.finalize_combo()`, previsualizando el `% CRIT` en el `ComboBanner`) sigue la curva asintótica con techo matemático del **50%**:
+	   $$\text{Probabilidad de Crítico} = \left( \frac{\text{RatingCrit}}{\text{RatingCrit} + 120} \right) \cdot 50\%$$
+	   - **Tirada Visual de Dado D100 (`CritDiceWidget.play_roll` vía `BattleHUD`)**: Al ejecutar cualquier combo que inflija daño, aparece en el centro de la mesa el componente autónomo `CritDiceWidget` (`460x224`) estructurado en 3 etapas para lectura clara: (1) muestra la probabilidad actual, el umbral requerido en el D100 (ej. `97+` con `3.8%`, `85+` con `15%`) y el daño base (`0.55s`); (2) gira el D100 (`~0.65s`); y (3) clava el resultado comparativo (`🎯 NECESITABAS: X+ | 🎲 SALIÓ: Y` + `⚔️ DAÑO TOTAL APLICADO`) sincronizado con la bajada de vida del enemigo, permaneciendo en pantalla `3.20s` en `💥 ¡CRÍTICO x1.5!` o `2.70s` en `⚔️ GOLPE NORMAL x1.0`. Si el jugador hace **clic izquierdo sobre el panel del dado en cualquier momento**, salta la animación inmediatamente.
+	3. **Modificador de Daño Global (Multiplicador Porcentual):** Nunca añade daño plano para no romper cartas de bajo costo; aplica un multiplicador global de **`+2%` por cada nivel subido** (`(Nivel - 1) * 2%`):
+	   $$\text{Daño Saliente} = \text{Daño Combo} \cdot \left(1 + \frac{(\text{Nivel} - 1) \cdot 2}{100}\right)$$
 
 ### Reglas de Armas y Penalizaciones (`CombatResolver.calculate_final_card_damage`)
 1. **Compatibilidad de Clase (`required_weapon_class`)**: Si una carta exige un tipo de arma específico (ej. `STAFF` para *Lanza Rayo* o `KATANA` para *Tajo*) y el jugador tiene equipada un arma de otra clase, la carta ejecuta un **"Golpe torpe"**: solo inflige `fallback_damage` (2 de daño) y **anula todos sus efectos de estado**.

@@ -23,3 +23,12 @@ func get_color() -> Color:
 ## Indica que el efecto se resuelve dentro de la secuencia de la zona de combo y no de forma instantánea.
 func is_instant() -> bool:
 	return false
+
+func is_status_effect() -> bool:
+	return true
+
+func get_status_icon() -> String:
+	return "⚡"
+
+func get_emblem_icon() -> String:
+	return "⚡"

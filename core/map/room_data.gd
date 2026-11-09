@@ -3,7 +3,7 @@
 extends RefCounted
 class_name RoomData
 
-enum Type { START, COMBAT, TREASURE, REST, SANCTUARY, BOSS , SHOP}
+enum Type { START, COMBAT, TREASURE, REST, SANCTUARY, BOSS , SHOP, ELITE }
 
 ## Coordenada `(x, y)` en la matriz del mapa.
 var grid_pos: Vector2i = Vector2i.ZERO
@@ -60,6 +60,8 @@ func get_display_name() -> String:
 			return "INICIO"
 		Type.COMBAT:
 			return "LIMPIA" if cleared else "COMBATE"
+		Type.ELITE:
+			return "LIMPIA" if cleared else "ÉLITE ⚔️"
 		Type.TREASURE:
 			return "SAQUEADO" if cleared else "RELIQUIA"
 		Type.REST:
@@ -84,6 +86,8 @@ func get_room_color(is_current: bool) -> Color:
 			base_color = Color(0.3, 0.7, 0.9) # Azul/celeste inicial por defecto (puedes cambiarlo)
 		Type.COMBAT:
 			base_color = Color(0.65, 0.25, 0.25)
+		Type.ELITE:
+			base_color = Color(0.88, 0.38, 0.12, 1.0)
 		Type.TREASURE:
 			base_color = Color(0.85, 0.65, 0.12)
 		Type.REST:

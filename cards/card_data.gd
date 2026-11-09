@@ -64,7 +64,7 @@ func get_color() -> Color:
 			has_steal = true
 		elif effect is MultiplyEffect:
 			has_multiply = true
-		elif effect is DamageEffect or effect is BurnEffect or effect is PoisonEffect or effect is FreezeEffect or effect is ShockEffect or effect is HemorrhageEffect or effect is ApplyStatusEffect:
+		elif effect.is_offensive():
 			has_offense = true
 
 	if has_defense and not has_offense:
@@ -133,30 +133,14 @@ func get_weapon_tag_text() -> String:
 	return "🏷️ " + " / ".join(names)
 
 ## Devuelve un glifo/emblema visual representativo de los efectos de la carta para usar como placeholder cuando no hay `artwork`.
+## Delega polimórficamente en `CardEffect.get_emblem_icon()` priorizando efectos no básicos antes que `DamageEffect`.
 func get_placeholder_emblem() -> String:
 	for effect in effects:
-		if effect is BurnEffect:
-			return "🔥"
-		if effect is FreezeEffect:
-			return "❄️"
-		if effect is PoisonEffect:
-			return "🧪"
-		if effect is ShockEffect:
-			return "⚡"
-		if effect is HemorrhageEffect:
-			return "🩸"
-		if effect is DefenseEffect:
-			return "🛡️"
-		if effect is HealEffect:
-			return "💚"
-		if effect is MultiplyEffect:
-			return "✨"
-		if effect is StealEffect:
-			return "🃏"
-		if effect is ApplyStatusEffect:
-			return "🎲"
-		if effect is DamageEffect:
-			return "⚔️"
+		if effect and not (effect is DamageEffect):
+			return effect.get_emblem_icon()
+	for effect in effects:
+		if effect:
+			return effect.get_emblem_icon()
 	return "⚔️"
 
 ## Construye el texto de descripción/efectos de la carta para mostrarse centrado en `CardUI`.
@@ -174,38 +158,13 @@ func get_rules_text() -> String:
 
 ## Devuelve los emojis de los efectos de estado alterados que la carta produce en el enemigo
 ## (Hemorragia `🩸`, Quemadura `🔥`, Congelamiento `❄️`, Veneno `🧪`, Electrocución `⚡` o Aleatorio `🎲`)
-## para mostrarse en la esquina inferior izquierda de `CardUI`.
+## delegando polimórficamente en `CardEffect.get_status_icon()`.
 func get_enemy_status_icons() -> String:
 	var icons: Array[String] = []
 	for effect in effects:
 		if effect == null:
 			continue
-		var icon := ""
-		if effect is HemorrhageEffect:
-			icon = "🩸"
-		elif effect is BurnEffect:
-			icon = "🔥"
-		elif effect is FreezeEffect:
-			icon = "❄️"
-		elif effect is PoisonEffect:
-			icon = "🧪"
-		elif effect is ShockEffect:
-			icon = "⚡"
-		elif effect is ApplyStatusEffect:
-			var status_eff := effect as ApplyStatusEffect
-			match status_eff.status_type:
-				ApplyStatusEffect.StatusType.HEMORRHAGE:
-					icon = "🩸"
-				ApplyStatusEffect.StatusType.BURN:
-					icon = "🔥"
-				ApplyStatusEffect.StatusType.FREEZE:
-					icon = "❄️"
-				ApplyStatusEffect.StatusType.POISON:
-					icon = "🧪"
-				ApplyStatusEffect.StatusType.SHOCK:
-					icon = "⚡"
-				ApplyStatusEffect.StatusType.RANDOM:
-					icon = "🎲"
+		var icon: String = effect.get_status_icon()
 		if icon != "" and not icons.has(icon):
 			icons.append(icon)
 	return " ".join(icons)

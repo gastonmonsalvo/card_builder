@@ -46,3 +46,19 @@ const SHOCK_LUCK_BONUS_PER_POINT: float = 0.03
 const SHOCK_MAX_STUN_CHANCE: float = 0.80
 
 const MAX_INVENTORY_SIZE: int = 4
+
+# --- SISTEMA DE NIVELES Y PROGRESIÓN DE ATRIBUTOS (POR RUN) ---
+## HP Máximo fijo ganado por cada nivel subido.
+const LEVEL_UP_MAX_HP_BONUS: int = 5
+## Porcentaje de Vida Máxima restaurado como sustain al subir de nivel (15%).
+const LEVEL_UP_HEAL_RATIO: float = 0.15
+## Puntos de Rating de Crítico ganados por cada nivel subido (+10 por nivel).
+const LEVEL_CRIT_RATING_PER_LEVEL: int = 10
+## Constante de suavizado asintótico para el Rating de Crítico.
+const LEVEL_CRIT_ASYMPTOTE_K: float = 120.0
+## Techo matemático máximo de probabilidad de crítico aportado por niveles (50%).
+const LEVEL_CRIT_MAX_CAP: float = 0.50
+## Multiplicador de daño cuando ocurre un Golpe Crítico en combate (x1.5).
+const CRIT_DAMAGE_MULTIPLIER: float = 1.50
+## Porcentaje de daño global adicional por cada nivel por encima de 1 (+2% por nivel).
+const LEVEL_DAMAGE_PCT_PER_LEVEL: int = 2

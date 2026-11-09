@@ -17,3 +17,6 @@ func get_description() -> String:
 ## Retorna el color verde representativo de los efectos de curación.
 func get_color() -> Color:
 	return Color(0.2, 0.9, 0.3)
+
+func get_emblem_icon() -> String:
+	return "💚"

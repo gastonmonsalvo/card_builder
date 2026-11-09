@@ -104,11 +104,6 @@ func start_combat_encounter(is_boss: bool) -> void:
 	#Escuchar reacciones elementales del enemigo
 	enemy.status_reaction_triggered.connect(_on_enemy_reaction)
 	
-	enemy.update_intent(run)   # calcular primer intent
-	if enemy == null:
-		push_error("[BattleTable] No se pudo crear el enemigo para este encuentro.")
-		refresh_ui()
-		return
 	_start_new_turn()
 ## Orquesta el inicio de ronda para el jugador. 
 ## Pone el escudo en 0, restaura la energía al máximo y calcula matemáticamente 
@@ -117,10 +112,6 @@ func _start_new_turn() -> void:
 	current_energy = 99 if run.god_mode else run.max_energy
 	player_block = 0
 
-	if enemy:
-		enemy.update_intent(run)   # recalcular intent
-	
-	
 	var needed: int = max(0, run.target_hand_size - board.hand_cards.size())
 	if needed > 0:
 		draw_cards(needed)
@@ -128,7 +119,7 @@ func _start_new_turn() -> void:
 	board.layout_cards()
 	
 	if enemy:
-		enemy.update_intent(run)   # NUEVO: recalcular intent para este turno
+		enemy.update_intent(run)   # recalcular intent para este turno
 	
 	refresh_ui()
 	
@@ -284,14 +275,17 @@ func _on_attack_pressed() -> void:
 
 	# 2. Verificar si el enemigo murió por el combo
 	if enemy.is_dead():
-		is_resolving = false          # ← NUEVO: liberar la mesa
-		attack_button.disabled = true  # sigue deshabilitado porque terminó el combate
-		discard_button.disabled = true
 		refresh_ui()
+		hud.set_banner_message("🏆 ¡ENEMIGO DERROTADO!")
+		await get_tree().create_timer(0.75).timeout
+		is_resolving = false
+		attack_button.disabled = true
+		discard_button.disabled = true
 		combat_won.emit()
 		return
 
 	refresh_ui() # Refresca por si hubo cambios de stats antes del golpe enemigo
+	await get_tree().create_timer(0.55).timeout
 
 	# 3. Ejecutar turno del enemigo
 	var survived: bool = await execute_enemy_turn(run, enemy, player_block)
@@ -367,19 +361,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Llama a `CombatResolver` para la lógica pura y maneja la UI + animaciones entre medio.
 ## Retorna el block final acumulado.
 func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -> int:
-	var combo_state: Dictionary = {
-		"dmg": 0.0,
-		"block": float(p_initial_block),
-		"draw": 0,
-		"burn": 0,
-		"freeze": 0,
-		"poison": 0,
-		"shock": 0,
-		"hemorrhage": 0,
-		"multipliers" : [],
-		"heal" : 0,
-		"run_state": run
-	}
+	var combo_state: Dictionary = CombatResolver.create_empty_combo_state(run, float(p_initial_block))
 	var current_block: int = p_initial_block
 
 	# 1. Procesar cada carta del combo (lógica + UI intercaladas)
@@ -410,13 +392,16 @@ func execute_combo_turn(p_run: RunState, p_enemy: Enemy, p_initial_block: int) -
 		
 		await get_tree().create_timer(0.65).timeout
 
-	# 2. Finalizar combo (lógica pura)
+	# 2. Finalizar combo (lógica pura: reliquias + bono de nivel + tirada de crítico x1.5 en D100)
 	current_block = CombatResolver.finalize_combo(run, combo_state, enemy, board.combo_cards.size())
 	player_block = current_block
-	refresh_ui()
 
-	if not board.combo_cards.is_empty():
-		await get_tree().create_timer(0.35).timeout
+	if bool(combo_state.get("crit_rolled", false)):
+		await hud.play_crit_dice_roll(combo_state, refresh_ui)
+	else:
+		refresh_ui()
+		if not board.combo_cards.is_empty():
+			await get_tree().create_timer(0.35).timeout
 
 	# 3. Ruteo al descarte (UI + deck state)
 	for card in board.combo_cards:
@@ -554,7 +539,7 @@ func consume_instant_card(card: CardUI) -> int:
 	return int(temp_state.get("draw", 0))
 	
 ## Maneja la pulsación del botón de habilidad del héroe en la interfaz.
-## Valida las condiciones del combate, ejecuta la habilidad con su contexto y actualiza la UI.
+## Valida las condiciones del combate, ejecuta la habilidad con su contexto, verifica si el enemigo murió y actualiza la UI.
 func _on_ability_pressed() -> void:
 	if is_resolving or enemy == null or enemy.is_dead() or run.is_player_dead():
 		return
@@ -562,6 +547,7 @@ func _on_ability_pressed() -> void:
 		hud.set_banner_message("¡HABILIDAD NO DISPONIBLE!")
 		return
 	
+	is_resolving = true
 	# 1. Mostrar mensaje descriptivo de qué hace la habilidad
 	hud.set_banner_message(run.current_ability.get_activation_message())
 	
@@ -572,11 +558,22 @@ func _on_ability_pressed() -> void:
 		"deck": deck
 	}
 	run.current_ability.activate(context)
+	refresh_ui()
 	
 	# 3. Pequeña pausa para que el jugador lea el mensaje
 	await get_tree().create_timer(0.7).timeout
 	
-	# 4. Refrescar la UI para actualizar el contador de usos del botón
+	# 4. Si la habilidad mató al enemigo (ej. Estocada Demoníaca o Corte Sangrante), cerrar el combate con victoria
+	if enemy and enemy.is_dead():
+		is_resolving = false
+		attack_button.disabled = true
+		discard_button.disabled = true
+		refresh_ui()
+		combat_won.emit()
+		return
+
+	is_resolving = false
+	# 5. Refrescar la UI para actualizar el contador de usos del botón y el preview del combo
 	refresh_ui()
 	
 	## Handler para cuando el enemigo sufre una reacción elemental.

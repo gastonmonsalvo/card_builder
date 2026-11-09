@@ -15,3 +15,11 @@ func get_description() -> String:
 ## Retorna el color rojo carmesí representativo de las cartas de ataque directo.
 func get_color() -> Color:
 	return Color(0.82, 0.20, 0.22, 1.0)
+
+## Identifica este efecto como ofensivo para la clasificación de color de la carta.
+func is_offensive() -> bool:
+	return true
+
+## Emblema de ataque directo.
+func get_emblem_icon() -> String:
+	return "⚔️"

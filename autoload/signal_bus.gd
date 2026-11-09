@@ -19,3 +19,7 @@ signal room_entered(room: RoomData)
 ## Emitida cuando el `RunState` genera la matriz y arranca una nueva planta (o al iniciar la partida en la planta 1).
 @warning_ignore("unused_signal")
 signal floor_started(floor_number: int)
+
+## Emitida cuando el jugador acumula suficiente experiencia y sube de nivel durante la run.
+@warning_ignore("unused_signal")
+signal player_leveled_up(new_level: int)

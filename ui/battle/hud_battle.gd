@@ -23,9 +23,11 @@ var _graveyard_pile: CardPile
 
 ## Modal unificado de inventario general (Armas, Atributos y Reliquias)
 var inventory_modal: InventoryModalView
+## Widget autónomo del Dado de Crítico (D100)
+var crit_dice_widget: CritDiceWidget
 var _run_ref: RunState
 
-## Conecta los botones de inspección de pilas e instancia el botón y modal de inventario general en el HUD de combate.
+## Conecta los botones de inspección de pilas e instancia el botón, modal de inventario general y el widget de Dado de Crítico en el HUD de combate.
 func _ready() -> void:
 	draw_pile_btn.pressed.connect(func(): pile_inspector.show_pile(_draw_pile))
 	discard_pile_btn.pressed.connect(func(): pile_inspector.show_pile(_discard_pile))
@@ -38,7 +40,7 @@ func _ready() -> void:
 
 	# Botón único de Inventario General en el HUD (izquierda)
 	inventory_btn = Button.new()
-	inventory_btn.text = "🎒 INVENTARIO"
+	inventory_btn.text = "INVENTARIO"
 	inventory_btn.position = Vector2(20, 495)
 	inventory_btn.size = Vector2(175, 55)
 	inventory_btn.pressed.connect(func():
@@ -46,6 +48,9 @@ func _ready() -> void:
 			inventory_modal.open_inventory(_run_ref)
 	)
 	add_child(inventory_btn)
+
+	crit_dice_widget = CritDiceWidget.new()
+	add_child(crit_dice_widget)
 
 ## Enlaza las referencias de las tres pilas del `DeckManager` (mazo, descarte y cementerio) con el HUD.
 func bind_piles(draw_p: CardPile, discard_p: CardPile, graveyard_p: CardPile) -> void:
@@ -86,8 +91,15 @@ func refresh_all(
 	var weapon_name: String = "Sin arma"
 	if _run_ref != null and _run_ref.current_weapon != null:
 		weapon_name = _run_ref.current_weapon.weapon_name
+
+	var player_level: int = _run_ref.player_level if _run_ref != null else 1
+	var level_dmg_pct: int = _run_ref.get_level_damage_bonus_pct() if _run_ref != null else 0
+	var crit_pct: float = _run_ref.get_crit_chance_pct() if _run_ref != null else 0.0
 		
-	player_hud.update_data(player_hp, max_player_hp, player_block, energy, max_energy, player_luck, hero_name, weapon_name)
+	player_hud.update_data(
+		player_hp, max_player_hp, player_block, energy, max_energy,
+		player_luck, hero_name, weapon_name, player_level, level_dmg_pct, crit_pct
+	)
 	
 	# 2. Enemy HUD
 	var enemy_data: Dictionary = enemy.get_hud_data(player_luck) if enemy != null else {}
@@ -107,3 +119,10 @@ func refresh_all(
 ## Sobrescribe el banner con un mensaje efímero
 func set_banner_message(msg: String) -> void:
 	combo_banner.show_message(msg)
+
+## Delega la animación de tirada del Dado de Crítico (D100) al subcomponente autónomo `CritDiceWidget`.
+func play_crit_dice_roll(combo_state: Dictionary, on_landed: Callable = Callable()) -> void:
+	if crit_dice_widget:
+		await crit_dice_widget.play_roll(combo_state, on_landed, set_banner_message)
+	elif on_landed.is_valid():
+		on_landed.call()

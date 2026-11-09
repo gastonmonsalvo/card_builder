@@ -107,12 +107,14 @@ El estado mutable de una *run* (HP actual/máximo, estadísticas RPG `STR`/`INT`
 ```text
 card-prototype/
 ├── README.md
+├── CONTEXT.md                              # Base de conocimiento maestra condensada para IAs y devs
 ├── .gitignore
 ├── project.godot
 │
 ├── docs/                                   # Documentación viva del proyecto
+│   ├── CONTEXT.md                          # Espejo de CONTEXT.md en docs/
 │   ├── GDD.md                              # Game Design Document
-│   └── ARCHITECTURE.md                     # Detalle técnico archivo por archivo
+│   └── ARCHITECTURE.md                     # Detalle técnico archivo por archivo y patrones de diseño
 │
 ├── autoload/                               # Singletons globales (Autoloads)
 │   ├── game_database.gd                    # Escaneo y carga de catálogos (.tres) por directorio
@@ -137,14 +139,17 @@ card-prototype/
 │   │       ├── attack_behavior.gd          # Ataque periódico
 │   │       ├── defend_behavior.gd          # Escudo periódico
 │   │       └── charge_behavior.gd          # Turno de carga + golpe multiplicado
-│   ├── run/                                # Estado de run, FSM, director y rarezas
+│   ├── run/                                # Estado de run, servicios de dominio (SRP), FSM y director
 │   │   ├── run_director.gd                 # Mediador entre vistas UI, RunState y PersistenceManager
-│   │   ├── run_state.gd                    # Contenedor de estado vivo de la run + RNG determinista
+│   │   ├── run_state.gd                    # Fachada y contenedor de estado vivo de la run + RNG determinista
+│   │   ├── level_progression.gd            # Servicio estático SRP: curva XP, niveles, crítico asintótico y daño %
+│   │   ├── loot_generator.gd               # Servicio estático SRP: sorteo determinista de recompensas y tienda
+│   │   ├── run_serializer.gd               # Servicio estático SRP: serialización to_dict / from_dict
 │   │   ├── run_state_machine.gd            # FSM explícita de estados de partida
 │   │   └── rarity_system.gd                # Sorteo ponderado de 5 Tiers escalado por piso y suerte
 │   ├── map/                                # Generación procedural de plantas
-│   │   ├── floor_generator.gd              # Grafo ortogonal 8x8 (Spanning Tree + Dead Ends + Niebla)
-│   │   └── room_data.gd                    # Datos de celda (START, COMBAT, TREASURE, REST, SANCTUARY, BOSS, SHOP)
+│   │   ├── floor_generator.gd              # Grafo ortogonal 8x8 (Spanning Tree + Dead Ends + Élites + Niebla)
+│   │   └── room_data.gd                    # Datos de celda (START, COMBAT, ELITE, TREASURE, REST, SANCTUARY, BOSS, SHOP)
 │   └── constants/
 │       └── combat_constants.gd             # Umbrales de estados, stats base y rutas de catálogos
 │
@@ -205,10 +210,11 @@ card-prototype/
 │   │   ├── card_ui.tscn                    # Escena visual de carta individual
 │   │   └── card_ui.gd                      # Física de resorte (hover/drag) y animación de quemado/disolución
 │   ├── battle/
-│   │   ├── hud_battle.gd                   # BattleHUD (orquestador de paneles de combate)
-│   │   ├── player_hud.gd                   # Panel de stats del héroe y arma activa
+│   │   ├── hud_battle.gd                   # BattleHUD (fachada orquestadora de paneles de combate)
+│   │   ├── crit_dice_widget.gd             # CritDiceWidget (Dado D100 animado en 3 etapas con clic para saltar)
+│   │   ├── player_hud.gd                   # Panel de stats del héroe, nivel, XP y arma activa
 │   │   ├── enemy_hud.gd                    # Panel de HP, bloqueo, intent y estados del enemigo
-│   │   ├── combo_banner.gd                 # Previsualización matemática en vivo del combo activo
+│   │   ├── combo_banner.gd                 # Previsualización matemática en vivo del combo activo + % Crit
 │   │   └── pile_inspector.gd               # Popup para inspeccionar Mazo, Descarte y Cementerio
 │   ├── inventory/
 │   │   └── inventory_modal_view.gd         # Modal de atributos RPG (STR/INT/DEX/LUCK) y mochila de armas
@@ -292,9 +298,10 @@ A diferencia de un deckbuilder tradicional donde cada carta se resuelve aisladam
    - **Previsualización en Vivo (`ComboBanner`):** Cada cambio en la `ComboZone` ejecuta `CombatResolver.calculate_sequential_preview()` (guardando y restaurando el estado de `combat_rng` para que los efectos aleatorios como `Efecto Caótico` sean 100% deterministas entre preview y ejecución). Verifica compatibilidad del arma equipada (`required_weapon_class`), requisitos de stats RPG (`req_str`, `req_int`, `req_dex` — aplicando penalización de -25% de daño por punto faltante y anulando estados si hay déficit) y escalado (`scale_str`, `scale_int`, `scale_dex`).
    - **Habilidad Activa (`AbilityButton`):** El jugador puede activar la habilidad de su héroe (ej. *Grito de Guerra*, *Flujo Arcano*, *Corte Sangrante*, *Estocada Demoníaca*) una vez por combate.
    - **Descarte Táctico (`DiscardButton`):** Permite descartar todas las cartas colocadas en la `ComboZone`, reembolsando su energía, gastando 1 ficha de descarte y robando inmediatamente la misma cantidad de cartas nuevas.
-4. **Ejecución del Combo y Reacciones Elementales (`execute_combo_turn`):**
+4. **Ejecución del Combo, Dado D100 de Crítico y Reacciones Elementales (`execute_combo_turn`):**
    - Al pulsar `EJECUTAR COMBO` (o `PASAR TURNO`), `BattleTable` itera secuencialmente cada carta en `combo_cards` llamando a `CombatResolver.process_card_in_combo()`, animando cada pulso (`card.pulse()`), robando cartas adicionales si corresponde y actualizando el escudo.
-   - `CombatResolver.finalize_combo()` inyecta las sinergias de reliquias (`apply_relics_to_combo`, ej. *Catalizador de Combo*) y aplica el daño total al enemigo (absorbido primero por `enemy.block`).
+   - `CombatResolver.finalize_combo()` inyecta las sinergias de reliquias (`apply_relics_to_combo`, ej. *Catalizador de Combo*), aplica el multiplicador global de daño por nivel (`get_level_damage_multiplier()`) y realiza la tirada determinista del **Dado D100 de Golpe Crítico (`x1.5`)** contra la probabilidad asintótica (`get_crit_chance()`).
+   - **Animación Secuencial del Dado D100 (`CritDiceWidget.play_roll`):** Si el combo inflige daño, aparece en el centro de la mesa el widget autónomo `CritDiceWidget` mostrando en 3 etapas claras: (1) el umbral requerido en el D100 y el daño base (`0.55s`), (2) el giro del D100 (`~0.65s`), y (3) el resultado comparativo (`🎯 NECESITABAS: X+ | 🎲 SALIÓ: Y` + daño final aplicado) sincronizado con la bajada de HP del enemigo (`2.70s` en Normal / `3.20s` en Crítico). Hacer **clic sobre el dado en cualquier etapa salta la animación inmediatamente**.
    - Las cartas jugadas se rutean vía `DeckManager.route_played_card()`: si tienen `single_use = true` van al **Cementerio (`graveyard_pile`)**; si no, van a **Descarte (`discard_pile`)**.
    - **Estados y Reacciones Elementales (`enemy.apply_statuses`):** Antes de acumular estados, `StatusReactions.check()` evalúa si la combinación de estados actuales + entrantes detona una reacción:
 	 - **¡Vaporización!** (`burn >= 1` + `freeze >= 1`): Consume hasta 3 de cada uno e inflige **15 de daño fijo**.

@@ -178,20 +178,6 @@ func open_map(custom_info: String = "") -> void:
 	var board_cards: Array[CardData] = _get_active_board_cards()
 
 	map_view.setup_floor(
-		run.current_floor,
-		run.master_seed,
-		run.floor_data["sub_seed"],
-		run.floor_data["rooms"],
-		run.player_grid_pos,
-		run.player_hp,
-		run.max_player_hp,
-		run.max_energy,
-		run.player_luck,
-		run.active_relics.size(),
-		run.get_relics_detailed_text(),
-		table.deck.get_total_cards_count(board_cards.size()),
-		table.deck.get_full_deck_detailed_text(board_cards),
-		run.player_gold,
 		run,
 		table.deck.get_all_owned_cards(board_cards)
 	)
@@ -236,8 +222,8 @@ func _on_map_room_selected(room: RoomData) -> void:
 					open_map("SANTUARIO: " + msg2)
 			)
 		#Oculta el mapa e inicia el encuentro en `table.start_combat_encounter(is_boss)`.
-		RoomData.Type.COMBAT:
-			state_machine.transition_to(RunStateMachine.State.BATTLE)  # NUEVO
+		RoomData.Type.COMBAT, RoomData.Type.ELITE:
+			state_machine.transition_to(RunStateMachine.State.BATTLE)
 			map_view.visible = false
 			table.start_combat_encounter(false)
 		RoomData.Type.BOSS:
@@ -584,7 +570,7 @@ func _resume_loaded_run(slot: int) -> void:
 	table.is_resolving = false
 
 	if room and not room.cleared:
-		if room.room_type == RoomData.Type.COMBAT:
+		if room.room_type == RoomData.Type.COMBAT or room.room_type == RoomData.Type.ELITE:
 			state_machine.transition_to(RunStateMachine.State.MAP)  #: primero MAP
 			state_machine.transition_to(RunStateMachine.State.BATTLE)  # después BATTLE
 			map_view.visible = false

@@ -15,3 +15,12 @@ func get_description() -> String:
 ## Retorna el color rojo carmesí representativo del estado de Hemorragia.
 func get_color() -> Color:
 	return Color(0.995, 0.0, 0.101, 1.0)
+
+func is_status_effect() -> bool:
+	return true
+
+func get_status_icon() -> String:
+	return "🩸"
+
+func get_emblem_icon() -> String:
+	return "🩸"

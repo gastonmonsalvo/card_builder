@@ -76,3 +76,19 @@ func _get_status_name(type: StatusType) -> String:
 		StatusType.HEMORRHAGE: return "Hemorragia"
 		StatusType.RANDOM: return "Aleatorio"
 	return ""
+
+func is_status_effect() -> bool:
+	return true
+
+func get_status_icon() -> String:
+	match status_type:
+		StatusType.HEMORRHAGE: return "🩸"
+		StatusType.BURN: return "🔥"
+		StatusType.FREEZE: return "❄️"
+		StatusType.POISON: return "🧪"
+		StatusType.SHOCK: return "⚡"
+		StatusType.RANDOM: return "🎲"
+	return "🎲"
+
+func get_emblem_icon() -> String:
+	return "🎲" if status_type == StatusType.RANDOM else get_status_icon()

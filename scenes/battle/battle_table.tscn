@@ -73,18 +73,19 @@ layout_mode = 0
 offset_left = 20.0
 offset_top = 100.0
 offset_right = 200.0
-offset_bottom = 264.0
+offset_bottom = 330.0
 mouse_filter = 2
 script = ExtResource("3_o1c4d")
 
 [node name="PlayerStatsLabel" type="Label" parent="HUD/PlayerPanel" unique_id=9001003]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 4.0
+offset_left = 12.0
 offset_top = 4.0
-offset_right = -5.0
+offset_right = -8.0
+offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 2
 text = "DATOS

@@ -8,6 +8,22 @@ class_name CombatResolver
 # 				MÉTODOS PURAMENTE DE CÁLCULO 
 # ============================================================
 
+## Fábrica centralizada (DRY) para inicializar un diccionario `combo_state` limpio con todas sus claves garantizadas.
+static func create_empty_combo_state(run: RunState, initial_block: float = 0.0) -> Dictionary:
+	return {
+		"dmg": 0.0,
+		"block": initial_block,
+		"draw": 0,
+		"burn": 0,
+		"freeze": 0,
+		"poison": 0,
+		"shock": 0,
+		"hemorrhage": 0,
+		"multipliers": [],
+		"heal": 0,
+		"run_state": run
+	}
+
 ## Calcula matemáticamente el resultado proyectado de ejecutar las cartas dispuestas en la zona de combo.
 ## Actúa como un simulador predictivo: itera la cadena de izquierda a derecha delegando la evaluación
 ##  de cada carta a `calculate_final_card_damage()`.
@@ -17,19 +33,7 @@ class_name CombatResolver
 ## Retorna un diccionario plano (Payload) con el pronóstico absoluto para refrescar el `BattleHUD` 
 ## en vivo sin alterar el estado real del juego.
 static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> Dictionary:
-	var combo_state: Dictionary = {
-		"dmg": 0.0,
-		"block": 0.0,
-		"draw": 0,
-		"burn": 0,
-		"freeze": 0,
-		"poison": 0,
-		"shock": 0,
-		"hemorrhage": 0,
-		"multipliers": [],
-		"heal": 0,
-		"run_state": run 
-	}
+	var combo_state: Dictionary = create_empty_combo_state(run, 0.0)
 	#  Guardar el estado actual del RNG antes de simular
 	var rng_state = run.combat_rng.state
 	
@@ -49,6 +53,8 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 
 		
 	run.apply_relics_to_combo(combo_state, combo_cards.size())
+	if combo_state["dmg"] > 0.0:
+		combo_state["dmg"] *= run.get_level_damage_multiplier()
 	#Restaurar el estado del RNG para que la ejecución real empiece desde acá
 	run.combat_rng.state = rng_state
 	return {
@@ -61,7 +67,8 @@ static func calculate_sequential_preview(combo_cards: Array, run: RunState) -> D
 		"shock": int(combo_state["shock"]),
 		"hemorrhage": int(combo_state["hemorrhage"]),
 		"multipliers": combo_state.get("multipliers", []),
-		"heal": int(combo_state.get("heal", 0))
+		"heal": int(combo_state.get("heal", 0)),
+		"crit_chance": run.get_crit_chance() if run else 0.0
 	}
 
 	
@@ -166,13 +173,9 @@ static func _apply_card_effects_to_combo(card: CardData, calc: Dictionary, combo
 		combo_state["hemorrhage"] += calc.get("bonus_hemo", 0)
 		combo_state["shock"] += calc.get("bonus_shock", 0)
 
-## Identifica los efectos de estado que dependen de que el arma se use correctamente.
+## Identifica polimórficamente (OCP) los efectos de estado que dependen de que el arma se use correctamente.
 static func _is_status_effect(effect: CardEffect) -> bool:
-	return effect is BurnEffect \
-		or effect is PoisonEffect \
-		or effect is FreezeEffect \
-		or effect is ShockEffect \
-		or effect is HemorrhageEffect
+	return effect != null and effect.is_status_effect()
 
 
 # ============================================================
@@ -219,7 +222,8 @@ static func process_card_in_combo(
 		"msg": calc.msg,
 	}
 
-## Aplica reliquias finales y daño al enemigo. Retorna block final.
+## Aplica reliquias finales, el multiplicador porcentual de nivel y la tirada de Golpe Crítico (x1.5) en un dado D100 contra el enemigo.
+## Retorna el block final acumulado e inyecta en `combo_state` los metadatos de la tirada (`crit_rolled`, `crit_roll_d100`, `crit_threshold_d100`, `is_crit`, etc.).
 static func finalize_combo(
 	run: RunState, 
 	combo_state: Dictionary, 
@@ -227,8 +231,39 @@ static func finalize_combo(
 	combo_size: int
 ) -> int:
 	run.apply_relics_to_combo(combo_state, combo_size)
+	if combo_state["dmg"] > 0.0:
+		combo_state["dmg"] *= run.get_level_damage_multiplier()
+
+	var base_dmg_before_crit: int = int(round(combo_state["dmg"]))
+	var crit_chance: float = run.get_crit_chance() if run else 0.0
+	var is_crit: bool = false
+	var crit_rolled: bool = false
+	var crit_threshold_d100: int = clampi(101 - max(1, int(round(crit_chance * 100.0))), 2, 100)
+	var crit_roll_d100: int = 1
+
+	if base_dmg_before_crit > 0 and crit_chance > 0.0:
+		crit_rolled = true
+		var rand_val: float = run.combat_rng.randf()
+		if rand_val < crit_chance:
+			is_crit = true
+			var norm_win: float = clampf(rand_val / max(0.0001, crit_chance), 0.0, 1.0)
+			crit_roll_d100 = clampi(int(round(lerpf(float(crit_threshold_d100), 100.0, 1.0 - norm_win))), crit_threshold_d100, 100)
+			combo_state["dmg"] *= CombatConstants.CRIT_DAMAGE_MULTIPLIER
+		else:
+			var norm_miss: float = clampf((rand_val - crit_chance) / max(0.0001, 1.0 - crit_chance), 0.0, 1.0)
+			crit_roll_d100 = clampi(int(round(lerpf(1.0, float(crit_threshold_d100 - 1), 1.0 - norm_miss))), 1, max(1, crit_threshold_d100 - 1))
+
+	var final_dmg := int(round(combo_state["dmg"]))
+	combo_state["crit_rolled"] = crit_rolled
+	combo_state["base_dmg_before_crit"] = base_dmg_before_crit
+	combo_state["crit_chance_pct"] = crit_chance * 100.0
+	combo_state["crit_threshold_d100"] = crit_threshold_d100
+	combo_state["crit_roll_d100"] = crit_roll_d100
+	combo_state["is_crit"] = is_crit
+	combo_state["final_dmg_applied"] = final_dmg
+
 	var current_block := int(round(combo_state["block"]))
-	enemy.take_damage(int(round(combo_state["dmg"])))
+	enemy.take_damage(final_dmg)
 	return current_block
 
 
@@ -274,7 +309,7 @@ static func resolve_enemy_turn(
 		enemy.apply_freeze_tick()
 		if enemy.shock > 0:
 			enemy.shock -= CombatConstants.STATUS_DECAY_PER_TURN
-	elif enemy.try_trigger_shock_stun(run.player_luck):
+	elif enemy.try_trigger_shock_stun(run.player_luck, run.combat_rng):
 		enemy.apply_freeze_tick()
 		shocked = true
 	else:
@@ -325,13 +360,7 @@ static func resolve_enemy_turn(
 
 ## Calcula el resultado de consumir una carta instantánea, sin tocar UI.
 static func calculate_instant_card(card_data: CardData, run: RunState) -> Dictionary:
-	var temp_state: Dictionary = {
-		"dmg": 0.0, "block": 0.0, "draw": 0,
-		"burn": 0, "poison": 0, "freeze": 0, "shock": 0, "hemorrhage": 0,
-		"multipliers": [],
-		"heal": 0,
-		"run_state": run  
-	}
+	var temp_state: Dictionary = create_empty_combo_state(run, 0.0)
 	card_data.apply_effects(temp_state)
 	return temp_state
 	

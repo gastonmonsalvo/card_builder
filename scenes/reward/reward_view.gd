@@ -18,6 +18,7 @@ var table: Control
 var offered_cards: Array[CardData] = []
 var gold_reward: int = 0
 var relic_reward: RelicData = null
+var xp_result: Dictionary = {}
 var card_ui_scene: PackedScene = preload(CombatConstants.CARD_UI_SCN)
 
 # Nodos UI (creados en código)
@@ -25,6 +26,8 @@ var _root_panel: Panel
 var _vbox: VBoxContainer
 var _title_label: Label
 var _gold_label: Label
+var _xp_label: Label
+var _level_up_label: Label
 var _relic_label: Label
 var _card_options: HBoxContainer
 var _skip_button: Button
@@ -51,6 +54,7 @@ func setup(
 	gold_reward = rewards.gold
 	offered_cards = rewards.cards
 	relic_reward = rewards.relic
+	xp_result = rewards.get("xp_result", {})
 	
 	if not is_inside_tree():
 		await tree_entered
@@ -142,6 +146,19 @@ func _build_ui() -> void:
 	_gold_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 	_vbox.add_child(_gold_label)
 
+	_xp_label = Label.new()
+	_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_xp_label.add_theme_font_size_override("font_size", 17)
+	_xp_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
+	_vbox.add_child(_xp_label)
+
+	_level_up_label = Label.new()
+	_level_up_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_up_label.add_theme_font_size_override("font_size", 16)
+	_level_up_label.add_theme_color_override("font_color", Color(0.35, 1.0, 0.58))
+	_level_up_label.visible = false
+	_vbox.add_child(_level_up_label)
+
 	_relic_label = Label.new()
 	_relic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_relic_label.add_theme_font_size_override("font_size", 17)
@@ -173,6 +190,32 @@ func _build_ui() -> void:
 ## Instancia las cartas dentro de wrappers contenedores, conecta señales y ejecuta la animación de entrada.
 func _render_rewards() -> void:
 	_gold_label.text = "+ %d Oro" % gold_reward
+
+	if not xp_result.is_empty():
+		var xp_gained: int = int(xp_result.get("xp_gained", 0))
+		var cur_lvl: int = int(xp_result.get("new_level", run.player_level if run else 1))
+		var cur_xp: int = int(xp_result.get("current_xp", run.player_xp if run else 0))
+		var next_xp: int = int(xp_result.get("next_level_xp", run.get_xp_required_for_next_level() if run else 75))
+		_xp_label.text = "+ %d XP   |   Nivel %d (XP: %d / %d)" % [xp_gained, cur_lvl, cur_xp, next_xp]
+		_xp_label.visible = true
+
+		var lvls_gained: int = int(xp_result.get("levels_gained", 0))
+		if lvls_gained > 0 and run != null:
+			var hp_max_up: int = int(xp_result.get("hp_max_gained", 0))
+			var hp_healed: int = int(xp_result.get("hp_healed", 0))
+			_level_up_label.text = "✨ ¡SUBISTE A NIVEL %d! (+%d HP Máx | +%d HP Curado | +%d%% Daño Global | %.1f%% Crítico)" % [
+				cur_lvl,
+				hp_max_up,
+				hp_healed,
+				run.get_level_damage_bonus_pct(),
+				run.get_crit_chance_pct()
+			]
+			_level_up_label.visible = true
+		else:
+			_level_up_label.visible = false
+	else:
+		_xp_label.visible = false
+		_level_up_label.visible = false
 
 	if relic_reward:
 		_relic_label.text = "Reliquia obtenida: %s" % relic_reward.title

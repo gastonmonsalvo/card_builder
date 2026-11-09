@@ -25,3 +25,20 @@ func get_color() -> Color:
 ##  inmediatamente al jugar la carta, o `false` si debe encolarse en la mesa para la evaluación final del combo.
 func is_instant() -> bool:
 	return false
+
+## Método virtual (OCP). Retorna `true` si el efecto aplica un estado alterado al enemigo
+## que depende de que el arma equipada sea compatible (`calc.apply_status`).
+func is_status_effect() -> bool:
+	return false
+
+## Método virtual (OCP). Retorna `true` si el efecto es ofensivo (daño directo o estado alterado al enemigo).
+func is_offensive() -> bool:
+	return is_status_effect()
+
+## Método virtual (OCP). Devuelve el emoji del estado alterado aplicado al enemigo (o `""` si no aplica estado).
+func get_status_icon() -> String:
+	return ""
+
+## Método virtual (OCP). Devuelve el glifo/emblema representativo del efecto para el placeholder de arte de la carta.
+func get_emblem_icon() -> String:
+	return "⚔️"

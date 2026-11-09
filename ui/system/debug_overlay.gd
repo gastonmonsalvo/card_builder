@@ -118,19 +118,31 @@ func _build_columns() -> void:
 
 	col1.add_child(_make_section_label("1. GOD MODE & STATS RPG"))
 
-	god_mode_btn = Button.new()
-	god_mode_btn.custom_minimum_size = Vector2(290, 42)
-	god_mode_btn.pressed.connect(_on_toggle_god_mode)
-	col1.add_child(god_mode_btn)
+	var stats_scroll := ScrollContainer.new()
+	stats_scroll.custom_minimum_size = Vector2(290, 390)
+	stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col1.add_child(stats_scroll)
 
-	col1.add_child(_make_action_btn("+1 Fuerza (STR)", _on_add_str))
-	col1.add_child(_make_action_btn("+1 Inteligencia (INT)", _on_add_int))
-	col1.add_child(_make_action_btn("+1 Destreza (DEX)", _on_add_dex))
-	col1.add_child(_make_action_btn("+2 Suerte (LUCK)", _on_add_luck))
-	col1.add_child(_make_action_btn("+5 Energia en este Turno", _on_add_energy))
-	col1.add_child(_make_action_btn("+100 Monedas (Gold)", _on_add_gold))
-	col1.add_child(_make_action_btn("Curar Full HP", _on_heal_full))
-	col1.add_child(_make_action_btn("Dejar en 1 HP", _on_set_one_hp))
+	var stats_content := VBoxContainer.new()
+	stats_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_content.add_theme_constant_override("separation", 6)
+	stats_scroll.add_child(stats_content)
+
+	god_mode_btn = Button.new()
+	god_mode_btn.custom_minimum_size = Vector2(276, 42)
+	god_mode_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	god_mode_btn.pressed.connect(_on_toggle_god_mode)
+	stats_content.add_child(god_mode_btn)
+
+	stats_content.add_child(_make_action_btn("+Subir 1 Nivel (XP)", _on_level_up_debug))
+	stats_content.add_child(_make_action_btn("+1 Fuerza (STR)", _on_add_str))
+	stats_content.add_child(_make_action_btn("+1 Inteligencia (INT)", _on_add_int))
+	stats_content.add_child(_make_action_btn("+1 Destreza (DEX)", _on_add_dex))
+	stats_content.add_child(_make_action_btn("+2 Suerte (LUCK)", _on_add_luck))
+	stats_content.add_child(_make_action_btn("+5 Energia en este Turno", _on_add_energy))
+	stats_content.add_child(_make_action_btn("+100 Monedas (Gold)", _on_add_gold))
+	stats_content.add_child(_make_action_btn("Curar Full HP", _on_heal_full))
+	stats_content.add_child(_make_action_btn("Dejar en 1 HP", _on_set_one_hp))
 
 	# --- COLUMNA 2: COMBATE, EXPLORACIÓN Y ARMAS ---
 	var col2 := VBoxContainer.new()
@@ -145,8 +157,10 @@ func _build_columns() -> void:
 	# también estén disponibles los controles de estados y el catálogo de armas.
 	var actions_scroll := ScrollContainer.new()
 	actions_scroll.custom_minimum_size = Vector2(290, 390)
+	actions_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	col2.add_child(actions_scroll)
 	var actions_content := VBoxContainer.new()
+	actions_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	actions_content.add_theme_constant_override("separation", 6)
 	actions_scroll.add_child(actions_content)
 
@@ -183,10 +197,12 @@ func _build_columns() -> void:
 	col3.add_child(_make_section_label("3. INYECTAR RELIQUIAS"))
 
 	relics_box = VBoxContainer.new()
+	relics_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	relics_box.add_theme_constant_override("separation", 8)
 	
-	var scroll_relics = ScrollContainer.new()
+	var scroll_relics := ScrollContainer.new()
 	scroll_relics.custom_minimum_size = Vector2(300, 320)
+	scroll_relics.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll_relics.add_child(relics_box)
 	col3.add_child(scroll_relics)
 
@@ -203,7 +219,8 @@ func _rebuild_relic_buttons() -> void:
 		if relic == null:
 			continue
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(300, 38)
+		btn.custom_minimum_size = Vector2(280, 38)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.text = "+ " + relic.title
 		btn.tooltip_text = relic.get_effects_description()
 		btn.pressed.connect(_on_give_relic.bind(relic))
@@ -222,7 +239,8 @@ func _make_section_label(txt: String) -> Label:
 func _make_action_btn(txt: String, callback: Callable) -> Button:
 	var btn := Button.new()
 	btn.text = txt
-	btn.custom_minimum_size = Vector2(290, 38)
+	btn.custom_minimum_size = Vector2(276, 38)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.add_theme_font_size_override("font_size", 13)
 	btn.pressed.connect(callback)
 	return btn
@@ -425,14 +443,15 @@ func _on_instakill_enemy() -> void:
 	panel.visible = false
 	log_label.text = "Enemigo eliminado instantáneamente."
 	
-## Inyecta el estado Quemadura (+5) y Veneno (+5) simultáneamente.
+## Inyecta el estado Quemadura (+5) y Veneno (+5) simultáneamente usando `apply_statuses`.
 func _on_status_enemy() -> void:
 	if not _is_active_combat():
 		log_label.text = "No hay un enemigo activo."
 		return
-	# Enemy.add_statuses recibe quemadura, veneno, congelamiento,
-	# electrocución y hemorragia, en ese orden.
-	table.enemy.add_statuses(5, 5, 0, 0, 0)
+	table.enemy.apply_statuses({
+		"burn": 5,
+		"poison": 5
+	})
 	table.refresh_ui()
 	log_label.text = "Aplicado +5 Quemadura y +5 Veneno al enemigo actual."
 ## Pone a todas las celdas de la planta matemática como `discovered = true` 
@@ -526,14 +545,15 @@ func _on_clear_relics() -> void:
 
 	# Restauramos las bases del héroe actual, no valores globales fijos.
 	# Esto evita que un Mago/Guerrero pierda sus atributos iniciales al testear.
+	var level_hp_bonus: int = max(0, (run.player_level - 1) * CombatConstants.LEVEL_UP_MAX_HP_BONUS)
 	if run.selected_hero:
-		run.max_player_hp = run.selected_hero.max_hp_base
+		run.max_player_hp = run.selected_hero.max_hp_base + level_hp_bonus
 		run.max_energy = run.selected_hero.energy_base
 		run.target_hand_size = run.selected_hero.hand_size
 		run.discards_per_combat = run.selected_hero.discards_base
 		run.player_luck = run.selected_hero.lucky
 	else:
-		run.max_player_hp = CombatConstants.BASE_HEALTH
+		run.max_player_hp = CombatConstants.BASE_HEALTH + level_hp_bonus
 		run.max_energy = CombatConstants.BASE_MAX_ENERGY
 		run.target_hand_size = CombatConstants.BASE_HAND_SIZE
 		run.discards_per_combat = CombatConstants.BASE_DISCARDS_PER_COMBAT
@@ -594,6 +614,20 @@ func _on_add_str() -> void:
 	run.player_str += 1
 	_refresh_after_run_change()
 	log_label.text = "Fuerza (STR) aumentada a %d." % run.player_str
+
+## Otorga la XP exacta faltante para subir 1 nivel completo al instante desde el panel de depuración.
+func _on_level_up_debug() -> void:
+	if not _can_modify_run() or not table: return
+	var needed: int = max(1, run.get_xp_required_for_next_level() - run.player_xp)
+	var res: Dictionary = run.gain_xp(needed)
+	_refresh_after_run_change()
+	log_label.text = "¡Subiste a Nivel %d! (+%d HP Máx | +%d HP Curado | +%d%% Daño | %.1f%% Crítico)" % [
+		int(res.get("new_level", run.player_level)),
+		int(res.get("hp_max_gained", 0)),
+		int(res.get("hp_healed", 0)),
+		run.get_level_damage_bonus_pct(),
+		run.get_crit_chance_pct()
+	]
 
 ## Incrementa en +1 la estadística permanente de Inteligencia (`player_int`) del héroe durante la run actual.
 func _on_add_int() -> void:

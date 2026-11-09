@@ -7,7 +7,7 @@ extends RefCounted
 class_name FloorGenerator
 
 const GRID_SIZE_DEFAULT: int = 8
-const BASE_START_ROOMS: int = 7
+const BASE_START_ROOMS: int = 8
 const MAX_ROOMS_CAP: int = 28
 
 const DIRS: Array[Vector2i] = [
@@ -211,6 +211,28 @@ static func _assign_special_rooms(rooms: Dictionary, center: Vector2i, floor_num
 		if rng.randf() <= lucky_treasure_chance:
 			var extra_treasure_pos: Vector2i = dead_ends.pop_front()
 			rooms[extra_treasure_pos].room_type = RoomData.Type.TREASURE
+
+	# F) Asignar salas de Combate ÉLITE (Premio al riesgo: x2.5 XP y mejor botín)
+	var target_elites: int = 1 if floor_number <= 2 else 2
+	var elite_candidates: Array[Vector2i] = []
+	for pos in rooms.keys():
+		if rooms[pos].room_type == RoomData.Type.COMBAT:
+			var dist: int = abs(pos.x - center.x) + abs(pos.y - center.y)
+			if dist >= 2:
+				elite_candidates.append(pos)
+
+	if elite_candidates.is_empty():
+		for pos in rooms.keys():
+			if rooms[pos].room_type == RoomData.Type.COMBAT:
+				elite_candidates.append(pos)
+
+	var assigned_elites: int = 0
+	while assigned_elites < target_elites and elite_candidates.size() > 1:
+		var idx: int = rng.randi_range(0, elite_candidates.size() - 1)
+		var elite_pos: Vector2i = elite_candidates[idx]
+		rooms[elite_pos].room_type = RoomData.Type.ELITE
+		elite_candidates.remove_at(idx)
+		assigned_elites += 1
 
 # --- HELPERS ---
 

@@ -124,13 +124,17 @@ func open_shop(current_gold: int, available_cards: Array[CardData], available_re
 			# Si el slot es null significa que ya fue comprado en una visita previa
 			btn.text = "VENDIDO"
 			btn.disabled = true
+			btn.set_meta("sold", true)
 		else:
 			var price: int = _calculate_card_price(card)
 			btn.text = "%s\nCosto: %d Maná\n\nPrecio: %d Oro" % [card.title, card.cost, price]
 			btn.disabled = current_gold < price
+			btn.set_meta("price", price)
+			btn.set_meta("sold", false)
 			btn.pressed.connect(func():
 				btn.disabled = true
 				btn.text = "COMPRADO"
+				btn.set_meta("sold", true)
 				# Avisamos al director que se compró esta carta específica
 				card_bought.emit(card, price)
 			)
@@ -143,6 +147,7 @@ func open_shop(current_gold: int, available_cards: Array[CardData], available_re
 		if relic == null:
 			btn.text = "VENDIDO"
 			btn.disabled = true
+			btn.set_meta("sold", true)
 		else:
 			# 1. Declaramos price aquí adentro para este scope
 			var price: int = _calculate_relic_price(relic)
@@ -159,32 +164,30 @@ func open_shop(current_gold: int, available_cards: Array[CardData], available_re
 			btn.text = display_text
 			
 			btn.disabled = current_gold < price
+			btn.set_meta("price", price)
+			btn.set_meta("sold", false)
 			btn.pressed.connect(func():
 				btn.disabled = true
 				btn.text = "COMPRADO"
+				btn.set_meta("sold", true)
 				relic_bought.emit(relic, price)
 			)
 			
 		relics_container.add_child(btn)
 		
 ## Re-evalúa el poder adquisitivo del jugador inmediatamente después de una compra.
-## Actualiza la etiqueta del oro y desactiva dinámicamente cualquier botón de ítem sobrante cuyo precio
-## sea ahora mayor al `new_gold` restante.
+## Actualiza la etiqueta del oro y desactiva dinámicamente cualquier botón de ítem sobrante cuyo `meta("price")`
+## supere al `new_gold` restante (sin acoplarse al formato de texto del botón).
 func update_after_purchase(new_gold: int) -> void:
 	_refresh_gold(new_gold)
 	for btn in cards_container.get_children():
-		if btn is Button and btn.text != "COMPRADO":
-			# Deshabilita si ya no alcanza
-			var parts = btn.text.split("Precio: ")
-			if parts.size() > 1:
-				var cost: int = parts[1].split(" ")[0].to_int()
-				btn.disabled = new_gold < cost
+		if btn is Button and not bool(btn.get_meta("sold", true)):
+			var cost: int = int(btn.get_meta("price", 0))
+			btn.disabled = new_gold < cost
 	for btn in relics_container.get_children():
-		if btn is Button and btn.text != "COMPRADO":
-			var parts = btn.text.split("Precio: ")
-			if parts.size() > 1:
-				var cost :int = parts[1].split(" ")[0].to_int()
-				btn.disabled = new_gold < cost
+		if btn is Button and not bool(btn.get_meta("sold", true)):
+			var cost: int = int(btn.get_meta("price", 0))
+			btn.disabled = new_gold < cost
 
 ## Actualiza puramente el texto de la etiqueta visual de la billetera del jugador.
 func _refresh_gold(amount: int) -> void:

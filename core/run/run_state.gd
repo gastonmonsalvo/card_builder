@@ -68,6 +68,13 @@ var player_str: int = 1
 var player_int: int = 1
 var player_dex: int = 1
 
+## Nivel actual del jugador dentro de la run (progresión sin tope cerrado, inicia en 1).
+var player_level: int = 1
+## Experiencia acumulada hacia el siguiente nivel.
+var player_xp: int = 0
+## Experiencia histórica total acumulada a lo largo de toda la run actual.
+var total_xp_earned: int = 0
+
 
 	
 ## Constructor. Precarga en memoria el catálogo universal de reliquias
@@ -87,6 +94,9 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 	inventory_weapons.clear()
 	active_relics.clear()
 	god_mode = false
+	player_level = 1
+	player_xp = 0
+	total_xp_earned = 0
 	selected_hero = hero
 	if hero:
 		max_player_hp = hero.max_hp_base
@@ -225,40 +235,9 @@ func apply_sanctuary_max_hp_blessing() -> String:
 
 	return "Aumentaste +%d tu HP Maximo permanente (HP actual: %d/%d)!" % [final_bonus, player_hp, max_player_hp]
 
-## Sortea, adquiere y equipa una reliquia utilizando un motor RNG determinista.
-## Implementa filtros en cascada para evitar duplicados en el inventario activo,
-## aplicando `bonus_fortune` para aumentar la posibilidad de tiers superiores.
+## Sortea, adquiere y equipa una reliquia delegando en `LootGenerator.grant_random_relic()`.
 func grant_random_relic(bonus_fortune: float = 0.0) -> String:
-	if relic_catalog.is_empty():
-		relic_catalog = GameDatabase.load_all_relics()
-	if relic_catalog.is_empty():
-		return "Sin reliquias en res://relics/data"
-
-	var rng := RandomNumberGenerator.new()
-	rng.seed = FloorGenerator.get_floor_subseed(master_seed, current_floor * 100 + active_relics.size())
-
-	var rolled_tier: RaritySystem.Tier = RaritySystem.roll_tier(rng, current_floor, player_luck, bonus_fortune)
-
-	var candidates: Array[RelicData] = []
-	for r in relic_catalog:
-		if r.rarity == rolled_tier and not active_relics.has(r):
-			candidates.append(r)
-
-	if candidates.is_empty():
-		for r in relic_catalog:
-			if r.rarity == rolled_tier:
-				candidates.append(r)
-
-	if candidates.is_empty():
-		for r in relic_catalog:
-			if not active_relics.has(r):
-				candidates.append(r)
-	if candidates.is_empty():
-		candidates = relic_catalog
-
-	var chosen: RelicData = candidates[rng.randi_range(0, candidates.size() - 1)]
-	equip_specific_relic(chosen)
-	return chosen.get_effects_description()
+	return LootGenerator.grant_random_relic(self, bonus_fortune)
 ## Función imperativa para forzar la adquisición de una reliquia (útil para items iniciales o herramientas de Debug).
 ##  Registra la reliquia, emite la señal de interfaz y ejecuta sus ganchos de combate si hay un enemigo activo.
 func equip_specific_relic(relic: RelicData, current_enemy: Enemy = null) -> void:
@@ -356,13 +335,16 @@ func create_enemy_for_room(is_boss_encounter: bool) -> Enemy:
 		dummy_data.base_damage = 5
 		dummy_data.is_boss = is_boss_encounter
 		candidates.append(dummy_data)
-	# 3. Sorteamos uno al azar
+	# 3. Sorteamos uno al azar de forma determinista según la semilla maestra, piso y coordenada de la sala
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	var pos_x: int = int(player_grid_pos.x) if player_grid_pos else 0
+	var pos_y: int = int(player_grid_pos.y) if player_grid_pos else 0
+	rng.seed = abs(hash("%d_ENEMY_F%d_X%d_Y%d" % [master_seed, current_floor, pos_x, pos_y]))
 	var chosen_data: EnemyData = candidates[rng.randi_range(0, candidates.size() - 1)]
 	
-	# 4. Instanciamos al enemigo VIVO con el Data y el piso actual
-	var new_enemy: Enemy = Enemy.new(chosen_data, current_floor)
+	# 4. Instanciamos al enemigo VIVO con el Data, el piso actual y si la sala es ÉLITE
+	var is_elite_encounter: bool = not is_boss_encounter and current_room != null and current_room.room_type == RoomData.Type.ELITE
+	var new_enemy: Enemy = Enemy.new(chosen_data, current_floor, is_elite_encounter)
 
 	# 5. Disparamos reliquias de inicio de combate
 	for relic in active_relics:
@@ -382,255 +364,28 @@ func try_consume_revive_relic() -> RelicData:
 			return relic
 	return null
 	
-## Instancia un motor de entropía aislada para gestionar el bazar. Combina la semilla maestra, el piso y
-## las coordenadas de la tienda para asegurar que el stock sea el mismo si el jugador carga la partida.
-func _get_shop_rng(room_pos: Vector2i) -> RandomNumberGenerator:
-	var rng := RandomNumberGenerator.new()
-	var shop_seed: int = abs(hash("%d_FLOOR_%d_SHOP_%d_%d" % [master_seed, current_floor, room_pos.x, room_pos.y]))
-	rng.seed = shop_seed
-	return rng
-	
-## Sortea y devuelve un arreglo de `count` cartas únicas del catálogo para el stock de la tienda,
-## filtrando por rareza (`RaritySystem.roll_tier`) según el piso y la Suerte del jugador sin repetir cartas en la misma sala.
+## Sortea y devuelve un arreglo de `count` cartas únicas del catálogo para el stock de la tienda delegando en `LootGenerator`.
 func generate_shop_cards(room_pos: Vector2i, count: int = 3, bonus_fortune: float = 0.0) -> Array[CardData]:
-	var rng: RandomNumberGenerator = _get_shop_rng(room_pos)
-	var result: Array[CardData] = []
-	
-	var pool_card: Array[CardData] = available_card_pool.filter(func(c: CardData): return c != null)
-	if pool_card.is_empty():
-		return result
+	return LootGenerator.generate_shop_cards(self, room_pos, count, bonus_fortune)
 
-	for i in range(min(count, pool_card.size())):
-		var target_tier: RaritySystem.Tier = RaritySystem.roll_tier(rng, current_floor, player_luck, bonus_fortune)
-		var picked: CardData = _pick_from_pool_by_tier_cards(pool_card, target_tier, rng)
-		if picked:
-			var copy: CardData = picked.duplicate() as CardData
-			copy.resource_name = picked.resource_path if picked.resource_path != "" else picked.resource_name
-			result.append(copy)
-			pool_card.erase(picked) # Evita que la misma carta salga 2 veces en la misma tienda
-
-	return result
-
-## Sortea y devuelve un arreglo de reliquias para el comercio, 
-## asegurando excluir las que el jugador ya tenga equipadas.
+## Sortea y devuelve un arreglo de reliquias para el comercio delegando en `LootGenerator`.
 func generate_shop_relics(room_pos: Vector2i, count: int = 2, bonus_fortune: float = 0.0) -> Array[RelicData]:
-	var rng: RandomNumberGenerator = _get_shop_rng(room_pos)
-	# Desfasamos el estado del RNG para no acoplar la tirada con la de las cartas
-	rng.randi()
-	
-	var result: Array[RelicData] = []
-	var owned_titles: Array[String] = []
-	for owned in active_relics:
-		if owned:
-			owned_titles.append(owned.title)
-
-	var pool: Array[RelicData] = relic_catalog.filter(
-		func(r: RelicData): return r != null and not owned_titles.has(r.title)
-	)
-	if pool.is_empty():
-		return result
-
-	for i in range(min(count, pool.size())):
-		var target_tier: RaritySystem.Tier = RaritySystem.roll_tier(rng, current_floor, player_luck, bonus_fortune)
-		var picked: RelicData = _pick_from_pool_by_tier_relics(pool, target_tier, rng)
-		if picked:
-			result.append(picked)
-			pool.erase(picked) # Evita duplicados en el mostrador
-
-	return result
-## Función auxiliar. Selecciona una carta al azar filtrando por el tier (rareza) solicitado. 
-## Si el grupo de esa rareza está vacío,  ejecuta un rescate (fallback) 
-## ampliando la búsqueda a todo el pool global.
-func _pick_from_pool_by_tier_cards(pool: Array[CardData], tier: RaritySystem.Tier, rng: RandomNumberGenerator) -> CardData:
-	var candidates: Array[CardData] = pool.filter(func(c: CardData): return c.rarity == tier)
-	# Fallback: si no quedan cartas de ese tier exacto en el pool, elige de las disponibles
-	if candidates.is_empty():
-		candidates = pool
-	return candidates[rng.randi_range(0, candidates.size() - 1)]
-	
-## Función auxiliar. Ejecuta el mismo filtro estricto con fallback global que su homólogo de cartas,
-##  pero aplicado al catálogo de reliquias disponibles.
-func _pick_from_pool_by_tier_relics(pool: Array[RelicData], tier: RaritySystem.Tier, rng: RandomNumberGenerator) -> RelicData:
-	var candidates: Array[RelicData] = pool.filter(func(r: RelicData): return r.rarity == tier)
-	if candidates.is_empty():
-		candidates = pool
-	return candidates[rng.randi_range(0, candidates.size() - 1)]
+	return LootGenerator.generate_shop_relics(self, room_pos, count, bonus_fortune)
 
 ## Itera sobre el inventario inicial definido en el archivo `.tres` del héroe 
 ## y equipa clones funcionales de esas reliquias al iniciar la expedición.
 func grant_starting_relics(hero: HeroData) -> void:
-	# Si hero.starting_relic es un array, lo iteramos
 	for relic in hero.starting_relic:
 		if relic != null:
 			equip_specific_relic(relic.duplicate())
 
-## Motor de serialización. Transforma todo el estado vivo
-## (estadísticas, ubicaciones en el mapa, inventarios, mazos y reliquias)
-##  en un diccionario de primitivas seguro para escribirse en formato JSON o binario en disco.
+## Serializa todo el estado vivo delegando en `RunSerializer.to_dict()`.
 func to_dict(deck_data: Array) -> Dictionary:
-	var relic_paths: Array[String] = []
-	for relic in active_relics:
-		if relic:
-			var path: String = relic.resource_path
-			if path == "" and relic.resource_name != "":
-				path = relic.resource_name
-			if path != "":
-				relic_paths.append(path)
+	return RunSerializer.to_dict(self, deck_data)
 
-	var inventory_weapon_paths: Array[String] = []
-	var inventory_weapon_ids: Array[String] = []
-	for weapon in inventory_weapons:
-		if weapon:
-			inventory_weapon_paths.append(_get_weapon_resource_path(weapon))
-			inventory_weapon_ids.append(weapon.weapon_id)
-				
-	var cleared_rooms: Array[Array] = []
-	var discovered_rooms: Array[Array] = []
-	var rooms_dict: Dictionary = floor_data.get("rooms", {})
-	
-	for pos in rooms_dict.keys():
-		var room: RoomData = rooms_dict[pos]
-		if room.cleared:
-			cleared_rooms.append([pos.x, pos.y])
-		if room.discovered:
-			discovered_rooms.append([pos.x, pos.y])
-
-	return {
-		"master_seed": master_seed,
-		"current_floor": current_floor,
-		"selected_hero_path": selected_hero.resource_path if selected_hero else "",
-		"current_weapon_path": _get_weapon_resource_path(current_weapon),
-		"current_weapon_id": current_weapon.weapon_id if current_weapon else "",
-		"inventory_weapon_paths": inventory_weapon_paths,
-		"inventory_weapon_ids": inventory_weapon_ids,
-		"player_pos": [player_grid_pos.x, player_grid_pos.y],
-		"stats": {
-			"hp": player_hp,
-			"max_hp": max_player_hp,
-			"gold": player_gold,
-			"energy": max_energy,
-			"hand_size": target_hand_size,
-			"discards": discards_per_combat,
-			"luck": player_luck,
-			"str": player_str,
-			"int": player_int,
-			"dex": player_dex
-		},
-		"deck": deck_data,
-		"relics": relic_paths,
-		"map_state": {
-			"cleared": cleared_rooms,
-			"discovered": discovered_rooms
-		}
-	}
-
-## Restaura los datos de un arma usando primero su ruta y luego su ID como respaldo.
-func _resolve_weapon(path: String, weapon_id: String = "") -> WeaponData:
-	if path != "" and ResourceLoader.exists(path):
-		var loaded_weapon := load(path) as WeaponData
-		if loaded_weapon:
-			return loaded_weapon
-
-	if weapon_id != "":
-		for catalog_weapon in weapon_catalog:
-			if catalog_weapon and catalog_weapon.weapon_id == weapon_id:
-				return catalog_weapon
-	return null
-
-## Devuelve la ruta original de un arma, incluso si es una copia en memoria.
-func _get_weapon_resource_path(weapon: WeaponData) -> String:
-	if not weapon:
-		return ""
-	if weapon.resource_path != "":
-		return weapon.resource_path
-	if weapon.resource_name.begins_with("res://"):
-		return weapon.resource_name
-	for catalog_weapon in weapon_catalog:
-		if catalog_weapon and catalog_weapon.weapon_id == weapon.weapon_id:
-			return catalog_weapon.resource_path
-	return ""
-
-## Reconstruye el estado de la run desde un JSON. También acepta partidas guardadas
-## antes de incorporar el sistema de armas (sin las nuevas claves de equipo).
+## Reconstruye el estado de la run desde un JSON delegando en `RunSerializer.from_dict()`.
 func from_dict(data: Dictionary, deck: DeckManager) -> void:
-	master_seed = int(data.get("master_seed", 0))
-	current_floor = int(data.get("current_floor", 1))
-	
-	selected_hero = null
-	var hero_path: String = str(data.get("selected_hero_path", ""))
-	if hero_path != "" and ResourceLoader.exists(hero_path):
-		selected_hero = load(hero_path) as HeroData
-
-	var stats: Dictionary = data.get("stats", {})
-	player_hp = int(stats.get("hp", 60))
-	max_player_hp = int(stats.get("max_hp", 60))
-	player_gold = int(stats.get("gold", 0))
-	max_energy = int(stats.get("energy", 3))
-	target_hand_size = int(stats.get("hand_size", 5))
-	discards_per_combat = int(stats.get("discards", 2))
-	player_luck = int(stats.get("luck", 0))
-	player_str = int(stats.get("str", selected_hero.base_str if selected_hero else CombatConstants.BASE_STR))
-	player_int = int(stats.get("int", selected_hero.base_int if selected_hero else CombatConstants.BASE_INT))
-	player_dex = int(stats.get("dex", selected_hero.base_dex if selected_hero else CombatConstants.BASE_DEX))
-
-	# Equipo: las claves pueden no existir en partidas creadas antes del sistema de armas.
-	if weapon_catalog.is_empty():
-		weapon_catalog = GameDatabase.load_all_weapons()
-	current_weapon = _resolve_weapon(
-		str(data.get("current_weapon_path", "")),
-		str(data.get("current_weapon_id", ""))
-	)
-	if not current_weapon and selected_hero and selected_hero.starting_weapon:
-		current_weapon = selected_hero.starting_weapon
-	if not current_weapon:
-		current_weapon = CombatConstants.BASIC_WEAPON
-
-	inventory_weapons.clear()
-	var saved_weapon_paths: Array = data.get("inventory_weapon_paths", [])
-	var saved_weapon_ids: Array = data.get("inventory_weapon_ids", [])
-	var saved_weapon_count: int = max(saved_weapon_paths.size(), saved_weapon_ids.size())
-	for index in range(saved_weapon_count):
-		var saved_path: String = str(saved_weapon_paths[index]) if index < saved_weapon_paths.size() else ""
-		var saved_id: String = str(saved_weapon_ids[index]) if index < saved_weapon_ids.size() else ""
-		var weapon := _resolve_weapon(saved_path, saved_id)
-		if weapon and not _same_weapon(weapon, current_weapon) and _find_inventory_weapon_index(weapon) == -1:
-			inventory_weapons.append(weapon)
-
-	active_relics.clear()
-	var relic_paths: Array = data.get("relics", [])
-	for r_path in relic_paths:
-		if ResourceLoader.exists(r_path):
-			var relic_res := load(r_path) as RelicData
-			if relic_res:
-				var copy := relic_res.duplicate()
-				copy.resource_name = r_path
-				active_relics.append(copy)
-	
-	deck.from_dict(data.get("deck", []))
-
-	floor_data = FloorGenerator.generate_floor(
-		master_seed, current_floor, 8, -1, player_luck
-	)
-	
-	var p_pos_arr: Array = data.get("player_pos", [4, 4])
-	player_grid_pos = Vector2i(p_pos_arr[0], p_pos_arr[1])
-	
-	var rooms_dict: Dictionary = floor_data.get("rooms", {})
-	var map_state: Dictionary = data.get("map_state", {})
-	
-	for coord in map_state.get("cleared", []):
-		var v := Vector2i(coord[0], coord[1])
-		if rooms_dict.has(v):
-			rooms_dict[v].cleared = true
-
-	for coord in map_state.get("discovered", []):
-		var v := Vector2i(coord[0], coord[1])
-		if rooms_dict.has(v):
-			rooms_dict[v].discovered = true
-
-	current_room = null
-	if rooms_dict.has(player_grid_pos):
-		current_room = rooms_dict[player_grid_pos] as RoomData
+	RunSerializer.from_dict(self, data, deck)
 
 ## Intenta agregar un arma a la mochila. Evita duplicados, incluyendo el arma equipada.
 ## `force_debug` solo omite el límite de capacidad para las herramientas de depuración.
@@ -645,57 +400,17 @@ func add_weapon_to_inventory(weapon: WeaponData, force_debug: bool = false) -> b
 	inventory_weapons.append(weapon)
 	print("Arma agregada a la mochila: %s" % weapon.weapon_name)
 	return true
-## Genera las recompensas de un combate ganado de forma determinista.
-## Usa la semilla maestra + piso + contador para garantizar reproducibilidad.
+
+## Genera las recompensas de un combate ganado de forma determinista delegando en `LootGenerator`.
 func generate_combat_rewards(combat_index: int = 0) -> Dictionary:
-	# Oro base escalado por piso
-	var gold := 10 + (current_floor * 2) + randi() % 5
-	
-	# Crear un RNG determinista basado en la semilla maestra y el piso actual
-	var rng := RandomNumberGenerator.new()
-	var reward_seed := FloorGenerator.get_floor_subseed(
-		master_seed, 
-		current_floor * 1000 + combat_index
-	)
-	rng.seed = reward_seed
-	
-	# 3 cartas sin repetir según RaritySystem
-	var cards: Array[CardData] = []
-	var pool: Array[CardData] = available_card_pool.filter(func(c): return c != null)
-	
-	for i in range(3):
-		if pool.is_empty():
-			break
-		var tier := RaritySystem.roll_tier(rng, current_floor, player_luck)
-		var card := _pick_from_pool_by_tier_cards(pool, tier, rng)
-		if card:
-			var copy: CardData = card.duplicate() as CardData
-			copy.resource_name = card.resource_path if card.resource_path != "" else card.resource_name
-			cards.append(copy)
-			pool.erase(card)
-	
-	# 30% chance de relic (determinista)
-	var relic: RelicData = null
-	if rng.randf() < 0.3 and not relic_catalog.is_empty():
-		relic = relic_catalog[rng.randi_range(0, relic_catalog.size() - 1)]
-	
-	return {
-		"gold": gold,
-		"cards": cards,
-		"relic": relic
-	}
+	return LootGenerator.generate_combat_rewards(self, combat_index)
 
 ## Aplica las recompensas elegidas por el jugador al estado de la run.
 func apply_combat_rewards(
 	chosen_card: CardData, gold: int, relic: RelicData, deck: DeckManager
 ) -> void:
-	# 1. Agregar carta elegida al mazo (DrawPile)
 	deck.draw_pile.add_card(chosen_card)
-	
-	# 2. Sumar oro
 	player_gold += gold
-	
-	# 3. Equipar relic si la hubo
 	if relic:
 		equip_specific_relic(relic)
 
@@ -710,6 +425,45 @@ func get_effective_int() -> int:
 ## Devuelve la destreza efectiva (base + mods temporales).
 func get_effective_dex() -> int:
 	return player_dex + temp_stats.get_total_mod("dex")
+
+# =============================================================================
+#  FACHADA DE PROGRESIÓN DE NIVEL (DELEGA EN `LevelProgression`)
+# =============================================================================
+
+## Calcula la experiencia requerida (Δ) para avanzar al siguiente nivel delegando en `LevelProgression`.
+func get_xp_required_for_next_level(level: int = player_level) -> int:
+	return LevelProgression.get_xp_required_for_next_level(level)
+
+## Calcula la recompensa de experiencia otorgada al superar un encuentro delegando en `LevelProgression`.
+func get_combat_xp_reward(room_type: int = -1, floor_num: int = current_floor) -> int:
+	var effective_type: int = room_type
+	if effective_type < 0:
+		effective_type = current_room.room_type if current_room != null else RoomData.Type.COMBAT
+	return LevelProgression.get_combat_xp_reward(effective_type, floor_num)
+
+## Otorga experiencia al jugador y resuelve las subidas de nivel delegando en `LevelProgression`.
+func gain_xp(amount: int) -> Dictionary:
+	return LevelProgression.apply_xp_gain(self, amount)
+
+## Devuelve el Rating de Crítico acumulado por nivel (+10 pts/nivel sobre 1).
+func get_crit_rating() -> int:
+	return LevelProgression.get_crit_rating(player_level)
+
+## Calcula la probabilidad de Golpe Crítico [0.0 .. 0.50] mediante curva asintótica.
+func get_crit_chance() -> float:
+	return LevelProgression.get_crit_chance(player_level)
+
+## Devuelve la probabilidad de Golpe Crítico expresada en porcentaje (ej. 14.7 para 14.7%).
+func get_crit_chance_pct() -> float:
+	return get_crit_chance() * 100.0
+
+## Devuelve el porcentaje de bonificación de daño global aportado por el nivel: (Nivel - 1) * 2%.
+func get_level_damage_bonus_pct() -> int:
+	return LevelProgression.get_level_damage_bonus_pct(player_level)
+
+## Devuelve el multiplicador escalar de daño saliente aportado por el nivel: 1.0 + ((Nivel - 1) * 2 / 100).
+func get_level_damage_multiplier() -> float:
+	return LevelProgression.get_level_damage_multiplier(player_level)
 
 
 ## Resetea el RNG de combate para un nuevo encuentro.

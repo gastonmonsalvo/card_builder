@@ -9,6 +9,7 @@ var max_hp: int = 120
 var current_hp: int = 120
 var data: EnemyData 
 var is_boss : bool = false
+var is_elite : bool = false
 var turn_count: int = 0  
 
 ## Contadores de acumulación para los cinco estados alterados posibles.
@@ -31,17 +32,23 @@ var current_intent: EnemyIntent = null
 ## Escudo temporal, se resetea al inicio del turno del enemigo
 var block : int = 0
 
-## Constructor. Recibe la plantilla del enemigo (Resource) y el número de planta
-## para calcular los escalados de HP y Daño finales de este encuentro.
-func _init(p_data: EnemyData, current_floor: int) -> void:
+## Constructor. Recibe la plantilla del enemigo (Resource), el número de planta
+## y si se trata de una variante Élite para calcular los escalados de HP y Daño finales.
+func _init(p_data: EnemyData, current_floor: int, p_is_elite: bool = false) -> void:
 	self.data = p_data  
-	enemy_name = data.enemy_name
 	is_boss = data.is_boss
+	is_elite = p_is_elite and not is_boss
+	enemy_name = ("ÉLITE: " + data.enemy_name) if is_elite else data.enemy_name
 	
-	# Escalamos la vida y el daño según la planta actual (usando las fórmulas que ya tenías)
+	# Escalamos la vida y el daño según la planta actual y rango del encuentro
 	if is_boss:
 		max_hp = data.base_hp + (current_floor - 1) * 45
 		intent_damage = data.base_damage + (current_floor - 1) * 4
+	elif is_elite:
+		var common_hp: int = data.base_hp + (current_floor - 1) * 25
+		var common_dmg: int = data.base_damage + (current_floor - 1) * 3
+		max_hp = int(round(float(common_hp) * 1.45))
+		intent_damage = common_dmg + 2 + current_floor
 	else:
 		max_hp = data.base_hp + (current_floor - 1) * 25
 		intent_damage = data.base_damage + (current_floor - 1) * 3
@@ -181,12 +188,14 @@ func apply_hemorrhage_tick(player_luck) -> int:
 	return dmg
 	
 ## Tira los dados para determinar si la electrocución paraliza al enemigo este turno.
-## Si acierta, descarga y resetea el `shock` a 0. Si falla, las cargas decaen de forma estándar. Retorna el veredicto.
-func try_trigger_shock_stun(player_luck) -> bool:
+## Usa el `rng` determinista del combate si se provee. Si acierta, descarga y resetea el `shock` a 0;
+## si falla, las cargas decaen de forma estándar. Retorna el veredicto.
+func try_trigger_shock_stun(player_luck: int, rng: RandomNumberGenerator = null) -> bool:
 	if shock <= 0:
 		return false
 	var chance: float = get_shock_stun_chance(player_luck)
-	var stunned: bool = randf() < chance
+	var roll: float = rng.randf() if rng != null else randf()
+	var stunned: bool = roll < chance
 	if stunned:
 		shock = 0 # Descarga completa al paralizar
 	else:

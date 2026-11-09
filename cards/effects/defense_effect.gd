@@ -15,3 +15,6 @@ func get_description() -> String:
 ## Retorna el color azul defensivo representativo del bloqueo.
 func get_color() -> Color:
 	return Color(0.18, 0.52, 0.88)
+
+func get_emblem_icon() -> String:
+	return "🛡️"

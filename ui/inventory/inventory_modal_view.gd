@@ -75,7 +75,7 @@ func _build_ui() -> void:
 	main_vbox.add_child(header_bar)
 
 	var title := Label.new()
-	title.text = "🎒 INVENTARIO GENERAL"
+	title.text = "INVENTARIO GENERAL"
 	title.set_anchors_preset(Control.PRESET_FULL_RECT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -331,18 +331,25 @@ func update_stats_display(run: RunState) -> void:
 	var weapon: WeaponData = run.current_weapon
 	var weapon_base: int = weapon.base_damage if weapon else 0
 	var weapon_scale: int = weapon.get_scaling_bonus(eff_str, eff_int, eff_dex) if weapon else 0
+	var req_xp: int = run.get_xp_required_for_next_level()
 
 	stats_left_label.text = "\n".join([
 		"• Héroe: %s (Planta %d)" % [hero_title, run.current_floor],
+		"• Nivel: %d (XP: %d / %d)" % [run.player_level, run.player_xp, req_xp],
 		"• Vida (HP): %d / %d" % [run.player_hp, run.max_player_hp],
-		"• Bono Arma: +%d (+%d escalado)" % [weapon_base, weapon_scale],
-		"• Energía / Mano: %d⚡ / %d cartas" % [run.max_energy, run.target_hand_size]
+		"• Bono Nivel: +%d%% Daño | %.1f%% Crítico (%d pts)" % [
+			run.get_level_damage_bonus_pct(),
+			run.get_crit_chance_pct(),
+			run.get_crit_rating()
+		],
+		"• Bono Arma: +%d (+%d escalado)" % [weapon_base, weapon_scale]
 	])
 
 	stats_right_label.text = "\n".join([
 		"• Fuerza (STR): %d" % eff_str,
 		"• Inteligencia (INT): %d" % eff_int,
 		"• Destreza (DEX): %d" % eff_dex,
+		"• Energía / Mano: %d⚡ / %d cartas" % [run.max_energy, run.target_hand_size],
 		"• Suerte (LUCK): %d   |   Oro: %d" % [run.player_luck, run.player_gold]
 	])
 

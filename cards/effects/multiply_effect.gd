@@ -24,3 +24,6 @@ func get_description() -> String:
 ## Retorna el color púrpura representativo de los efectos multiplicadores.
 func get_color() -> Color:
 	return Color(0.65, 0.22, 0.88)
+
+func get_emblem_icon() -> String:
+	return "✨"

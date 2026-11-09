@@ -49,5 +49,8 @@ func _format_combo_preview(p: Dictionary) -> String:
 		
 	if p.get("heal", 0) > 0:
 		parts.append("+%d HP" % int(p["heal"]))
+
+	if p.get("dmg", 0) > 0 and float(p.get("crit_chance", 0.0)) > 0.0:
+		parts.append("🎲 %.1f%% CRIT (x1.5)" % (float(p["crit_chance"]) * 100.0))
 	
 	return "COMBO ACTIVO:    " + "   |   ".join(parts)

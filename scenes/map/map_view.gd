@@ -120,7 +120,7 @@ func _init() -> void:
 	add_child(inspector_modal)
 	
 	inventory_btn = Button.new()
-	inventory_btn.text = "🎒 INVENTARIO"
+	inventory_btn.text = "INVENTARIO"
 	inventory_btn.position = Vector2(610, 20)
 	inventory_btn.size = Vector2(145, 36)
 	inventory_btn.pressed.connect(func():
@@ -135,50 +135,47 @@ func _init() -> void:
 	inventory_modal.weapon_selected_to_equip.connect(
 	_on_inventory_weapon_selected
 	)
-## Inyecta el estado completo de la partida proveniente de `RunDirector.open_map()`.
-## Actualiza los textos (Salud, Energía, Suerte, Oro, Probabilidades de drop por rareza)
-## reconstruye la grilla de nodos visuales y solicita el repintado de las conexiones en hardware (`queue_redraw()`).
+## Inyecta el estado vivo de la partida (`p_run_ref`) y las cartas del jugador (`p_deck_cards`) desde `RunDirector.open_map()`.
+## Actualiza las etiquetas de cabecera (Nivel, XP, Salud, Energía, Suerte, Oro, Probabilidades de drop por rareza),
+## reconstruye la grilla de nodos visuales y solicita el repintado de las conexiones (`queue_redraw()`).
 func setup_floor(
-	p_floor: int,
-	p_master_seed: int,
-	p_floor_seed: int,
-	p_rooms: Dictionary,
-	p_current_pos: Vector2i,
-	p_player_hp: int,
-	p_max_hp: int,
-	p_max_energy: int,
-	p_player_luck: int,
-	p_relics_count: int,
-	p_relics_detail: String,
-	p_deck_count: int,
-	p_deck_detail: String,
-	p_player_gold:int,
-	p_run_ref: RunState = null,
+	p_run_ref: RunState,
 	p_deck_cards: Array[CardData] = []
 ) -> void:
+	if p_run_ref == null:
+		return
 	visible = true
-	floor_number = p_floor
-	master_seed = p_master_seed
-	floor_seed = p_floor_seed
-	rooms = p_rooms
-	current_pos = p_current_pos
-	_cached_relics_detail = p_relics_detail
-	_cached_deck_detail = p_deck_detail
-	_cached_deck_cards = p_deck_cards
 	_current_run_ref = p_run_ref
-	var odds_txt: String = RaritySystem.get_probabilities_summary(floor_number, p_player_luck)
-	
+	floor_number = p_run_ref.current_floor
+	master_seed = p_run_ref.master_seed
+	floor_seed = int(p_run_ref.floor_data.get("sub_seed", 0))
+	rooms = p_run_ref.floor_data.get("rooms", {})
+	current_pos = p_run_ref.player_grid_pos
+	_cached_deck_cards = p_deck_cards
+
+	var odds_txt: String = RaritySystem.get_probabilities_summary(floor_number, p_run_ref.player_luck)
+	var lvl_txt: String = "NVL: %d (%d/%d XP)   |   " % [
+		p_run_ref.player_level,
+		p_run_ref.player_xp,
+		p_run_ref.get_xp_required_for_next_level()
+	]
+
 	title_label.text = "PLANTA %d - MAPA DE EXPLORACION (Matriz 8x8 | %d Salas)" % [floor_number, rooms.size()]
-	stats_label.text = "VIDA: %d / %d HP   |   ENERGIA MAX: %d   |   SUERTE: %d | ORO: %d" % [
-		p_player_hp, p_max_hp, p_max_energy, p_player_luck, p_player_gold
+	stats_label.text = "%sVIDA: %d / %d HP   |   ENERGIA MAX: %d   |   SUERTE: %d   |   ORO: %d" % [
+		lvl_txt,
+		p_run_ref.player_hp,
+		p_run_ref.max_player_hp,
+		p_run_ref.max_energy,
+		p_run_ref.player_luck,
+		p_run_ref.player_gold
 	]
 	seed_label.text = "Master Seed: %d   |   Sub-Seed P%d: %d   |   Drop -> [ %s ]" % [
 		master_seed, floor_number, floor_seed, odds_txt
 	]
 	legend_label.text = "Selecciona una sala conectada (borde brillante) para avanzar por la planta."
 
-	inventory_btn.text = "🎒 INVENTARIO (%d)" % p_relics_count
-	deck_btn.text = "MI MAZO (%d)" % p_deck_count
+	inventory_btn.text = "INVENTARIO (%d)" % p_run_ref.active_relics.size()
+	deck_btn.text = "MI MAZO (%d)" % _cached_deck_cards.size()
 
 	_rebuild_grid_buttons()
 	queue_redraw()

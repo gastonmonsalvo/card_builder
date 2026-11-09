@@ -19,3 +19,12 @@ func get_description() -> String:
 ## Retorna el color naranja ígneo representativo del efecto de Quemadura.
 func get_color() -> Color:
 	return Color(1.0, 0.37, 0.1)
+
+func is_status_effect() -> bool:
+	return true
+
+func get_status_icon() -> String:
+	return "🔥"
+
+func get_emblem_icon() -> String:
+	return "🔥"

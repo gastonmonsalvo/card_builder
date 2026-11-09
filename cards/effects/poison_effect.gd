@@ -15,3 +15,12 @@ func get_description() -> String:
 ## Retorna el color verde ácido representativo del estado de Veneno.
 func get_color() -> Color:
 	return Color(0.55, 0.85, 0.15)
+
+func is_status_effect() -> bool:
+	return true
+
+func get_status_icon() -> String:
+	return "🧪"
+
+func get_emblem_icon() -> String:
+	return "🧪"
