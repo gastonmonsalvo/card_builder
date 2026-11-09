@@ -126,25 +126,25 @@ func _build_ui() -> void:
 
 	_vbox = VBoxContainer.new()
 	_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	_vbox.add_theme_constant_override("separation", 22)
+	_vbox.add_theme_constant_override("separation", 14)
 	center_container.add_child(_vbox)
 
 	_title_label = Label.new()
 	_title_label.text = "VICTORIA"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 48)
+	_title_label.add_theme_font_size_override("font_size", 36)
 	_title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	_vbox.add_child(_title_label)
 
 	_gold_label = Label.new()
 	_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_gold_label.add_theme_font_size_override("font_size", 28)
+	_gold_label.add_theme_font_size_override("font_size", 22)
 	_gold_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 	_vbox.add_child(_gold_label)
 
 	_relic_label = Label.new()
 	_relic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_relic_label.add_theme_font_size_override("font_size", 20)
+	_relic_label.add_theme_font_size_override("font_size", 17)
 	_relic_label.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
 	_relic_label.visible = false
 	_vbox.add_child(_relic_label)
@@ -152,21 +152,21 @@ func _build_ui() -> void:
 	var choose_label := Label.new()
 	choose_label.text = "Elegí una carta para tu mazo:"
 	choose_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	choose_label.add_theme_font_size_override("font_size", 22)
+	choose_label.add_theme_font_size_override("font_size", 18)
 	choose_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
 	_vbox.add_child(choose_label)
 
 	_card_options = HBoxContainer.new()
 	_card_options.alignment = BoxContainer.ALIGNMENT_CENTER
-	_card_options.add_theme_constant_override("separation", 45)
-	_card_options.custom_minimum_size = Vector2(680, 270)
+	_card_options.add_theme_constant_override("separation", 42)
+	_card_options.custom_minimum_size = Vector2(680, 256)
 	_vbox.add_child(_card_options)
 
 	_skip_button = Button.new()
 	_skip_button.text = "SALTAR"
-	_skip_button.custom_minimum_size = Vector2(400, 60)
+	_skip_button.custom_minimum_size = Vector2(320, 48)
 	_skip_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_skip_button.add_theme_font_size_override("font_size", 20)
+	_skip_button.add_theme_font_size_override("font_size", 18)
 	_vbox.add_child(_skip_button)
 
 
@@ -206,7 +206,7 @@ func _render_rewards() -> void:
 		card_ui.top_level = false
 		card_ui.set_process(false)
 		card_ui.set_physics_process(false)
-		card_ui.card_data = card_data
+		card_ui.setup_card(card_data)
 		
 		card_ui.mouse_entered.connect(_on_card_mouse_entered.bind(card_ui))
 		card_ui.mouse_exited.connect(_on_card_mouse_exited.bind(card_ui))

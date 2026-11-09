@@ -191,22 +191,58 @@ Cada héroe tiene estadísticas base, atributos RPG (`STR`, `INT`, `DEX`, `LUCK`
 
 ## Cartas
 
+### Anatomía Visual y Código de Colores (`CardUI` + `CardData`)
+
+Cada carta renderizada por `ui/cards/card_ui.tscn` y `ui/cards/card_ui.gd` utiliza anclas proporcionales (escalando limpiamente tanto en mano a `140x200` como en `RewardView` a `180x240`) y se divide en 4 bloques funcionales:
+
+```text
+┌────────────────────────────────────────┐
+│ [Costo]  Nombre Carta    [Icono Arma]  │  <- Cabecera: Costo + Nombre (color por efecto) + Sinergia
+├────────────────────────────────────────┤
+│                                        │
+│          Sprite / Arte (2D)            │  <- Texture2D (`artwork`) o Emblema elemental de respaldo
+│                                        │
+├────────────────────────────────────────┤
+│ [🏷️ Familia de Arma: Ej. Espada/Daga] │  <- Tag compacto de compatibilidad (`get_weapon_tag_text()`)
+├────────────────────────────────────────┤
+│                                        │
+│           "+6 Daño Base                │  <- Descripción centrada (`StatsLabel`)
+│            +5 Hemorragia"              │
+│ 🩸                                     │  <- Abajo izq.: Emoji del estado al enemigo (`StatusIconLabel`)
+└────────────────────────────────────────┘
+  (Cuerpo y reborde fijo de 2px teñidos según la Rareza)
+```
+
+1. **Cuerpo y Borde según Rareza (`RaritySystem.get_tier_color`):**
+   - El fondo del cuerpo de la carta y su reborde uniforme de **2px** reflejan la jerarquía de rareza (**Gris** Común, **Verde** Poco Común, **Azul** Rara, **Violeta** Épica, **Dorado** Legendaria).
+2. **Color del Título según Función y Naturaleza Mágica (`CardData.get_color`):**
+   - El nombre de la carta (`TitleLabel`, con contorno negro de `2px` para garantizar contraste sobre cualquier rareza) indica qué hace la carta:
+     - **Azul** (`Color(0.32, 0.72, 1.0)`): **Escudo** (`DefenseEffect`).
+     - **Verde** (`Color(0.28, 0.92, 0.48)`): **Sanación** (`HealEffect`).
+     - **Rojo** (`Color(1.0, 0.32, 0.34)`): **Daño Físico / Alquímico** (`not is_magic_card()`).
+     - **Violeta Mágico** (`Color(0.82, 0.36, 1.0)` / `Color(0.86, 0.36, 1.0)`): **Daño Mágico** (`is_magic_card()`) y **Sobrecarga / Multiplicador** (`MultiplyEffect`).
+     - **Violeta Índigo** (`Color(0.58, 0.50, 1.0)`): **Robo de cartas** (`StealEffect`).
+3. **Flag Mágico (`is_magical` en `CardData` y `CardEffect`):**
+   - Tanto `CardData` como `CardEffect` exportan `@export var is_magical: bool`. El helper `CardData.is_magic_card()` evalúa `true` si la carta tiene `is_magical = true`, si requiere `WeaponData.Class.STAFF`, o si cualquiera de sus efectos tiene `is_magical = true` (activo por defecto en `BurnEffect`, `FreezeEffect`, `ShockEffect`, `ApplyStatusEffect` y `MultiplyEffect`).
+4. **Indicador Inferior Izquierdo de Estado al Enemigo (`CardData.get_enemy_status_icons`):**
+   - En la esquina inferior izquierda (`StatusIconLabel`) se muestran únicamente los emojis de los estados alterados que la carta aplica sobre el enemigo: `🩸` (Hemorragia), `🔥` (Quemadura), `❄️` (Congelamiento), `🧪` (Veneno), `⚡` (Electrocución) o `🎲` (Estado Aleatorio).
+
 ### Catálogo de Cartas implementadas (`cards/data/`)
 
-| Carta (`archivo.tres`) | Rareza (`Tier`) | Costo | Arma Requerida (`Class`) | Usa Daño de Arma | Único Uso (`single_use`) | Efectos (`CardEffect`) |
-|---|---|---|---|---|---|---|
-| **Corte Rápido** (`corte_rapido.tres`) | Común (`0`) | 1 | `DAGGER` (`4`) | Sí (Fallback: 2) | No | `HemorrhageEffect(6)` (+ daño del arma equipada) |
-| **Estocada** (`estocada.tres`) | Común (`0`) | 1 | `SWORD` (`1`), `KATANA` (`5`) | Sí (Fallback: 2) | No | `DamageEffect(10)` (+ daño base y escalado del arma equipada) |
-| **Frasco De Veneno** (`frasco_veneno_basico.tres`) | Común (`0`) | 2 | `ANY` (`0`) | Sí (Fallback: 2) | No | `PoisonEffect(2)` |
-| **Golpe Ígneo** (`golpe_fuego.tres`) | Común (`0`) | 1 | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(4)` + `BurnEffect(2)` |
-| **Escudo** (`escudo_basico.tres`) | Poco Común (`1`) | 1 | `ANY` (`0`) | Sí (Fallback: 2) | No | `DefenseEffect(8)` (+8 Escudo) |
-| **Golpe Congelante** (`golpe_congelante.tres`) | Poco Común (`1`) | 1 | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(4)` + `FreezeEffect(2)` |
-| **Robo** (`robo_basico.tres`) | Poco Común (`1`) | 1 | `ANY` (`0`) | Sí | No | `StealEffect(1)` (**Instantánea**: roba +1 carta al clickearla) |
-| **Sobrecarga** (`sobre_carga.tres`) | Poco Común (`1`) | 2 | `ANY` (`0`) | Sí | No | `MultiplyEffect(2.5)` (Multiplica `x2.5` el daño acumulado en el combo) |
-| **Tajo** (`tajo.tres`) | Poco Común (`1`) | 2 | `KATANA` (`5`) | Sí (Fallback: 2) | No | `DamageEffect(6)` + `HemorrhageEffect(5)` |
-| **Curación** (`curacion_basica.tres`) | Rara (`2`) | 1 | `ANY` (`0`) | No (Fallback: 0) | **Sí** (Cementerio) | `HealEffect(5)` (Restaura +5 HP al resolver el combo) |
-| **Lanza Rayo** (`lanza_rayo.tres`) | Rara (`2`) | 1 | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(5)` + `ShockEffect(3)` |
-| **Efecto Caótico** (`efecto_caotico.tres`) | Épica (`3`) | 1 | `ANY` (`0`) | No (Fallback: 2) | No | `ApplyStatusEffect(RANDOM, 5)` (+5 de un estado sorteado con pesos: 30% Burn, 30% Poison, 20% Freeze, 15% Shock, 5% Hemorrhage) |
+| Carta (`archivo.tres`) | Rareza (`Tier`) | Costo | Mágica (`is_magical`) | Arma Requerida (`Class`) | Usa Daño de Arma | Único Uso (`single_use`) | Efectos (`CardEffect`) |
+|---|---|---|---|---|---|---|---|
+| **Corte Rápido** (`corte_rapido.tres`) | Común (`0`) | 1 | No | `DAGGER` (`4`) | Sí (Fallback: 2) | No | `HemorrhageEffect(6)` (+ daño del arma equipada) |
+| **Estocada** (`estocada.tres`) | Común (`0`) | 1 | No | `SWORD` (`1`), `KATANA` (`5`) | Sí (Fallback: 2) | No | `DamageEffect(10)` (+ daño base y escalado del arma equipada) |
+| **Frasco De Veneno** (`frasco_veneno_basico.tres`) | Común (`0`) | 2 | No | `ANY` (`0`) | Sí (Fallback: 2) | No | `PoisonEffect(2)` |
+| **Golpe Ígneo** (`golpe_fuego.tres`) | Común (`0`) | 1 | **Sí** | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(4)` + `BurnEffect(2)` |
+| **Escudo** (`escudo_basico.tres`) | Poco Común (`1`) | 1 | No | `ANY` (`0`) | Sí (Fallback: 2) | No | `DefenseEffect(8)` (+8 Escudo) |
+| **Golpe Congelante** (`golpe_congelante.tres`) | Poco Común (`1`) | 1 | **Sí** | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(4)` + `FreezeEffect(2)` |
+| **Robo** (`robo_basico.tres`) | Poco Común (`1`) | 1 | No | `ANY` (`0`) | Sí | No | `StealEffect(1)` (**Instantánea**: roba +1 carta al clickearla) |
+| **Sobrecarga** (`sobre_carga.tres`) | Poco Común (`1`) | 2 | **Sí** | `ANY` (`0`) | Sí | No | `MultiplyEffect(2.5)` (Multiplica `x2.5` el daño acumulado en el combo) |
+| **Tajo** (`tajo.tres`) | Poco Común (`1`) | 2 | No | `KATANA` (`5`) | Sí (Fallback: 2) | No | `DamageEffect(6)` + `HemorrhageEffect(5)` |
+| **Curación** (`curacion_basica.tres`) | Rara (`2`) | 1 | No | `ANY` (`0`) | No (Fallback: 0) | **Sí** (Cementerio) | `HealEffect(5)` (Restaura +5 HP al resolver el combo) |
+| **Lanza Rayo** (`lanza_rayo.tres`) | Rara (`2`) | 1 | **Sí** | `STAFF` (`3`) | Sí (Fallback: 2) | No | `DamageEffect(5)` + `ShockEffect(3)` |
+| **Efecto Caótico** (`efecto_caotico.tres`) | Épica (`3`) | 1 | **Sí** | `ANY` (`0`) | No (Fallback: 2) | No | `ApplyStatusEffect(RANDOM, 5)` (+5 de un estado sorteado con pesos: 30% Burn, 30% Poison, 20% Freeze, 15% Shock, 5% Hemorrhage) |
 
 ### Cartas adicionales en diseño (`🚧 [FUTURO / PENDIENTE]`)
 

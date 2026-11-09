@@ -13,6 +13,7 @@ metadata/_custom_type_script = "uid://un5368owk5i6"
 script = ExtResource("1_p7oqd")
 title = "Sobrecarga"
 rarity = 1
+is_magical = true
 single_use = null
 effects = Array[ExtResource("1_3fq04")]([SubResource("Resource_o6e7d")])
 description = "x2.5."

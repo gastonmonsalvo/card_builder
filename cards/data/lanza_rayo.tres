@@ -18,6 +18,7 @@ metadata/_custom_type_script = "uid://cp45p65gay62l"
 script = ExtResource("2_7l088")
 title = "Lanza Rayo"
 rarity = 2
+is_magical = true
 effects = Array[ExtResource("1_m848m")]([SubResource("Resource_srhpc"), SubResource("Resource_4t61p")])
 description = "+5 de daño
 +3 de Electrocucion"

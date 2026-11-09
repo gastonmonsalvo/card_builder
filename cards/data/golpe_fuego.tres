@@ -18,6 +18,7 @@ metadata/_custom_type_script = "uid://cuveu461d62ex"
 [resource]
 script = ExtResource("1_vn7qq")
 title = "Golpe Ígneo"
+is_magical = true
 effects = Array[ExtResource("1_ds04l")]([SubResource("Resource_fijxh"), SubResource("Resource_civ8q")])
 description = "+4 de daño
 +2 de quemadura"

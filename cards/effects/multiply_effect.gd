@@ -4,6 +4,10 @@ class_name MultiplyEffect
 
 @export var factor: float = 2.0
 
+## Inicializa el efecto marcándolo por defecto como mágico/arcano.
+func _init() -> void:
+	is_magical = true
+
 ## Multiplica el acumulador `dmg` del `combo_state` por `factor` y registra el multiplicador para el banner del HUD.
 func apply(combo_state: Dictionary) -> void:
 	combo_state["dmg"] *= factor

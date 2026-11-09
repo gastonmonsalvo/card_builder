@@ -14,6 +14,7 @@ metadata/_custom_type_script = "uid://y0ryral4qgcc"
 script = ExtResource("2_1ftx6")
 title = "Efecto Caotico"
 rarity = 3
+is_magical = true
 effects = Array[ExtResource("1_sf1w0")]([SubResource("Resource_o1c4d")])
 description = "Aplica + 5 de un efecto aleatorio al enemigo. 
 El efecto no se ve afectado por armas ni stats."

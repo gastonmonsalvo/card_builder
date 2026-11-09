@@ -13,6 +13,10 @@ enum StatusType { BURN, POISON, FREEZE, SHOCK, HEMORRHAGE, RANDOM }
 ## Cantidad de acumulaciones del estado que se aplicarán al combo.
 @export var stacks: int = 2
 
+## Inicializa el efecto marcándolo por defecto como mágico/arcano.
+func _init() -> void:
+	is_magical = true
+
 ## Tabla de pesos para la resolución ponderada de estados aleatorios.
 const STATUS_WEIGHTS := {
 	StatusType.BURN: 30.0,

@@ -4,6 +4,9 @@
 extends Resource
 class_name CardEffect
 
+## Flag que identifica si el efecto es de naturaleza mágica/arcana (ej. hechizos elementales o sobrecarga).
+@export var is_magical: bool = false
+
 ## Método "abstracto" (a sobrescribir). Recibe y muta el diccionario `combo_state`, aplicando el daño,
 ## escudo o estado correspondiente durante la resolución del combate.
 func apply(_combo_state: Dictionary) -> void:

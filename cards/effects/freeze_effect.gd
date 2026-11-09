@@ -4,6 +4,10 @@ class_name FreezeEffect
 
 @export var amount: int = 2
 
+## Inicializa el efecto marcándolo por defecto como mágico/elemental.
+func _init() -> void:
+	is_magical = true
+
 ## Suma las cargas de Congelamiento (`freeze`) configuradas al diccionario de evaluación del combo.
 func apply(combo_state: Dictionary) -> void:
 	combo_state["freeze"] += amount

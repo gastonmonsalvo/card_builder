@@ -4,6 +4,10 @@ class_name BurnEffect
 
 @export var amount: int = 6
 
+## Inicializa el efecto marcándolo por defecto como mágico/elemental.
+func _init() -> void:
+	is_magical = true
+
 ## Suma las acumulaciones de Quemadura (`burn`) configuradas al diccionario de resolución del combo.
 func apply(combo_state: Dictionary) -> void:
 	combo_state["burn"] += amount

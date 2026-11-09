@@ -4,6 +4,10 @@ class_name ShockEffect
 
 @export var amount: int = 3
 
+## Inicializa el efecto marcándolo por defecto como mágico/elemental.
+func _init() -> void:
+	is_magical = true
+
 ## Suma las cargas de Electrocutado (`shock`) al diccionario de evaluación del combo.
 func apply(combo_state: Dictionary) -> void:
 	combo_state["shock"] = combo_state.get("shock", 0) + amount
