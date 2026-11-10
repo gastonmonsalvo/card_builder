@@ -13,8 +13,9 @@ func update_data(player_hp: int, max_player_hp: int, player_block: int,
 		"❤️: %d / %d" % [player_hp, max_player_hp],
 		"🗡️: %s" % weapon_name,
 		"⚡: %d / %d" % [energy, max_energy],
-		"🍀: %d   
-		💥: +%d%% / %.1f%% Crit" % [player_luck, level_dmg_pct, crit_pct]
+		"🍀: %d" % player_luck,
+		"💥 Daño: +%d%%" % level_dmg_pct,
+		"🎯 Crítico: %.1f%%" % crit_pct
 	]
 
 	if player_block > 0:
