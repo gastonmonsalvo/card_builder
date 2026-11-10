@@ -28,6 +28,12 @@ var _title_label: Label
 var _gold_label: Label
 var _xp_label: Label
 var _level_up_label: Label
+var _stat_alloc_box: VBoxContainer
+var _stat_alloc_title: Label
+var _stat_btn_str: Button
+var _stat_btn_dex: Button
+var _stat_btn_int: Button
+var _stat_btn_crit: Button
 var _relic_label: Label
 var _card_options: HBoxContainer
 var _skip_button: Button
@@ -130,38 +136,64 @@ func _build_ui() -> void:
 
 	_vbox = VBoxContainer.new()
 	_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	_vbox.add_theme_constant_override("separation", 14)
+	_vbox.add_theme_constant_override("separation", 9)
 	center_container.add_child(_vbox)
 
 	_title_label = Label.new()
 	_title_label.text = "VICTORIA"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 36)
+	_title_label.add_theme_font_size_override("font_size", 32)
 	_title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	_vbox.add_child(_title_label)
 
 	_gold_label = Label.new()
 	_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_gold_label.add_theme_font_size_override("font_size", 22)
+	_gold_label.add_theme_font_size_override("font_size", 20)
 	_gold_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 	_vbox.add_child(_gold_label)
 
 	_xp_label = Label.new()
 	_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_xp_label.add_theme_font_size_override("font_size", 17)
+	_xp_label.add_theme_font_size_override("font_size", 16)
 	_xp_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
 	_vbox.add_child(_xp_label)
 
 	_level_up_label = Label.new()
 	_level_up_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_level_up_label.add_theme_font_size_override("font_size", 16)
+	_level_up_label.add_theme_font_size_override("font_size", 15)
 	_level_up_label.add_theme_color_override("font_color", Color(0.35, 1.0, 0.58))
 	_level_up_label.visible = false
 	_vbox.add_child(_level_up_label)
 
+	_stat_alloc_box = VBoxContainer.new()
+	_stat_alloc_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_stat_alloc_box.add_theme_constant_override("separation", 6)
+	_stat_alloc_box.visible = false
+	_vbox.add_child(_stat_alloc_box)
+
+	_stat_alloc_title = Label.new()
+	_stat_alloc_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_stat_alloc_title.add_theme_font_size_override("font_size", 14)
+	_stat_alloc_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+	_stat_alloc_box.add_child(_stat_alloc_title)
+
+	var stat_btns_row := HBoxContainer.new()
+	stat_btns_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	stat_btns_row.add_theme_constant_override("separation", 12)
+	_stat_alloc_box.add_child(stat_btns_row)
+
+	_stat_btn_str = _create_stat_button("str", Color(1.0, 0.52, 0.42))
+	_stat_btn_dex = _create_stat_button("dex", Color(0.45, 0.95, 0.62))
+	_stat_btn_int = _create_stat_button("int", Color(0.52, 0.78, 1.0))
+	_stat_btn_crit = _create_stat_button("crit", Color(1.0, 0.84, 0.32))
+	stat_btns_row.add_child(_stat_btn_str)
+	stat_btns_row.add_child(_stat_btn_dex)
+	stat_btns_row.add_child(_stat_btn_int)
+	stat_btns_row.add_child(_stat_btn_crit)
+
 	_relic_label = Label.new()
 	_relic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_relic_label.add_theme_font_size_override("font_size", 17)
+	_relic_label.add_theme_font_size_override("font_size", 16)
 	_relic_label.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
 	_relic_label.visible = false
 	_vbox.add_child(_relic_label)
@@ -169,21 +201,21 @@ func _build_ui() -> void:
 	var choose_label := Label.new()
 	choose_label.text = "Elegí una carta para tu mazo:"
 	choose_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	choose_label.add_theme_font_size_override("font_size", 18)
+	choose_label.add_theme_font_size_override("font_size", 17)
 	choose_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
 	_vbox.add_child(choose_label)
 
 	_card_options = HBoxContainer.new()
 	_card_options.alignment = BoxContainer.ALIGNMENT_CENTER
 	_card_options.add_theme_constant_override("separation", 42)
-	_card_options.custom_minimum_size = Vector2(680, 256)
+	_card_options.custom_minimum_size = Vector2(680, 248)
 	_vbox.add_child(_card_options)
 
 	_skip_button = Button.new()
 	_skip_button.text = "SALTAR"
-	_skip_button.custom_minimum_size = Vector2(320, 48)
+	_skip_button.custom_minimum_size = Vector2(320, 42)
 	_skip_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_skip_button.add_theme_font_size_override("font_size", 18)
+	_skip_button.add_theme_font_size_override("font_size", 17)
 	_vbox.add_child(_skip_button)
 
 
@@ -203,12 +235,11 @@ func _render_rewards() -> void:
 		if lvls_gained > 0 and run != null:
 			var hp_max_up: int = int(xp_result.get("hp_max_gained", 0))
 			var hp_healed: int = int(xp_result.get("hp_healed", 0))
-			_level_up_label.text = "✨ ¡SUBISTE A NIVEL %d! (+%d HP Máx | +%d HP Curado | +%d%% Daño Global | %.1f%% Crítico)" % [
+			_level_up_label.text = "✨ ¡SUBISTE A NIVEL %d! (+%d HP Máx | +%d HP Curado | +%d%% Daño Global)" % [
 				cur_lvl,
 				hp_max_up,
 				hp_healed,
-				run.get_level_damage_bonus_pct(),
-				run.get_crit_chance_pct()
+				run.get_level_damage_bonus_pct()
 			]
 			_level_up_label.visible = true
 		else:
@@ -216,6 +247,8 @@ func _render_rewards() -> void:
 	else:
 		_xp_label.visible = false
 		_level_up_label.visible = false
+
+	_refresh_stat_alloc_ui()
 
 	if relic_reward:
 		_relic_label.text = "Reliquia obtenida: %s" % relic_reward.title
@@ -267,6 +300,65 @@ func _render_rewards() -> void:
 
 	if not _skip_button.pressed.is_connected(_on_skip_button_pressed):
 		_skip_button.pressed.connect(_on_skip_button_pressed)
+
+
+## Construye un botón estilizado para invertir un punto de atributo al subir de nivel.
+func _create_stat_button(stat_key: String, accent_color: Color) -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(215, 34)
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_color_override("font_color", accent_color)
+	btn.pressed.connect(_on_stat_button_pressed.bind(stat_key))
+	return btn
+
+
+## Actualiza la visibilidad y los textos en vivo del selector de atributos de subida de nivel.
+func _refresh_stat_alloc_ui() -> void:
+	if run == null or _stat_alloc_box == null:
+		return
+
+	var pts: int = run.unspent_stat_points
+	var lvls_gained: int = int(xp_result.get("levels_gained", 0))
+	if pts <= 0 and lvls_gained <= 0:
+		_stat_alloc_box.visible = false
+		return
+
+	_stat_alloc_box.visible = true
+	_stat_btn_str.text = "💪 +1 STR (Actual: %d)" % run.player_str
+	_stat_btn_dex.text = "🗡️ +1 DEX (Actual: %d)" % run.player_dex
+	_stat_btn_int.text = "🔮 +1 INT (Actual: %d)" % run.player_int
+	_stat_btn_crit.text = "🎯 +Crítico (%.1f%% → %.1f%%)" % [
+		run.get_crit_chance_pct(),
+		run.get_next_crit_chance_pct()
+	]
+
+	var has_pts: bool = pts > 0
+	_stat_btn_str.visible = has_pts
+	_stat_btn_dex.visible = has_pts
+	_stat_btn_int.visible = has_pts
+	_stat_btn_crit.visible = has_pts
+
+	if has_pts:
+		_stat_alloc_title.text = "⚡ Puntos de Atributo disponibles: %d — Elegí qué mejorar (o guardalo para tu Inventario):" % pts
+		_stat_alloc_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+	else:
+		_stat_alloc_title.text = "✅ ¡Atributo mejorado! (STR: %d | DEX: %d | INT: %d | Crítico: %.1f%%)" % [
+			run.player_str,
+			run.player_dex,
+			run.player_int,
+			run.get_crit_chance_pct()
+		]
+		_stat_alloc_title.add_theme_color_override("font_color", Color(0.45, 1.0, 0.65))
+
+
+## Invierte un punto de atributo desde la pantalla de victoria y refresca los valores en vivo.
+func _on_stat_button_pressed(stat_key: String) -> void:
+	if _is_selecting or run == null:
+		return
+	if run.spend_stat_point(stat_key):
+		if table and table.has_method("refresh_ui"):
+			table.refresh_ui()
+		_refresh_stat_alloc_ui()
 
 
 ## Detecta cuando el mouse entra a una carta, la marca como activa y aplica un impulso elástico de escala.

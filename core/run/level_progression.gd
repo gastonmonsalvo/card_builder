@@ -30,6 +30,7 @@ static func apply_xp_gain(run: RunState, amount: int) -> Dictionary:
 	var levels_gained: int = 0
 	var hp_max_gained: int = 0
 	var total_healed: int = 0
+	var stat_points_gained: int = 0
 
 	run.player_xp += safe_amount
 	run.total_xp_earned += safe_amount
@@ -39,6 +40,9 @@ static func apply_xp_gain(run: RunState, amount: int) -> Dictionary:
 		run.player_xp -= req_xp
 		run.player_level += 1
 		levels_gained += 1
+
+		run.unspent_stat_points += CombatConstants.STAT_POINTS_PER_LEVEL_UP
+		stat_points_gained += CombatConstants.STAT_POINTS_PER_LEVEL_UP
 
 		run.max_player_hp += CombatConstants.LEVEL_UP_MAX_HP_BONUS
 		hp_max_gained += CombatConstants.LEVEL_UP_MAX_HP_BONUS
@@ -53,6 +57,7 @@ static func apply_xp_gain(run: RunState, amount: int) -> Dictionary:
 	return {
 		"xp_gained": safe_amount,
 		"levels_gained": levels_gained,
+		"stat_points_gained": stat_points_gained,
 		"old_level": old_level,
 		"new_level": run.player_level,
 		"hp_max_gained": hp_max_gained,
@@ -61,17 +66,22 @@ static func apply_xp_gain(run: RunState, amount: int) -> Dictionary:
 		"next_level_xp": get_xp_required_for_next_level(run.player_level)
 	}
 
-## Devuelve el Rating de Crítico acumulado por nivel: +10 puntos por nivel (iniciando con 10 pts en Nivel 1 = ~3.8%).
-static func get_crit_rating(level: int) -> int:
-	return max(1, level) * CombatConstants.LEVEL_CRIT_RATING_PER_LEVEL
+## Devuelve el Rating de Crítico total combinando la base inicial de Nivel 1 (10 pts = ~3.8%)
+## más el `bonus_rating` que el jugador haya elegido invertir manualmente al subir de nivel.
+static func get_crit_rating(_level: int = 1, bonus_rating: int = 0) -> int:
+	return CombatConstants.LEVEL_CRIT_RATING_PER_LEVEL + max(0, bonus_rating)
 
-## Calcula la probabilidad de Golpe Crítico [0.0 .. 0.50] mediante curva asintótica protegida:
+## Calcula la probabilidad de Golpe Crítico [0.0 .. 0.50] a partir de un Rating de Crítico arbitrario:
 ## CritChance = (RatingCrit / (RatingCrit + 120)) * 50%
-static func get_crit_chance(level: int) -> float:
-	var rating: float = float(get_crit_rating(level))
+static func get_crit_chance_from_rating(rating_pts: int) -> float:
+	var rating: float = float(max(0, rating_pts))
 	if rating <= 0.0:
 		return 0.0
 	return (rating / (rating + CombatConstants.LEVEL_CRIT_ASYMPTOTE_K)) * CombatConstants.LEVEL_CRIT_MAX_CAP
+
+## Calcula la probabilidad de Golpe Crítico [0.0 .. 0.50] mediante curva asintótica protegida.
+static func get_crit_chance(level: int = 1, bonus_rating: int = 0) -> float:
+	return get_crit_chance_from_rating(get_crit_rating(level, bonus_rating))
 
 ## Devuelve el porcentaje de bonificación de daño global aportado por el nivel: (Nivel - 1) * 2%.
 static func get_level_damage_bonus_pct(level: int) -> int:

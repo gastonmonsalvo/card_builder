@@ -9,7 +9,7 @@ signal card_clicked(card: CardUI)
 signal card_drag_moved(card: CardUI)
 signal card_released(card: CardUI)
 
-enum State { IDLE, HOVERED, DRAGGING }
+enum State { IDLE, HOVERED, DRAGGING, CONSUMING }
 var current_state: State = State.IDLE
 
 const DRAG_THRESHOLD: float = 8.0
@@ -206,9 +206,9 @@ func pulse() -> void:
 	rotation_degrees = 7.0
 
 ## Actualiza forzosamente el orden de profundidad visual (Z-Index) de la carta a su valor correspondiente,
-## asumiendo que no esté siendo arrastrada.
+## asumiendo que no esté siendo arrastrada ni consumida.
 func update_z_index() -> void:
-	if current_state != State.DRAGGING:
+	if current_state != State.DRAGGING and current_state != State.CONSUMING:
 		z_index = 50 if current_state == State.HOVERED else base_z_index
 
 ## Evalúa el clic izquierdo para distinguir entre un toque rápido (emite `card_clicked` al soltar)
@@ -242,16 +242,16 @@ func _stop_dragging() -> void:
 	card_released.emit(self)
 
 ## Transiciona la carta al estado HOVERED y eleva ligeramente su Z-Index (50),
-## ignorando el evento si está en pleno arrastre.
+## ignorando el evento si está en pleno arrastre o consumiéndose.
 func _on_mouse_entered() -> void:
-	if current_state == State.DRAGGING:
+	if current_state == State.DRAGGING or current_state == State.CONSUMING:
 		return
 	current_state = State.HOVERED
 	z_index = 50
 
-## Devuelve la carta al estado IDLE y restaura su Z-Index base, siempre y cuando no esté siendo arrastrada.
+## Devuelve la carta al estado IDLE y restaura su Z-Index base, siempre y cuando no esté siendo arrastrada ni consumida.
 func _on_mouse_exited() -> void:
-	if current_state == State.DRAGGING:
+	if current_state == State.DRAGGING or current_state == State.CONSUMING:
 		return
 	current_state = State.IDLE
 	z_index = base_z_index
@@ -259,7 +259,12 @@ func _on_mouse_exited() -> void:
 ## Ejecuta la animación de consumo estilo cartas de tarot (elevación, sacudida, quema y desintegración).
 ## No destruye el nodo; el orquestador (`BattleTable`) se encarga de liberarlo al finalizar.
 func play_consume_animation() -> void:
+	current_state = State.CONSUMING
+	set_process(false)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	base_z_index = 140
+	z_index = 140
+	move_to_front()
 	
 	pivot_offset = size * 0.5
 	var original_pos := position

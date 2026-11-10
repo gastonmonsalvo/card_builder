@@ -55,7 +55,9 @@ static func to_dict(run: RunState, deck_data: Array) -> Dictionary:
 			"dex": run.player_dex,
 			"level": run.player_level,
 			"xp": run.player_xp,
-			"total_xp": run.total_xp_earned
+			"total_xp": run.total_xp_earned,
+			"stat_points": run.unspent_stat_points,
+			"bonus_crit_rating": run.bonus_crit_rating
 		},
 		"deck": deck_data,
 		"relics": relic_paths,
@@ -89,6 +91,8 @@ static func from_dict(run: RunState, data: Dictionary, deck: DeckManager) -> voi
 	run.player_level = max(1, int(stats.get("level", 1)))
 	run.player_xp = max(0, int(stats.get("xp", 0)))
 	run.total_xp_earned = max(0, int(stats.get("total_xp", 0)))
+	run.unspent_stat_points = max(0, int(stats.get("stat_points", 0)))
+	run.bonus_crit_rating = max(0, int(stats.get("bonus_crit_rating", 0)))
 
 	if run.weapon_catalog.is_empty():
 		run.weapon_catalog = GameDatabase.load_all_weapons()

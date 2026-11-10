@@ -61,7 +61,7 @@ func get_display_name() -> String:
 		Type.COMBAT:
 			return "LIMPIA" if cleared else "COMBATE"
 		Type.ELITE:
-			return "LIMPIA" if cleared else "ÉLITE ⚔️"
+			return "LIMPIA" if cleared else "ÉLITE"
 		Type.TREASURE:
 			return "SAQUEADO" if cleared else "RELIQUIA"
 		Type.REST:

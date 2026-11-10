@@ -52,8 +52,12 @@ const MAX_INVENTORY_SIZE: int = 4
 const LEVEL_UP_MAX_HP_BONUS: int = 5
 ## Porcentaje de Vida Máxima restaurado como sustain al subir de nivel (15%).
 const LEVEL_UP_HEAL_RATIO: float = 0.15
-## Puntos de Rating de Crítico ganados por cada nivel subido (+10 por nivel).
+## Puntos de atributo otorgados al jugador por cada nivel subido (+1 punto por nivel).
+const STAT_POINTS_PER_LEVEL_UP: int = 1
+## Puntos base de Rating de Crítico al iniciar en Nivel 1 (10 pts = ~3.8% Crit).
 const LEVEL_CRIT_RATING_PER_LEVEL: int = 10
+## Puntos adicionales de Rating de Crítico ganados al invertir 1 Punto de Atributo en Crítico.
+const CRIT_RATING_PER_STAT_POINT: int = 15
 ## Constante de suavizado asintótico para el Rating de Crítico.
 const LEVEL_CRIT_ASYMPTOTE_K: float = 120.0
 ## Techo matemático máximo de probabilidad de crítico aportado por niveles (50%).

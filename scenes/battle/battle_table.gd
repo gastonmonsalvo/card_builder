@@ -518,8 +518,10 @@ func consume_instant_card(card: CardUI) -> int:
 	# 2. Desvincularla lógicamente del tablero
 	board.remove_card(card)
 	
-	# 3. Traer la carta al frente visual
-	card.z_index = 100
+	# 3. Traer la carta al frente visual por encima de todas las cartas y paneles de la mesa
+	card.base_z_index = 140
+	card.z_index = 140
+	card.move_to_front()
 	
 	# 4. Posicionar explícitamente en el centro de la combo zone
 	var target_pos: Vector2 = board.combo_zone.global_position + (board.combo_zone.size * 0.5) - (card.size * 0.5)

@@ -74,6 +74,10 @@ var player_level: int = 1
 var player_xp: int = 0
 ## Experiencia histórica total acumulada a lo largo de toda la run actual.
 var total_xp_earned: int = 0
+## Puntos de atributo pendientes de asignar obtenidos al subir de nivel.
+var unspent_stat_points: int = 0
+## Puntos de Rating de Crítico adicionales acumulados manualmente por elección del jugador.
+var bonus_crit_rating: int = 0
 
 
 	
@@ -97,6 +101,8 @@ func start_new_run(custom_seed: int , hero: HeroData) -> void:
 	player_level = 1
 	player_xp = 0
 	total_xp_earned = 0
+	unspent_stat_points = 0
+	bonus_crit_rating = 0
 	selected_hero = hero
 	if hero:
 		max_player_hp = hero.max_hp_base
@@ -445,17 +451,42 @@ func get_combat_xp_reward(room_type: int = -1, floor_num: int = current_floor) -
 func gain_xp(amount: int) -> Dictionary:
 	return LevelProgression.apply_xp_gain(self, amount)
 
-## Devuelve el Rating de Crítico acumulado por nivel (+10 pts/nivel sobre 1).
+## Invierte 1 punto de atributo pendiente (`unspent_stat_points`) en la estadística elegida:
+## `"str"` (+1 Fuerza), `"dex"` (+1 Destreza), `"int"` (+1 Inteligencia) o `"crit"` (+15 Rating de Crítico).
+## Retorna `true` si el punto fue consumido con éxito.
+func spend_stat_point(stat_key: String) -> bool:
+	if unspent_stat_points <= 0:
+		return false
+	match stat_key.to_lower():
+		"str":
+			player_str += 1
+		"dex":
+			player_dex += 1
+		"int":
+			player_int += 1
+		"crit":
+			bonus_crit_rating += CombatConstants.CRIT_RATING_PER_STAT_POINT
+		_:
+			return false
+	unspent_stat_points -= 1
+	return true
+
+## Devuelve el Rating de Crítico total (base de Nivel 1 + puntos invertidos manualmente en Crítico).
 func get_crit_rating() -> int:
-	return LevelProgression.get_crit_rating(player_level)
+	return LevelProgression.get_crit_rating(player_level, bonus_crit_rating)
 
 ## Calcula la probabilidad de Golpe Crítico [0.0 .. 0.50] mediante curva asintótica.
 func get_crit_chance() -> float:
-	return LevelProgression.get_crit_chance(player_level)
+	return LevelProgression.get_crit_chance(player_level, bonus_crit_rating)
 
 ## Devuelve la probabilidad de Golpe Crítico expresada en porcentaje (ej. 14.7 para 14.7%).
 func get_crit_chance_pct() -> float:
 	return get_crit_chance() * 100.0
+
+## Calcula cuál sería el porcentaje de Golpe Crítico si el jugador invirtiera 1 punto adicional en Crítico.
+func get_next_crit_chance_pct() -> float:
+	var next_rating: int = get_crit_rating() + CombatConstants.CRIT_RATING_PER_STAT_POINT
+	return LevelProgression.get_crit_chance_from_rating(next_rating) * 100.0
 
 ## Devuelve el porcentaje de bonificación de daño global aportado por el nivel: (Nivel - 1) * 2%.
 func get_level_damage_bonus_pct() -> int:
