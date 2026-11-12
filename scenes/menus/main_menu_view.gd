@@ -1,7 +1,7 @@
 ## Vista principal del Menú de Inicio (`MainMenuView`) construida proceduralmente.
 ## Presenta el estado del perfil activo ya cargado (nombre, ranura, récord de piso y victorias),
 ## informa el resultado de la última expedición (si hubo Game Over o abandono) y coordina el acceso
-## hacia la pantalla dedicada de selección de héroe (`HeroSelectView`), el cambio de perfil o el cierre del juego.
+## hacia la pantalla dedicada de selección de héroe (`qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqSelectView`), el cambio de perfil o el cierre del juego.
 extends Control
 class_name MainMenuView
 

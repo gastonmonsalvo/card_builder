@@ -88,8 +88,6 @@ offset_right = -8.0
 offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "DATOS
-DEL JUGADOR"
 vertical_alignment = 1
 
 [node name="EnemyPanel" type="Panel" parent="HUD" unique_id=9001004]

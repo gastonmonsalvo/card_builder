@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dm8c806rdq7l0"]
 
 [ext_resource type="Script" uid="uid://en8f4ju7d6kp" path="res://cards/effects/card_effect.gd" id="1_18mjd"]
+[ext_resource type="Texture2D" uid="uid://dqfl5yi2engd5" path="res://assets/textures/cards/shield.png" id="1_lkkcp"]
 [ext_resource type="Script" uid="uid://cob1g5x6igww8" path="res://cards/card_data.gd" id="1_qpluq"]
 [ext_resource type="Script" uid="uid://cvh3wc3mgmn13" path="res://cards/effects/defense_effect.gd" id="2_f8gj1"]
 
@@ -11,6 +12,7 @@ script = ExtResource("2_f8gj1")
 script = ExtResource("1_qpluq")
 title = "Escudo"
 rarity = 1
+artwork = ExtResource("1_lkkcp")
 effects = Array[ExtResource("1_18mjd")]([SubResource("Resource_e555c")])
 description = "+8 de armadura."
 metadata/_custom_type_script = "uid://cob1g5x6igww8"
