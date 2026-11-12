@@ -203,6 +203,7 @@ card-prototype/
 │   ├── battle/
 │   │   ├── hud_battle.gd                       # (class_name BattleHUD)
 │   │   ├── player_hud.gd
+│   │   ├── stat_row.gd
 │   │   ├── enemy_hud.gd
 │   │   ├── combo_banner.gd
 │   │   ├── crit_dice_widget.gd                 # (class_name CritDiceWidget)

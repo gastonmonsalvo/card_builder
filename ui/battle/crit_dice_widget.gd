@@ -155,7 +155,8 @@ func play_roll(combo_state: Dictionary, on_landed: Callable = Callable(), banner
 	visible = true
 	modulate = Color(1, 1, 1, 1)
 	scale = Vector2(0.80, 0.80)
-	rotation_degrees = 0.0
+	rotation_degrees = 0.0            # el panel no gira nunca
+	_number_lbl.rotation_degrees = 0.0  # el dado arranca sin giro
 
 	var pop_tween := create_tween()
 	pop_tween.tween_property(self, "scale", Vector2(1.0, 1.0), 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -164,6 +165,10 @@ func play_roll(combo_state: Dictionary, on_landed: Callable = Callable(), banner
 	await _wait_or_skip(0.55)
 
 	# --- ETAPA 2: GIRO DEL DADO (RÁPIDO Y FLUIDO ~0.65s, SALTABLE CON CLIC) ---
+	# Solo gira la etiqueta del dado (_number_lbl), NO el panel completo.
+	# Centramos el pivote del dado en su propio centro para un giro natural.
+	_number_lbl.pivot_offset = _number_lbl.size * 0.5
+
 	if not _skip_requested:
 		_outcome_lbl.text = "Tirando D100..."
 		var step_delays: Array[float] = [0.045, 0.045, 0.05, 0.05, 0.06, 0.07, 0.08, 0.10, 0.13]
@@ -172,13 +177,15 @@ func play_roll(combo_state: Dictionary, on_landed: Callable = Callable(), banner
 				break
 			var fake_num: int = ((final_roll + (i + 1) * 17 + i * 11) % 100) + 1
 			_number_lbl.text = "🎲  [ %02d ]" % fake_num
-			rotation_degrees = -3.0 if (i % 2 == 0) else 3.0
+			_number_lbl.pivot_offset = _number_lbl.size * 0.5  # re-centra por si cambió el ancho
+			_number_lbl.rotation_degrees = -3.0 if (i % 2 == 0) else 3.0
 			await _wait_or_skip(step_delays[i])
 
 	# --- ETAPA 3: RESULTADO EN PANTALLA (LECTURA PAUSADA Y CLARA, SALTABLE CON CLIC) ---
-	rotation_degrees = 0.0
+	_number_lbl.rotation_degrees = 0.0
+	_number_lbl.pivot_offset = _number_lbl.size * 0.5
 	scale = Vector2(1.0, 1.0)
-	_target_lbl.text = "🎯 NECESITABAS: %d+    |    🎲 SALIÓ: %d" % [threshold, final_roll]
+	_target_lbl.text = "🎯 NECESITABAS: %d+  " % [threshold]
 	_number_lbl.text = "🎲 SALIÓ:  %d" % final_roll
 	if on_landed.is_valid():
 		on_landed.call()
@@ -202,7 +209,7 @@ func play_roll(combo_state: Dictionary, on_landed: Callable = Callable(), banner
 		_dice_style.bg_color = Color(0.07, 0.09, 0.14, 0.98)
 		_dice_style.border_color = Color(0.50, 0.58, 0.70)
 		_number_lbl.add_theme_color_override("font_color", Color(0.90, 0.94, 1.0))
-		_outcome_lbl.text = "⚔️ NO ALCANZÓ EL UMBRAL  •  GOLPE NORMAL (x1.0)"
+		_outcome_lbl.text = " NO ALCANZÓ EL UMBRAL  •  GOLPE NORMAL (x1.0)"
 		_outcome_lbl.add_theme_color_override("font_color", Color(0.78, 0.84, 0.92))
 		_damage_lbl.text = "⚔️ DAÑO TOTAL APLICADO:  %d DAÑO" % final_dmg
 		_damage_lbl.add_theme_color_override("font_color", Color(0.95, 0.97, 1.0))

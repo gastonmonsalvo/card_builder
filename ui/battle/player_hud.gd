@@ -72,12 +72,15 @@ func update_data(player_hp: int, max_player_hp: int, player_block: int,
 	
 	_row_hp.set_text("%d / %d" % [player_hp, max_player_hp])
 	
+	"""
 	if player_block > 0:
 		_row_block.set_text("+%d" % player_block)
 		_row_block.set_visible(true)
 	else:
 		_row_block.set_visible(false)
-		
+	"""
+	_row_block.set_text("+%d" % player_block)
+	_row_block.set_visible(true)
 	_row_weapon.set_text(weapon_name)
 	_row_energy.set_text("%d / %d" % [energy, max_energy])
 	_row_luck.set_text("%d" % player_luck)
