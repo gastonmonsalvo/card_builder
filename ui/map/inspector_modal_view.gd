@@ -77,6 +77,15 @@ func _init() -> void:
 	close_btn.pressed.connect(func(): visible = false)
 	add_child(close_btn)
 
+## Centra el modal respecto al viewport actual y se suscribe a cambios de tamaño.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+## Recalcula la posición del modal de inspección para mantenerlo centrado en el viewport.
+func _layout_for_viewport() -> void:
+	position = (get_viewport_rect().size - size) * 0.5
+
 ## Inyecta el texto del título y la descripción detallada en las etiquetas correspondientes de la interfaz,
 ## ocultando la grilla de cartas y haciendo visible el modal en modo texto (usado para Reliquias).
 func open_inspector(title_txt: String, body_txt: String) -> void:

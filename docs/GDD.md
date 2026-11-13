@@ -473,7 +473,7 @@ En lugar de columnas lineales, cada planta se construye sobre una **grilla ortog
 | **`BOSS`** | `JEFE` / `DERROTADO` | Encuentro contra Jefe escalado; al ganar abre `RewardView` y luego avanza a la siguiente planta (`current_floor + 1`). |
 | **`TREASURE`** | `RELIQUIA` / `SAQUEADO` | Otorga inmediatamente 1 reliquia aleatoria ponderada por `RaritySystem` (evitando duplicadas). |
 | **`REST`** | `HOGUERA` / `USADO` | Cura instantáneamente entre **25 y 50 HP**, interpolado suavemente según `player_luck` (alcanza 50 HP con 12 de Suerte). |
-| **`SANCTUARY`** | `SANTUARIO` / `BENDECIDO` | Abre `SanctuaryModalView` con 2 opciones:<br>1. **Don del Artefacto**: Otorga +1 Reliquia (con bonus de fortuna $+1.0$ por piso hasta $+4.0$) y cura entre **25% y 50% del HP máximo** según Suerte.<br>2. **Vitalidad Inmortal**: Aumenta el **HP Máximo permanente entre +5 y +25** según Suerte y cura esa misma cantidad. |
+| **`SANCTUARY`** | `SANTUARIO` / `BENDECIDO` | Abre `SanctuaryModalView` (`600x320` centrado con ajuste de texto automático) con 2 opciones:<br>1. **Don del Artefacto**: Otorga +1 Reliquia (con bonus de fortuna $+1.0$ por piso hasta $+4.0$) y cura entre **25% y 50% del HP máximo** según Suerte.<br>2. **Vitalidad Inmortal**: Aumenta el **HP Máximo permanente entre +5 y +25** según Suerte y cura esa misma cantidad. |
 | **`SHOP`** | `TIENDA` | Abre `ShopView` (permite salir y volver a entrar todas las veces que se quiera dentro de la misma planta conservando el stock). |
 
 ### Eventos narrativos adicionales (`🚧 [FUTURO / PENDIENTE]`)
@@ -603,9 +603,10 @@ const MAX_INVENTORY_SIZE: int = 4
 - **Clic rápido en carta de la mano**: Si es instantánea (`Robo`), se consume en el acto; si es normal y hay energía, sube al final de la `ComboZone`.
 - **Clic rápido en carta de la `ComboZone`**: La devuelve a la mano y reembolsa su energía.
 - **Drag & Drop en `ComboZone` / `HandZone`**: Permite arrastrar cartas entre zonas e **intercalar su orden horizontalmente en vivo**, recalculando instantáneamente el `ComboBanner`.
-- **Botón `INVENTARIO`**: Abre `InventoryModalView` para ver `STR / INT / DEX / LUCK` y cambiar el arma equipada desde la mochila.
+- **Botón `INVENTARIO`**: Nodo `InventoryBtn` en `BattleHUD` (`battle_table.tscn`); abre `InventoryModalView` para ver `STR / INT / DEX / LUCK` y cambiar el arma equipada desde la mochila.
 - **Botones `Mazo`, `Descarte`, `Cementerio`**: Abren `PileInspector` mostrando el conteo agrupado de cartas en esa pila.
-- **`ESC`**: Abre `PauseMenuView` (Continuar, Abandonar Partida con confirmación, Guardar y Salir).
+- **`ESC`**: Abre `PauseMenuView` (Continuar, Abandonar Partida con confirmación modal bloqueadora, Guardar y Salir).
+- **`F`**: Alterna globalmente (`WindowController`) entre modo ventana normal (`1152x648` base, redimensionable con centrado dinámico de toda la UI) y ventana completa maximizada, sin activarse al escribir en campos de texto.
 - **`F3` / `F4`** *(solo builds debug)*: Abre/oculta el `DebugOverlay`.
 
 ---

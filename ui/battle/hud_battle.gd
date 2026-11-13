@@ -13,8 +13,7 @@ signal equipment_changed
 @onready var draw_pile_btn: Button = $DrawPileBtn
 @onready var discard_pile_btn: Button = $DiscardPileBtn
 @onready var graveyard_pile_btn: Button = $GraveyardPileBtn
-
-var inventory_btn: Button
+@onready var inventory_btn: Button = $InventoryBtn
 
 ## Referencias a las pilas inyectadas por DeckManager
 var _draw_pile: CardPile
@@ -38,16 +37,11 @@ func _ready() -> void:
 	add_child(inventory_modal)
 	inventory_modal.weapon_selected_to_equip.connect(_on_inventory_weapon_selected)
 
-	# Botón único de Inventario General en el HUD (izquierda)
-	inventory_btn = Button.new()
-	inventory_btn.text = "INVENTARIO"
-	inventory_btn.position = Vector2(20, 495)
-	inventory_btn.size = Vector2(175, 55)
+	# Conectar botón de Inventario General definido en battle_table.tscn
 	inventory_btn.pressed.connect(func():
 		if _run_ref:
 			inventory_modal.open_inventory(_run_ref)
 	)
-	add_child(inventory_btn)
 
 	crit_dice_widget = CritDiceWidget.new()
 	add_child(crit_dice_widget)

@@ -72,6 +72,16 @@ func _init() -> void:
 	panel.add_child(log_label)
 
 	_build_columns()
+
+## Centra el panel de depuración respecto al viewport actual y se suscribe a cambios de tamaño.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+## Recalcula la posición del panel de depuración para mantenerlo centrado en el viewport.
+func _layout_for_viewport() -> void:
+	if is_instance_valid(panel):
+		panel.position = (get_viewport_rect().size - panel.size) * 0.5
 ## Enlaza las dependencias de negocio (Mesa, Estado, Orquestador) al overlay 
 ## para que las acciones de depuración puedan modificar los datos reales de la partida.
 func bind_context(p_table: Control, p_run: RunState, p_director: RunDirector) -> void:

@@ -28,6 +28,7 @@ var seed_label: Label
 
 var legend_label: Label
 var deck_btn: Button
+var copy_seed_btn: Button
 var grid_container: Control
 var room_buttons: Dictionary = {}
 
@@ -99,7 +100,7 @@ func _init() -> void:
 	seed_label.offset_bottom = -8
 	
 	
-	var copy_seed_btn := Button.new()
+	copy_seed_btn = Button.new()
 	copy_seed_btn.text = "COPIAR SEED"
 	copy_seed_btn.position = Vector2(920, 20)
 	copy_seed_btn.size = Vector2(150, 36)
@@ -135,6 +136,30 @@ func _init() -> void:
 	inventory_modal.weapon_selected_to_equip.connect(
 	_on_inventory_weapon_selected
 	)
+
+## Centra el contenido del mapa respecto al viewport actual y se suscribe a cambios de resolución.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+## Recalcula el desplazamiento del tablero 8x8 y cabecera del mapa para centrarlos en el viewport.
+func _layout_for_viewport() -> void:
+	var offset: Vector2 = (get_viewport_rect().size - Vector2(1152.0, 648.0)) * 0.5
+	if is_instance_valid(title_label):
+		title_label.position = Vector2(40, 14) + offset
+	if is_instance_valid(stats_label):
+		stats_label.position = Vector2(40, 42) + offset
+	if is_instance_valid(legend_label):
+		legend_label.position = Vector2(40, 88) + offset
+	if is_instance_valid(inventory_btn):
+		inventory_btn.position = Vector2(610, 20) + offset
+	if is_instance_valid(deck_btn):
+		deck_btn.position = Vector2(765, 20) + offset
+	if is_instance_valid(copy_seed_btn):
+		copy_seed_btn.position = Vector2(920, 20) + offset
+	if is_instance_valid(grid_container):
+		grid_container.position = Vector2(122, 114) + offset
+	queue_redraw()
 ## Inyecta el estado vivo de la partida (`p_run_ref`) y las cartas del jugador (`p_deck_cards`) desde `RunDirector.open_map()`.
 ## Actualiza las etiquetas de cabecera (Nivel, XP, Salud, Energía, Suerte, Oro, Probabilidades de drop por rareza),
 ## reconstruye la grilla de nodos visuales y solicita el repintado de las conexiones (`queue_redraw()`).

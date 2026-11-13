@@ -14,8 +14,9 @@ var cards_grid: GridContainer
 
 ## Conecta el botón de cierre del popup, adapta el layout visual con grilla de cartas y oculta el inspector al iniciar la escena.
 func _ready() -> void:
-	position = Vector2((1152.0 - 920.0) * 0.5, (648.0 - 520.0) * 0.5)
 	size = Vector2(920, 520)
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.07, 0.09, 0.14, 0.98)
@@ -59,6 +60,10 @@ func _ready() -> void:
 	close_btn.size = Vector2(160, 40)
 	close_btn.pressed.connect(func(): visible = false)
 	visible = false
+
+## Centra el panel del inspector de pilas respecto al tamaño actual del viewport.
+func _layout_for_viewport() -> void:
+	position = (get_viewport_rect().size - size) * 0.5
 
 ## Muestra visualmente las cartas de una `CardPile` agrupadas por nombre con su contador `"x1"` / `"xN"` arriba.
 func show_pile(pile: CardPile) -> void:

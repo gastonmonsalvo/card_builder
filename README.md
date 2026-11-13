@@ -59,6 +59,8 @@ godot --path .                          # abre el editor
 godot --path . --main-scene res://scenes/battle/battle_table.tscn
 ```
 
+- **Atajo de ventana (`F`):** Alterna en cualquier pantalla entre modo ventana (`1152x648` base, redimensionable dinámicamente manteniendo las proporciones centradas) y ventana completa maximizada (`Window.MODE_MAXIMIZED`). *(En Godot 4.4+, requiere ejecutar con ventana flotante desactivando `Embed Game on Next Play` en la pestaña Game).*
+
 > **Nota de arquitectura de arranque:** `battle_table.tscn` actúa como contenedor raíz del `SceneTree`. Al inicializarse, instancia `RunDirector`, el cual monta proceduralmente por código (`SlotSelectView`, `MainMenuView`, `HeroSelectView`, `MapView`, `ShopView`, `PauseMenuView`) como capas superpuestas por `z_index`.
 
 ---
@@ -119,7 +121,8 @@ card-prototype/
 ├── autoload/                               # Singletons globales (Autoloads)
 │   ├── game_database.gd                    # Escaneo y carga de catálogos (.tres) por directorio
 │   ├── persistence_manager.gd              # Guardado/Carga atómica en JSON (3 slots + perfil + last_slot.cfg)
-│   └── signal_bus.gd                       # Bus de señales globales desacopladas
+│   ├── signal_bus.gd                       # Bus de señales globales desacopladas
+│   └── window_controller.gd                # Atajo global (F) para alternar ventana normal / maximizada
 │
 ├── core/                                   # LÓGICA PURA (RefCounted, sin .tscn, sin nodos visuales)
 │   ├── combat/                             # Resolución matemática del combate

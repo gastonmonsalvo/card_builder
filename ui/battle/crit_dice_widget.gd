@@ -99,6 +99,16 @@ func _init() -> void:
 	_skip_hint_lbl.add_theme_color_override("font_color", Color(0.58, 0.65, 0.76, 0.85))
 	vbox.add_child(_skip_hint_lbl)
 
+## Posiciona el dado D100 centrado sobre la zona de combo y se suscribe a cambios de tamaño del viewport.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+## Recalcula la posición del dado D100 manteniendo su relación espacial sobre el tablero centrado.
+func _layout_for_viewport() -> void:
+	var vp_size: Vector2 = get_viewport_rect().size
+	position = Vector2((vp_size.x - size.x) * 0.5, ((vp_size.y - 648.0) * 0.5) + 140.0)
+
 ## Detecta el clic izquierdo sobre el panel del dado para interrumpir y saltar inmediatamente la animación en curso.
 func _gui_input(event: InputEvent) -> void:
 	if not visible:

@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 SignalBus="*res://autoload/signal_bus.gd"
 PersistenceManager="*uid://b8ftgeepsg0ya"
 GameDatabase="*uid://da6d4na6wcqdv"
+WindowController="*res://autoload/window_controller.gd"
 
 [display]
 

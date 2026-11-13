@@ -8,13 +8,14 @@
 
 - **Género:** 2D Tactical Roguelike Deckbuilder por Combos, Equipamiento RPG y Reacciones Elementales.
 - **Motor:** Godot Engine `4.3+` / `4.7` (GDScript 2.0 con tipado estático estricto).
-- **Resolución Base / Viewport:** `1152x648` (`canvas_items`, aspect `expand`), renderizador `mobile` (`d3d12`).
+- **Resolución Base / Viewport:** `1152x648` (`canvas_items`, aspect `expand`) con centrado dinámico ante `size_changed` en `battle_table.tscn` (`PRESET_CENTER` incluyendo `InventoryBtn`) y en todas las vistas/modales en código, renderizador `mobile` (`d3d12`).
 - **Escena Principal (`main_scene`):** `res://scenes/battle/battle_table.tscn` (`BattleTable`).
 - **Filosofía de UI:** Sólo existen **4 escenas `.tscn`** en todo el proyecto (`battle_table.tscn`, `card_ui.tscn`, `relic_ui.tscn`, `weapon_ui.tscn`). Todas las demás pantallas (`MapView`, `ShopView`, `RewardView`, `MainMenuView`, `HeroSelectView`, `SlotSelectView`) y modales (`InventoryModalView`, `SanctuaryModalView`, `InspectorModalView`, `PauseMenuView`, `DebugOverlay`) se construyen **100% por código en GDScript**, montadas sobre `BattleTable` mediante `z_index` por el mediador `RunDirector`.
 - **Autoloads Registrados (`project.godot`):**
   1. `SignalBus` → `res://autoload/signal_bus.gd`
   2. `PersistenceManager` → `res://autoload/persistence_manager.gd`
   3. `GameDatabase` → `res://autoload/game_database.gd`
+  4. `WindowController` → `res://autoload/window_controller.gd` *(atajo global `F` para alternar `MODE_WINDOWED` ↔ `MODE_MAXIMIZED`)*
 
 ---
 
@@ -53,7 +54,8 @@ card-prototype/
 ├── autoload/
 │   ├── signal_bus.gd              # [Observer / Event Bus] Señales globales desacopladas
 │   ├── game_database.gd           # [Registry / Asset Repository] Carga catálogos .tres
-│   └── persistence_manager.gd     # [Repository + Atomic Write] 3 slots (profile.json + run.json)
+│   ├── persistence_manager.gd     # [Repository + Atomic Write] 3 slots (profile.json + run.json)
+│   └── window_controller.gd       # [Global Input Controller] Toggle maximizado con tecla F
 ├── core/
 │   ├── constants/
 │   │   └── combat_constants.gd    # [Constants Catalog] Umbrales, rutas y constantes de balance

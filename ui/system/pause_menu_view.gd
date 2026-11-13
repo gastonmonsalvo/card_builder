@@ -12,6 +12,10 @@ signal abandon_run_requested()
 ## antes de volver al selector de ranuras o salir.
 signal quit_game_requested()
 
+## Referencia al panel principal del menú de pausa.
+var main_panel: Panel
+## Fondo oscuro bloqueador para el modal de confirmación.
+var confirm_backdrop: ColorRect
 ## Referencia al sub-panel modal oscuro utilizado para validar decisiones irreversibles (ej. Abandonar).
 var confirm_modal: PanelContainer
 ## Referencia a la etiqueta de texto dentro del modal de confirmación para inyectar advertencias personalizadas.
@@ -34,16 +38,17 @@ func _init() -> void:
 
 	# Fondo oscuro difuminado
 	var bg := ColorRect.new()
-	bg.size = Vector2(1152, 648)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.color = Color(0.02, 0.03, 0.05, 0.85)
 	add_child(bg)
 
 	# Panel central
-	var panel := Panel.new()
+	main_panel = Panel.new()
 	var p_w: float = 380.0
 	var p_h: float = 360.0
-	panel.size = Vector2(p_w, p_h)
-	panel.position = Vector2((1152.0 - p_w) * 0.5, (648.0 - p_h) * 0.5)
+	main_panel.size = Vector2(p_w, p_h)
+	main_panel.position = Vector2((1152.0 - p_w) * 0.5, (648.0 - p_h) * 0.5)
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.10, 0.15, 0.98)
@@ -56,8 +61,8 @@ func _init() -> void:
 	style.corner_radius_top_right = 10
 	style.corner_radius_bottom_left = 10
 	style.corner_radius_bottom_right = 10
-	panel.add_theme_stylebox_override("panel", style)
-	add_child(panel)
+	main_panel.add_theme_stylebox_override("panel", style)
+	add_child(main_panel)
 
 	# Título
 	var title := Label.new()
@@ -67,14 +72,14 @@ func _init() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	panel.add_child(title)
+	main_panel.add_child(title)
 
 	# Contenedor vertical de botones
 	var vbox := VBoxContainer.new()
 	vbox.position = Vector2(50, 80)
 	vbox.size = Vector2(p_w - 100, 240)
 	vbox.add_theme_constant_override("separation", 14)
-	panel.add_child(vbox)
+	main_panel.add_child(vbox)
 
 	var btn_resume := Button.new()
 	btn_resume.text = "CONTINUAR"
@@ -96,13 +101,35 @@ func _init() -> void:
 
 	_build_confirm_modal()
 
+## Centra los paneles del menú de pausa respecto al viewport actual y se suscribe a cambios de tamaño.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+## Recalcula la posición del panel principal y del modal de confirmación para mantenerlos centrados.
+func _layout_for_viewport() -> void:
+	var vp_size: Vector2 = get_viewport_rect().size
+	if is_instance_valid(main_panel):
+		main_panel.position = (vp_size - main_panel.size) * 0.5
+	if is_instance_valid(confirm_modal):
+		confirm_modal.position = (vp_size - confirm_modal.size) * 0.5
+
 ## Construye e inyecta el modal secundario de advertencia para confirmar intenciones
 ##  y evitar borrados o abandonos accidentales por *misclick*.
 func _build_confirm_modal() -> void:
+	confirm_backdrop = ColorRect.new()
+	confirm_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	confirm_backdrop.color = Color(0.0, 0.0, 0.0, 0.55)
+	confirm_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	confirm_backdrop.z_index = 155
+	confirm_backdrop.visible = false
+	add_child(confirm_backdrop)
+
 	confirm_modal = PanelContainer.new()
 	confirm_modal.visible = false
-	var m_w: float = 400.0
+	var m_w: float = 420.0
 	var m_h: float = 180.0
+	confirm_modal.custom_minimum_size = Vector2(m_w, m_h)
 	confirm_modal.size = Vector2(m_w, m_h)
 	confirm_modal.position = Vector2((1152.0 - m_w) * 0.5, (648.0 - m_h) * 0.5)
 	confirm_modal.z_index = 160
@@ -134,6 +161,7 @@ func _build_confirm_modal() -> void:
 
 	confirm_label = Label.new()
 	confirm_label.text = "¿Seguro que deseas abandonar la run actual?"
+	confirm_label.custom_minimum_size = Vector2(360.0, 0.0)
 	confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	confirm_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	confirm_label.add_theme_font_size_override("font_size", 14)
@@ -149,6 +177,7 @@ func _build_confirm_modal() -> void:
 	btn_yes.custom_minimum_size = Vector2(100, 34)
 	btn_yes.modulate = Color(1.0, 0.4, 0.4)
 	btn_yes.pressed.connect(func():
+		confirm_backdrop.visible = false
 		confirm_modal.visible = false
 		if on_confirm_callback.is_valid():
 			on_confirm_callback.call()
@@ -158,19 +187,25 @@ func _build_confirm_modal() -> void:
 	var btn_no := Button.new()
 	btn_no.text = "CANCELAR"
 	btn_no.custom_minimum_size = Vector2(100, 34)
-	btn_no.pressed.connect(func(): confirm_modal.visible = false)
+	btn_no.pressed.connect(func():
+		confirm_backdrop.visible = false
+		confirm_modal.visible = false
+	)
 	hbox.add_child(btn_no)
 
 ## Abre la vista haciéndola visible y detiene el paso del tiempo en todo el juego
 ##  invocando `get_tree().paused = true`.
 func open_pause() -> void:
+	confirm_backdrop.visible = false
 	confirm_modal.visible = false
 	visible = true
+	_layout_for_viewport()
 	get_tree().paused = true
 
 ## Oculta la interfaz de pausa y reanuda el cálculo de físicas 
 ## y fotogramas globales (`get_tree().paused = false`).
 func close_pause() -> void:
+	confirm_backdrop.visible = false
 	confirm_modal.visible = false
 	visible = false
 	get_tree().paused = false
@@ -183,6 +218,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_ESCAPE:
 			if visible:
 				if confirm_modal.visible:
+					confirm_backdrop.visible = false
 					confirm_modal.visible = false
 				else:
 					_on_resume_pressed()
@@ -204,7 +240,9 @@ func _on_abandon_pressed() -> void:
 	on_confirm_callback = func():
 		close_pause()
 		abandon_run_requested.emit()
+	confirm_backdrop.visible = true
 	confirm_modal.visible = true
+	_layout_for_viewport.call_deferred()
 	
 ## Callback del botón "GUARDAR Y SALIR".
 ## Cierra la vista de pausa, descongela el SceneTree y emite quit_game_requested para que RunDirector

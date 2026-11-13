@@ -69,8 +69,14 @@ func _ready() -> void:
 		debug_overlay.bind_context(self, run, director)
 	if ability_button:
 		ability_button.pressed.connect(_on_ability_pressed)
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	# El juego arranca sin enemigo; los botones de combate deben iniciar desactivados.
 	refresh_ui()
+
+## Recalcula el layout espacial de las cartas cuando cambia el tamaño de la ventana.
+func _on_viewport_size_changed() -> void:
+	if board:
+		board.layout_cards.call_deferred()
 
 # --- INICIO DE COMBATE Y TURNOS ---
 ## Resetea el tablero físico recolectando cualquier carta sobrante, ordena al `DeckManager` 

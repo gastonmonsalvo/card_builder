@@ -15,6 +15,8 @@ signal relic_bought(relic: RelicData, cost: int)
 ## Emitida cuando el jugador presiona el botón "VOLVER AL MAPA", solicitando cerrar la tienda.
 signal closed()
 
+## Referencia al panel principal centrado en pantalla.
+var main_panel: Panel
 ## Referencia a la etiqueta visual que muestra el saldo actual de oro del jugador.
 var gold_label: Label
 ## Contenedor horizontal dinámico que aloja los botones de compra de las cartas.
@@ -38,10 +40,10 @@ func _init() -> void:
 	bg.color = Color(0.05, 0.05, 0.07, 0.96)
 	add_child(bg)
 
-	var panel := Panel.new()
-	panel.size = Vector2(860, 520)
-	panel.position = Vector2((1152.0 - 860.0) * 0.5, (648.0 - 520.0) * 0.5)
-	add_child(panel)
+	main_panel = Panel.new()
+	main_panel.size = Vector2(860, 520)
+	main_panel.position = Vector2((1152.0 - 860.0) * 0.5, (648.0 - 520.0) * 0.5)
+	add_child(main_panel)
 
 	var title := Label.new()
 	title.text = "TIENDA DEL BAZAR"
@@ -50,7 +52,7 @@ func _init() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	panel.add_child(title)
+	main_panel.add_child(title)
 
 	gold_label = Label.new()
 	gold_label.position = Vector2(30, 56)
@@ -58,7 +60,7 @@ func _init() -> void:
 	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gold_label.add_theme_font_size_override("font_size", 16)
 	gold_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
-	panel.add_child(gold_label)
+	main_panel.add_child(gold_label)
 
 	# Sección Cartas
 	var cards_lbl := Label.new()
@@ -66,14 +68,14 @@ func _init() -> void:
 	cards_lbl.position = Vector2(30, 90)
 	cards_lbl.size = Vector2(800, 20)
 	cards_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	panel.add_child(cards_lbl)
+	main_panel.add_child(cards_lbl)
 
 	cards_container = HBoxContainer.new()
 	cards_container.position = Vector2(40, 115)
 	cards_container.size = Vector2(780, 140)
 	cards_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	cards_container.add_theme_constant_override("separation", 20)
-	panel.add_child(cards_container)
+	main_panel.add_child(cards_container)
 
 	# Sección Reliquias
 	var relics_lbl := Label.new()
@@ -81,14 +83,14 @@ func _init() -> void:
 	relics_lbl.position = Vector2(30, 270)
 	relics_lbl.size = Vector2(800, 20)
 	relics_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	panel.add_child(relics_lbl)
+	main_panel.add_child(relics_lbl)
 
 	relics_container = HBoxContainer.new()
 	relics_container.position = Vector2(40, 295)
 	relics_container.size = Vector2(780, 130)
 	relics_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	relics_container.add_theme_constant_override("separation", 24)
-	panel.add_child(relics_container)
+	main_panel.add_child(relics_container)
 
 	# Botón Salir
 	var close_btn := Button.new()
@@ -99,7 +101,17 @@ func _init() -> void:
 		visible = false
 		closed.emit()
 	)
-	panel.add_child(close_btn)
+	main_panel.add_child(close_btn)
+
+## Centra el panel principal respecto al viewport actual y se suscribe a cambios de tamaño.
+func _ready() -> void:
+	_layout_for_viewport()
+	get_viewport().size_changed.connect(_layout_for_viewport)
+
+## Recalcula la posición del panel principal de la tienda para mantenerlo centrado en el viewport.
+func _layout_for_viewport() -> void:
+	if is_instance_valid(main_panel):
+		main_panel.position = (get_viewport_rect().size - main_panel.size) * 0.5
 
 ## Inyecta el inventario de la tienda generado por el `RunState`. 
 ## Limpia instancias previas y genera un botón interactivo por cada ítem listado. 

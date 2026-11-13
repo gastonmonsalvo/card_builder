@@ -47,7 +47,8 @@ card-prototype/
 ├── autoload/
 │   ├── game_database.gd
 │   ├── persistence_manager.gd
-│   └── signal_bus.gd
+│   ├── signal_bus.gd
+│   └── window_controller.gd
 │
 ├── core/
 │   ├── combat/
@@ -349,6 +350,7 @@ flowchart TD
 | `signal_bus.gd` | `SignalBus` (`Node`) | **Observer / Event Bus (Pub-Sub)** | Declara 5 señales globales desacopladas: `card_played(card_data: CardData)`, `relic_acquired(relic: RelicData)`, `room_entered(room: RoomData)`, `floor_started(floor_number: int)` y `player_leveled_up(new_level: int)`. |
 | `game_database.gd` | `GameDatabase` (`Node`) | **Registry / Asset Repository (Singleton)** | Escanea directorios con `ResourceLoader.list_directory()` usando las rutas de `CombatConstants`. Expone `load_all_heroes()` (ordenados por `sort_order`), `load_all_cards()` (recursivo, ignorando `effects/`), `load_all_relics()`, `load_all_enemies()` y `load_all_weapons()`. |
 | `persistence_manager.gd` | `PersistenceManager` (`Node`) | **Repository + Atomic Write Persistence** | Administra hasta 3 ranuras (`user://saves/slot_1..3/profile.json` y `run.json`) y el puntero de auto-arranque `user://last_slot.cfg`. Implementa escritura atómica (`_write_atomic`: escribe en `.tmp` y renombra) para evitar corrupción de JSON. |
+| `window_controller.gd` | `WindowController` (`Node`) | **Global Input Controller** | Autoload con `PROCESS_MODE_ALWAYS` que escucha `KEY_F` en `_unhandled_input()` para alternar `Window.MODE_WINDOWED` ↔ `Window.MODE_MAXIMIZED`, ignorando campos de texto con foco (`LineEdit`/`TextEdit`) y advirtiendo si corre embebido en el editor (`Engine.is_embedded_in_editor()`). |
 
 ---
 
@@ -556,6 +558,14 @@ Todo el código fuente GDScript del proyecto (excluyendo addons de terceros como
 
 - **Decisión:** Se reemplazaron todas las cadenas condicionales `if effect is BurnEffect or effect is PoisonEffect...` en `CardData` y `CombatResolver` por métodos virtuales polimórficos en la clase base `CardEffect` (`is_status_effect()`, `is_offensive()`, `get_status_icon()`, `get_emblem_icon()`).
 - **Justificación técnica:** El uso de *type-switching* manual violaba el **Open/Closed Principle (OCP)** y fue la causa raíz de bugs silenciosos (por ejemplo, cuando se agregó `ApplyStatusEffect`, `CombatResolver._is_status_effect()` no lo incluía y permitía aplicar estados alterados aun cuando el jugador no cumplía los requisitos de atributos del arma). Con polimorfismo en `CardEffect`, cada efecto encapsula el 100% de sus reglas de negocio y presentación en su propio script.
+
+### 7.9 Decisión: Viewport Adaptativo (`canvas_items` + `expand`) y Centrado Dinámico de UI
+
+- **Decisión:** El proyecto conserva la resolución lógica base `1152x648` con `window/stretch/mode="canvas_items"` y `window/stretch/aspect="expand"`, pero todos los elementos de interfaz se centran dinámicamente respecto al tamaño real del viewport en lugar de asumir coordenadas fijas desde `(0, 0)`:
+  - **Escena principal (`battle_table.tscn`):** Todos los paneles y botones de mesa (`ComboZone`, `HandZone`, `AttackButton`, `DiscardButton`, `AbilityButton`, `PlayerPanel`, `EnemyPanel`, `ComboBannerLabel`, `DrawPileBtn`, `DiscardPileBtn`, `GraveyardPileBtn` y el botón `InventoryBtn` integrado como nodo de escena en `HUD`) utilizan `anchors_preset = 8` (`PRESET_CENTER`). `BattleTable` escucha `viewport.size_changed` para reejecutar `board.layout_cards()` de forma diferida.
+  - **Vistas y modales en código:** Los fondos cubren `PRESET_FULL_RECT`, mientras que los paneles centrales (`MapView`, `MainMenuView`, `HeroSelectView`, `SlotSelectView`, `ShopView`, `RewardView`, `InventoryModalView`, `PileInspector`, `InspectorModalView`, `SanctuaryModalView`, `PauseMenuView`, `CritDiceWidget`, `DebugOverlay`) se reposicionan dinámicamente al dispararse `viewport.size_changed`.
+  - **Modales con texto multilínea (`PauseMenuView` y `SanctuaryModalView`):** `PauseMenuView` aísla su modal de confirmación con un `ColorRect` bloqueador (`confirm_backdrop`) y `custom_minimum_size` explícito en etiqueta y contenedor; `SanctuaryModalView` (`600x320`) usa `MarginContainer` + `VBoxContainer` con `AUTOWRAP_WORD_SMART` en los botones de bendición para evitar recortes o desbordamientos.
+  - **Atajo global de ventana (`WindowController`):** Centralizado como Autoload con `PROCESS_MODE_ALWAYS` para que la tecla `F` funcione incluso en estados donde `BattleTable` tiene `PROCESS_MODE_DISABLED` (como `RewardView`).
 
 ---
 

@@ -23,6 +23,7 @@ var card_ui_scene: PackedScene = preload(CombatConstants.CARD_UI_SCN)
 
 # Nodos UI (creados en código)
 var _root_panel: Panel
+var _center_container: CenterContainer
 var _vbox: VBoxContainer
 var _title_label: Label
 var _gold_label: Label
@@ -129,15 +130,19 @@ func _build_ui() -> void:
 	_root_panel.add_theme_stylebox_override("panel", stylebox)
 	add_child(_root_panel)
 
-	var center_container := CenterContainer.new()
-	center_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center_container.custom_minimum_size = vp_size
-	_root_panel.add_child(center_container)
+	_center_container = CenterContainer.new()
+	_center_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_center_container.custom_minimum_size = vp_size
+	_root_panel.add_child(_center_container)
 
 	_vbox = VBoxContainer.new()
 	_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	_vbox.add_theme_constant_override("separation", 9)
-	center_container.add_child(_vbox)
+	_center_container.add_child(_vbox)
+
+	var vp := get_viewport()
+	if vp and not vp.size_changed.is_connected(_layout_for_viewport):
+		vp.size_changed.connect(_layout_for_viewport)
 
 	_title_label = Label.new()
 	_title_label.text = "VICTORIA"
@@ -425,3 +430,13 @@ func _on_skip_button_pressed() -> void:
 	_is_selecting = true
 	skipped.emit()
 	_close()
+
+## Adapta el tamaño del contenedor raíz de recompensas cuando cambia la resolución de la ventana.
+func _layout_for_viewport() -> void:
+	var vp_size := get_viewport_rect().size
+	size = vp_size
+	custom_minimum_size = vp_size
+	if is_instance_valid(_root_panel):
+		_root_panel.custom_minimum_size = vp_size
+	if is_instance_valid(_center_container):
+		_center_container.custom_minimum_size = vp_size
