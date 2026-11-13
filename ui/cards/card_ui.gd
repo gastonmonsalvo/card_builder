@@ -117,6 +117,11 @@ func setup_card(data: CardData) -> void:
 	art_style.corner_radius_bottom_left = 4
 	art_style.corner_radius_bottom_right = 4
 	art_panel.add_theme_stylebox_override("panel", art_style)
+	
+	art_panel.clip_contents = true
+	art_texture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 
 	if data.artwork != null:
 		art_texture.texture = data.artwork
